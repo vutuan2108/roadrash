@@ -1,0 +1,17 @@
+{
+  "name": "highway-brawl",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Highway Brawl 3D - đua xe mô tô đấm nhau, chơi online nhiều người",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "build:web": "node scripts/build-web.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

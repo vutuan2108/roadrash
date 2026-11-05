@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Highway Brawl 3D</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  body { display: flex; align-items: center; justify-content: center; }
+  #wrap {
+    position: relative;
+    width: min(100vw, calc(100vh * 1.6));
+    height: min(100vh, calc(100vw / 1.6));
+    background: #000;
+  }
+  #wrap canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+  #wrap { container-type: size; }
+  /* ---- online lobby / waiting room ---- */
+  #online { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 5;
+    font-family: VT323, "Courier New", monospace; font-size: clamp(14px, 4.4cqh, 30px); color: #fff; }
+  #online[hidden], #online [hidden] { display: none !important; }
+  .ol-panel { width: 82%; max-height: 92%; overflow-y: auto; box-sizing: border-box; padding: 0.6em 1em 0.8em;
+    background: rgba(8, 12, 40, 0.92); border: 3px solid #ffd23a; box-shadow: inset 0 0 0 2px #8a5a00, 0 0 30px #000a; }
+  .ol-title { text-align: center; font-size: 1.7em; color: #ffd23a; letter-spacing: 0.08em; text-shadow: 2px 2px #000; }
+  .ol-sub { color: #9fe0ff; margin: 0.5em 0 0.2em; }
+  .ol-row { display: flex; align-items: center; gap: 0.5em; margin: 0.35em 0; flex-wrap: wrap; }
+  .ol-row > span { flex: 1; }
+  #online button, #online input { font: inherit; border-radius: 3px; }
+  #online button { background: #1a2350; color: #ffd23a; border: 2px solid #ffd23a; padding: 0.05em 0.7em; cursor: pointer; }
+  #online button:hover:not(:disabled) { background: #2c3a7a; }
+  #online button:disabled { opacity: 0.4; cursor: default; }
+  #online button.ol-main { background: #ffd23a; color: #1a1300; padding: 0.1em 1.2em; }
+  #online button.ol-main:hover:not(:disabled) { background: #ffe680; }
+  #online input { background: #00000088; color: #fff; border: 2px solid #8a5a00; padding: 0.05em 0.4em; outline: none; }
+  #online input:focus { border-color: #ffd23a; }
+  #ol-name { flex: 1; min-width: 6em; }
+  #ol-code { width: 5em; text-transform: uppercase; letter-spacing: 0.15em; }
+  .ol-list { border: 1px solid #ffffff30; background: #00000040; min-height: 2.2em; max-height: 9.5em; overflow-y: auto; }
+  .ol-item { display: flex; align-items: center; gap: 0.6em; padding: 0.05em 0.5em; border-bottom: 1px solid #ffffff18; }
+  .ol-item > span:first-child { flex: 1; }
+  .ol-item.me { background: #ffd23a22; color: #ffd23a; }
+  .ol-bike { color: #9fe0ff; }
+  .ol-chip { font-size: 0.8em; padding: 0 0.4em; border-radius: 3px; }
+  .ol-chip.host { background: #ffd23a; color: #1a1300; } .ol-chip.ok { background: #2f9a3a; } .ol-chip.wait { background: #5a5f6a; }
+  .ol-empty { color: #a8b8d0; padding: 0.3em 0.5em; }
+  .ol-code { color: #ffd23a; font-size: 1.4em; letter-spacing: 0.15em; }
+  .ol-theme { min-width: 9em; text-align: center; color: #ffd23a; }
+  .ol-note { color: #a8b8d0; font-size: 0.8em; margin: 0.3em 0; }
+  #ol-wait { color: #7fff7f; }
+  #ol-status { color: #9fe0ff; } #ol-status.bad { color: #ff8a8a; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="gl"></canvas>
+  <canvas id="game"></canvas>
+  <div id="online" hidden>
+    <div class="ol-panel">
+      <div class="ol-title">CHƠI ONLINE</div>
+      <div id="ol-lobby">
+        <div class="ol-row"><span style="flex:0">Tên của bạn</span><input id="ol-name" maxlength="14" autocomplete="off" spellcheck="false"></div>
+        <div class="ol-row">
+          <button id="ol-create" class="ol-main">TẠO PHÒNG MỚI</button>
+          <span style="flex:0;margin-left:1em">hoặc nhập mã</span>
+          <input id="ol-code" maxlength="4" autocomplete="off" spellcheck="false" placeholder="ABCD"><button id="ol-join">VÀO PHÒNG</button>
+        </div>
+        <div class="ol-sub">Phòng đang chờ</div>
+        <div id="ol-list" class="ol-list"></div>
+      </div>
+      <div id="ol-room" hidden>
+        <div class="ol-row"><span>Mã phòng: <b id="ol-rcode" class="ol-code"></b></span><button id="ol-copy">SAO CHÉP LINK MỜI</button></div>
+        <div class="ol-row"><span style="flex:0">Chặng</span><button id="ol-prev">&#9664;</button><b id="ol-theme" class="ol-theme"></b><button id="ol-next">&#9654;</button></div>
+        <div id="ol-players" class="ol-list"></div>
+        <div class="ol-note">Tối đa 8 người, tay đua máy lấp chỗ trống cho đủ 12 xe. Bạn đua bằng chiếc xe đang chọn trong cửa hàng.</div>
+        <div class="ol-row"><button id="ol-ready" class="ol-main">SẴN SÀNG</button><button id="ol-start" class="ol-main">BẮT ĐẦU ĐUA</button><span id="ol-wait"></span></div>
+      </div>
+      <div class="ol-row"><button id="ol-back">QUAY LẠI</button><span id="ol-status"></span></div>
+    </div>
+  </div>
+</div>
+<script src="js/lib/three.min.js"></script>
+<script src="js/core.js"></script>
+<script src="js/track.js"></script>
+<script src="js/race.js"></script>
+<script src="js/g3/gfx.js"></script>
+<script src="js/g3/models.js"></script>
+<script src="js/g3/world.js"></script>
+<script src="js/hud.js"></script>
+<script src="js/config.js"></script>
+<script src="js/net.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
