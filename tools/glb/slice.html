@@ -1,0 +1,48 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;background:#111}canvas{display:block}</style></head>
+<body><canvas id="c"></canvas><div id="info"></div>
+<script src="data.js"></script>
+<script>
+// Cross-section contours of the mesh (game frame: x left, y up, z forward; ground at y=0).
+// ?s=axis:value,... e.g. z:0.646 (cut across at that z, plot x/y) or x:0.0 (cut lengthwise, plot z/y)
+function parse(ab) {
+  const dv = new DataView(ab); let off = 12, json, bin;
+  while (off < ab.byteLength) { const len = dv.getUint32(off, true), t = dv.getUint32(off + 4, true);
+    if (t === 0x4E4F534A) json = JSON.parse(new TextDecoder().decode(new Uint8Array(ab, off + 8, len))); else bin = ab.slice(off + 8, off + 8 + len); off += 8 + len; }
+  const p = json.meshes[0].primitives[0], acc = i => { const a = json.accessors[i], bv = json.bufferViews[a.bufferView];
+    return new (a.componentType === 5126 ? Float32Array : a.componentType === 5125 ? Uint32Array : Uint16Array)(bin, (bv.byteOffset || 0) + (a.byteOffset || 0), a.count * (a.type === 'VEC3' ? 3 : 1)); };
+  const P0 = acc(p.attributes.POSITION), I = acc(p.indices), n = P0.length / 3, P = new Float32Array(n * 3);
+  let gy = 1e9; for (let i = 0; i < n; i++) gy = Math.min(gy, P0[i * 3 + 1]);
+  for (let i = 0; i < n; i++) { P[i * 3] = -P0[i * 3 + 2]; P[i * 3 + 1] = P0[i * 3 + 1] - gy; P[i * 3 + 2] = P0[i * 3]; }
+  return { P, I };
+}
+const bytes = Uint8Array.from(atob(GLB_B64), c => c.charCodeAt(0)), { P, I } = parse(bytes.buffer);
+const Q = new URLSearchParams(location.search);
+const S = (Q.get('s') || 'z:0.646,z:0.55,z:-0.584,z:-0.45,x:0,x:0.07').split(',').map(t => { const [a, v] = t.split(':'); return { a, v: +v }; });
+const cols = 3, cw = 600, ch = 480, cv = document.getElementById('c'); cv.width = cw * cols; cv.height = ch * Math.ceil(S.length / cols);
+const g = cv.getContext('2d'); g.fillStyle = '#15181d'; g.fillRect(0, 0, cv.width, cv.height);
+S.forEach((s, k) => {
+  const ox = (k % cols) * cw, oy = Math.floor(k / cols) * ch, ax = { z: 2, x: 0, y: 1 }[s.a];
+  // plot ranges: cross (x,y) -> x in [-0.45,0.45], y [0,1.3]; lengthwise (z,y) -> z [-1.05,1.05], y [0,1.3]
+  const [u, v] = s.a === 'z' ? [0, 1] : s.a === 'y' ? [0, 2] : [2, 1], ur = s.a === 'x' ? [-1.05, 1.05] : [-0.45, 0.45], vr = s.a === 'y' ? [+(Q.get('z0') || 0.3), +(Q.get('z0') || 0.3) + 0.6] : [0, 1.3];
+  const sc = Math.min((cw - 20) / (ur[1] - ur[0]), (ch - 30) / (vr[1] - vr[0]));
+  const sc2 = s.a === 'y' ? Math.min((cw - 20) / 0.9, (ch - 30) / 0.6) : sc, px = a => ox + cw / 2 + (a - (ur[0] + ur[1]) / 2) * sc2, py = b => oy + ch - 10 - (b - vr[0]) * sc2;
+  g.strokeStyle = '#2c323c'; g.lineWidth = 1;
+  for (let t = Math.ceil(ur[0] * 10) / 10; t <= ur[1]; t += 0.1) { g.beginPath(); g.moveTo(px(t), oy + 20); g.lineTo(px(t), oy + ch - 10); g.stroke(); }
+  for (let t = Math.ceil(vr[0] * 10) / 10; t <= vr[1]; t += 0.1) { g.beginPath(); g.moveTo(ox + 10, py(t)); g.lineTo(ox + cw - 10, py(t)); g.stroke(); }
+  g.strokeStyle = '#4a5260'; g.beginPath(); g.moveTo(px(0), oy + 20); g.lineTo(px(0), oy + ch - 10); g.stroke();
+  g.strokeStyle = '#f0f0f0'; g.lineWidth = 1.5; g.beginPath();
+  for (let t = 0; t < I.length; t += 3) {
+    const pts = [];
+    for (let e = 0; e < 3; e++) {
+      const a = I[t + e], b = I[t + (e + 1) % 3], da = P[a * 3 + ax] - s.v, db = P[b * 3 + ax] - s.v;
+      if ((da < 0) !== (db < 0)) { const f = da / (da - db); pts.push([P[a * 3 + u] + (P[b * 3 + u] - P[a * 3 + u]) * f, P[a * 3 + v] + (P[b * 3 + v] - P[a * 3 + v]) * f]); }
+    }
+    if (pts.length === 2) { g.moveTo(px(pts[0][0]), py(pts[0][1])); g.lineTo(px(pts[1][0]), py(pts[1][1])); }
+  }
+  g.stroke();
+  g.fillStyle = '#ffd040'; g.font = '16px monospace'; g.fillText(`${s.a} = ${s.v}  (grid 0.1 m)`, ox + 12, oy + 18);
+  g.strokeStyle = '#000'; g.lineWidth = 2; g.strokeRect(ox, oy, cw, ch);
+});
+document.getElementById('info').textContent = 'ok'; window.RESULT = 1;
+</script></body></html>

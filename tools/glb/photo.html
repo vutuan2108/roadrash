@@ -1,0 +1,144 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;background:#111}canvas{display:block}</style></head>
+<body><canvas id="c"></canvas>
+<script src="file:///F:/hb_tmp/wx/photo.js"></script>
+<script src="data.js"></script>
+<script>
+// Photo analysis: background flood fill -> bike mask, tyre circles, colour classes.
+window.RESULT = null;
+const img = new Image();
+img.onload = () => {
+  const W = img.width, H = img.height, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const g = cv.getContext('2d'); g.drawImage(img, 0, 0);
+  const D = g.getImageData(0, 0, W, H).data;
+  // background: light neutral grey connected to the border (studio gradient + soft floor shadow)
+  const bg = new Uint8Array(W * H), st = [];
+  const isBg = i => { const r = D[i * 4], gg = D[i * 4 + 1], b = D[i * 4 + 2], mx = Math.max(r, gg, b), mn = Math.min(r, gg, b);
+    return mx - mn < 20 && mx > 95; };
+  for (let x = 0; x < W; x++) { st.push(x, (H - 1) * W + x); } for (let y = 0; y < H; y++) { st.push(y * W, y * W + W - 1); }
+  while (st.length) { const i = st.pop(); if (bg[i] || !isBg(i)) continue; bg[i] = 1; const x = i % W, y = (i / W) | 0;
+    if (x > 0) st.push(i - 1); if (x < W - 1) st.push(i + 1); if (y > 0) st.push(i - W); if (y < H - 1) st.push(i + W); }
+  // bike bounds
+  let x0 = W, x1 = 0, y0 = H, y1 = 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (!bg[y * W + x]) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  // tyres: outermost non-background pixel per angle over the lower half around an iterated centre (circle fit)
+  function fit(pts) {
+    let sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0, sxz = 0, syz = 0, sz = 0; const n = pts.length;
+    for (const [x, y] of pts) { const z = x * x + y * y; sx += x; sy += y; sxx += x * x; syy += y * y; sxy += x * y; sxz += x * z; syz += y * z; sz += z; }
+    const A = [[sxx, sxy, sx, sxz], [sxy, syy, sy, syz], [sx, sy, n, sz]];
+    for (let c = 0; c < 3; c++) { let p = c; for (let r = c + 1; r < 3; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r; [A[c], A[p]] = [A[p], A[c]];
+      for (let r = 0; r < 3; r++) if (r !== c) { const f = A[r][c] / A[c][c]; for (let k = c; k < 4; k++) A[r][k] -= f * A[c][k]; } }
+    const a = A[0][3] / A[0][0], b = A[1][3] / A[1][1], c = A[2][3] / A[2][2]; return { cx: a / 2, cy: b / 2, r: Math.sqrt(c + a * a / 4 + b * b / 4) };
+  }
+  function tyre(cx, cy, r, a0, a1) {
+    let c = { cx, cy, r };
+    for (let it = 0; it < 6; it++) {
+      const pts = [];
+      for (let a = a0; a < a1; a += 0.02) {   // lower half in image coords (y down): angles 0..PI
+        const dx = Math.cos(a), dy = Math.sin(a);
+        let best = 0; for (let t = c.r * 0.8; t < c.r * 1.1; t += 1) { const x = Math.round(c.cx + dx * t), y = Math.round(c.cy + dy * t);
+          if (x < 0 || y < 0 || x >= W || y >= H) break; const i = y * W + x, dark = D[i * 4] + D[i * 4 + 1] + D[i * 4 + 2] < 150;
+          if (dark) best = t; }
+        if (best) pts.push([c.cx + dx * best, c.cy + dy * best]);
+      }
+      c = fit(pts);
+    }
+    return c;
+  }
+  const RW = tyre(1010, 1490, 440, 1.25, 2.95), FW = tyre(2945, 1530, 426, 0.2, 1.9);
+  // colour classes
+  const CL = ['bg', 'red', 'blue', 'lblue', 'white', 'black', 'dgrey', 'silver', 'gold', 'redD'];
+  const cls = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) {
+    if (bg[i]) { cls[i] = 0; continue; }
+    const r = D[i * 4] / 255, gg = D[i * 4 + 1] / 255, b = D[i * 4 + 2] / 255, mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), v = mx, s = mx ? (mx - mn) / mx : 0;
+    let h = 0; if (mx > mn) { if (mx === r) h = ((gg - b) / (mx - mn) + 6) % 6; else if (mx === gg) h = (b - r) / (mx - mn) + 2; else h = (r - gg) / (mx - mn) + 4; } h *= 60;
+    let k;
+    if (s > 0.28 && v > 0.18 && (h < 22 || h > 330)) k = 1;
+    else if (s > 0.3 && v > 0.15 && h > 195 && h < 260) k = (v > 0.75 && h < 222) ? 3 : 2;
+    else if (s > 0.35 && v > 0.35 && h >= 30 && h <= 60) k = 8;
+    else if (v > 0.84 && s < 0.2) k = 4;
+    else if (v < 0.2) k = 5;
+    else if (s < 0.25 && v > 0.55) k = 7;
+    else if (s < 0.3) k = 6;
+    else k = 5;
+    cls[i] = k;
+  }
+  window.CLS = cls; window.DIM = { W, H };
+  // preview: classes in flat colours, mask outline, tyre circles
+  const PAL = [[40, 44, 52], [205, 24, 34], [30, 62, 170], [70, 150, 235], [244, 244, 244], [18, 18, 22], [70, 72, 78], [185, 190, 196], [200, 160, 60], [120, 10, 16]];
+  const sc = Q => Q, out = document.getElementById('c'), ow = 1950, oh = Math.round(H * ow / W); out.width = ow; out.height = oh * 3;
+  const og = out.getContext('2d'); og.drawImage(img, 0, 0, ow, oh);
+  const id = og.createImageData(ow, oh);
+  for (let y = 0; y < oh; y++) for (let x = 0; x < ow; x++) { const k = cls[Math.floor(y * H / oh) * W + Math.floor(x * W / ow)], p = PAL[k], j = (y * ow + x) * 4;
+    id.data[j] = p[0]; id.data[j + 1] = p[1]; id.data[j + 2] = p[2]; id.data[j + 3] = 255; }
+  og.putImageData(id, 0, oh);
+  const f = ow / W; og.strokeStyle = '#0f0'; og.lineWidth = 2;
+  for (const c of [RW, FW]) for (const oy of [0, oh]) { og.beginPath(); og.arc(c.cx * f, c.cy * f + oy, c.r * f, 0, Math.PI * 2); og.stroke(); }
+  og.strokeStyle = '#ff0'; og.strokeRect(x0 * f, y0 * f, (x1 - x0) * f, (y1 - y0) * f);
+  // mesh side silhouette over the photo: similarity transform from the mesh axles onto the photo axles
+  const MP = meshPts(), mA = [[-0.584, 0.322], [0.646, 0.315]], pA = [[RW.cx, RW.cy], [FW.cx, FW.cy]];
+  const cm = ([z, y]) => [z, -y], d1 = [cm(mA[1])[0] - cm(mA[0])[0], cm(mA[1])[1] - cm(mA[0])[1]], d2 = [pA[1][0] - pA[0][0], pA[1][1] - pA[0][1]];
+  const den = d1[0] * d1[0] + d1[1] * d1[1], kr = (d2[0] * d1[0] + d2[1] * d1[1]) / den, ki = (d2[1] * d1[0] - d2[0] * d1[1]) / den;
+  const m0 = cm(mA[0]), cr = pA[0][0] - (kr * m0[0] - ki * m0[1]), ci = pA[0][1] - (kr * m0[1] + ki * m0[0]);
+  const toP = (z, y) => { const a = z, b = -y; return [kr * a - ki * b + cr, kr * b + ki * a + ci]; };
+  og.drawImage(img, 0, oh * 2, ow, oh);
+  og.fillStyle = 'rgba(0,255,90,0.28)'; og.beginPath();
+  for (let t = 0; t < MP.I.length; t += 3) {
+    const q = [0, 1, 2].map(e => { const i = MP.I[t + e]; return toP(MP.P[i * 3 + 2], MP.P[i * 3 + 1]); });
+    if ((q[1][0] - q[0][0]) * (q[2][1] - q[0][1]) - (q[1][1] - q[0][1]) * (q[2][0] - q[0][0]) < 0) [q[1], q[2]] = [q[2], q[1]];   // same winding for all, so the fill does not cancel
+    og.moveTo(q[0][0] * f, q[0][1] * f + 2 * oh); og.lineTo(q[1][0] * f, q[1][1] * f + 2 * oh); og.lineTo(q[2][0] * f, q[2][1] * f + 2 * oh); og.closePath();
+  }
+  og.fill('nonzero');
+  // ---- livery texture: crop + downsample (2x2 majority), drop spoke gaps, smooth, fill the background from the nearest bike pixel
+  const CX = 300, CY = 40, SC = 0.6522, TW = 2048, TH = 1280, tc = new Uint8Array(TW * TH);
+  const meanC = Array.from({ length: 10 }, () => [0, 0, 0, 0]);
+  for (let i = 0; i < W * H; i++) { const k = cls[i]; if (!k) continue; const m = meanC[k]; m[0] += D[i * 4]; m[1] += D[i * 4 + 1]; m[2] += D[i * 4 + 2]; m[3]++; }
+  const inWheel = (x, y) => [RW, FW].some(c => Math.hypot(x - c.cx, y - c.cy) < c.r * 0.93);
+  for (let y = 0; y < TH; y++) for (let x = 0; x < TW; x++) {
+    const sx = CX + x / SC, sy = CY + y / SC, cnt = new Uint8Array(10);
+    for (const [dx, dy] of [[0, 0], [0.75, 0], [0, 0.75], [0.75, 0.75]]) { const px = Math.min(W - 1, Math.round(sx + dx)), py = Math.min(H - 1, Math.round(sy + dy)); cnt[cls[py * W + px]]++; }
+    let k = 0; for (let j = 1; j < 10; j++) if (cnt[j] > cnt[k]) k = j;
+    if (k === 4 && inWheel(sx, sy)) k = 0;
+    tc[y * TW + x] = k;
+  }
+  // majority filter (3x3, twice) on bike pixels: removes speckle from highlights and texture
+  for (let pass = 0; pass < 2; pass++) {
+    const src = tc.slice();
+    for (let y = 1; y < TH - 1; y++) for (let x = 1; x < TW - 1; x++) {
+      const i = y * TW + x; if (!src[i]) continue; const cnt = new Uint8Array(10);
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) cnt[src[i + dy * TW + dx]]++;
+      let k = src[i]; for (let j = 1; j < 10; j++) if (cnt[j] > cnt[k]) k = j; tc[i] = k;
+    }
+  }
+  // fill the background from the nearest bike pixel (BFS)
+  let q = []; for (let i = 0; i < TW * TH; i++) if (tc[i]) q.push(i);
+  while (q.length) { const nq = []; for (const i of q) { const x = i % TW, y = (i / TW) | 0;
+      for (const j of [x > 0 ? i - 1 : -1, x < TW - 1 ? i + 1 : -1, y > 0 ? i - TW : -1, y < TH - 1 ? i + TW : -1]) if (j >= 0 && !tc[j]) { tc[j] = tc[i]; nq.push(j); } }
+    q = nq; }
+  // RLE: 2 bytes per run (class << 12 | length), rows top to bottom
+  const bytes = [];
+  for (let y = 0; y < TH; y++) { let x = 0; while (x < TW) { const k = tc[y * TW + x]; let n = 1; while (x + n < TW && n < 4095 && tc[y * TW + x + n] === k) n++;
+      const v = (k << 12) | n; bytes.push(v >> 8, v & 255); x += n; } }
+  let bin = ''; for (const b of bytes) bin += String.fromCharCode(b);
+  window.RLE = btoa(bin);
+  window.TEXPREV = (() => { const c = document.createElement('canvas'); c.width = TW; c.height = TH; const g2 = c.getContext('2d'), im = g2.createImageData(TW, TH);
+    for (let i = 0; i < TW * TH; i++) { const p = PAL[tc[i]]; im.data[i * 4] = p[0]; im.data[i * 4 + 1] = p[1]; im.data[i * 4 + 2] = p[2]; im.data[i * 4 + 3] = 255; }
+    g2.putImageData(im, 0, 0); return c.toDataURL('image/png'); })();
+  window.RESULT = { W, H, bounds: [x0, y0, x1, y1], RW, FW, k: [kr, ki], c: [cr, ci], pxPerM: Math.hypot(kr, ki), crop: { CX, CY, SC, TW, TH }, rleBytes: bytes.length,
+    mean: meanC.map(m => m[3] ? '#' + m.slice(0, 3).map(v => Math.round(v / m[3]).toString(16).padStart(2, '0')).join('') + ' n' + m[3] : '-') };
+  document.title = JSON.stringify(window.RESULT);
+};
+function meshPts() {
+  const ab = Uint8Array.from(atob(GLB_B64), c => c.charCodeAt(0)).buffer, dv = new DataView(ab); let off = 12, json, bin;
+  while (off < ab.byteLength) { const len = dv.getUint32(off, true), t = dv.getUint32(off + 4, true);
+    if (t === 0x4E4F534A) json = JSON.parse(new TextDecoder().decode(new Uint8Array(ab, off + 8, len))); else bin = ab.slice(off + 8, off + 8 + len); off += 8 + len; }
+  const p = json.meshes[0].primitives[0], acc = i => { const a = json.accessors[i], bv = json.bufferViews[a.bufferView];
+    return new (a.componentType === 5126 ? Float32Array : a.componentType === 5125 ? Uint32Array : Uint16Array)(bin, (bv.byteOffset || 0) + (a.byteOffset || 0), a.count * (a.type === 'VEC3' ? 3 : 1)); };
+  const P0 = acc(p.attributes.POSITION), I = acc(p.indices), n = P0.length / 3, P = new Float32Array(n * 3);
+  let gy = 1e9; for (let i = 0; i < n; i++) gy = Math.min(gy, P0[i * 3 + 1]);
+  for (let i = 0; i < n; i++) { P[i * 3] = -P0[i * 3 + 2]; P[i * 3 + 1] = P0[i * 3 + 1] - gy; P[i * 3 + 2] = P0[i * 3]; }
+  return { P, I };
+}
+img.src = PHOTO;
+</script></body></html>

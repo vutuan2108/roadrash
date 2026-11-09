@@ -52,6 +52,7 @@
   .ol-note { color: #a8b8d0; font-size: 0.8em; margin: 0.3em 0; }
   #ol-wait { color: #7fff7f; }
   #ol-status { color: #9fe0ff; } #ol-status.bad { color: #ff8a8a; }
+  #online button.on { background: #ffd23a; color: #1a1300; }
 </style>
 </head>
 <body>
@@ -73,9 +74,10 @@
       </div>
       <div id="ol-room" hidden>
         <div class="ol-row"><span>Mã phòng: <b id="ol-rcode" class="ol-code"></b></span><button id="ol-copy">SAO CHÉP LINK MỜI</button></div>
+        <div class="ol-row"><span style="flex:0;white-space:nowrap">Thể loại</span><button id="ol-mbike">MÔ TÔ</button><button id="ol-mdrift">Ô TÔ DRIFT</button></div>
         <div class="ol-row"><span style="flex:0">Chặng</span><button id="ol-prev">&#9664;</button><b id="ol-theme" class="ol-theme"></b><button id="ol-next">&#9654;</button></div>
         <div id="ol-players" class="ol-list"></div>
-        <div class="ol-note">Tối đa 8 người, tay đua máy lấp chỗ trống cho đủ 12 xe. Bạn đua bằng chiếc xe đang chọn trong cửa hàng.</div>
+        <div id="ol-note" class="ol-note"></div>
         <div class="ol-row"><button id="ol-ready" class="ol-main">SẴN SÀNG</button><button id="ol-start" class="ol-main">BẮT ĐẦU ĐUA</button><span id="ol-wait"></span></div>
       </div>
       <div class="ol-row"><button id="ol-back">QUAY LẠI</button><span id="ol-status"></span></div>
@@ -86,8 +88,12 @@
 <script src="js/core.js"></script>
 <script src="js/track.js"></script>
 <script src="js/race.js"></script>
+<script src="js/drift.js"></script>
 <script src="js/g3/gfx.js"></script>
 <script src="js/g3/models.js"></script>
+<script src="js/g3/winnerx.js"></script>
+<script src="js/g3/cbr.js"></script>
+<script src="js/g3/c1k.js"></script>
 <script src="js/g3/world.js"></script>
 <script src="js/hud.js"></script>
 <script src="js/config.js"></script>

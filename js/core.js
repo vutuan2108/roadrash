@@ -91,6 +91,9 @@ const Input = {
     atkL: ['KeyZ', 'KeyJ'], atkR: ['KeyX', 'KeyK'], wheelie: ['ShiftLeft', 'ShiftRight', 'Space'],
     ok: ['Enter', 'Space'], back: ['Escape', 'Backspace'],
     pause: ['Escape', 'KeyP'], mute: ['KeyM'], quit: ['KeyQ'], repair: ['KeyR'],
+    // drift cars (the same keys most PC drift games use): handbrake, clutch, nitro, gears, camera, reset, horn
+    hand: ['Space'], clutch: ['ShiftLeft', 'ShiftRight'], nitro: ['KeyN'], gearUp: ['KeyE'], gearDn: ['KeyQ'], gearMode: ['KeyT'],
+    cam: ['KeyC'], reset: ['KeyR'], horn: ['KeyH'],
   },
   is(a) { return this.map[a].some(k => this.down[k]); },
   pressed(a) { return this.map[a].some(k => this.hit[k]); },
@@ -115,14 +118,21 @@ const Sound = {
     try {
       const ac = this.ac = new (window.AudioContext || window.webkitAudioContext)();
       this.master = ac.createGain(); this.master.gain.value = 0.5; this.master.connect(ac.destination);
-      const o1 = ac.createOscillator(), o2 = ac.createOscillator();
-      const f = ac.createBiquadFilter(), g = ac.createGain();
-      o1.type = 'sawtooth'; o2.type = 'square';
-      o1.frequency.value = 50; o2.frequency.value = 25;
-      f.type = 'lowpass'; f.frequency.value = 600; g.gain.value = 0;
-      o1.connect(f); o2.connect(f); f.connect(g); g.connect(this.master);
-      o1.start(); o2.start();
-      this.eng = { o1, o2, f, g };
+      // engine: three oscillators -> soft clipper (growl) -> low-pass -> volume -> firing-pulse tremolo
+      const o1 = ac.createOscillator(), o2 = ac.createOscillator(), o3 = ac.createOscillator(), pre = ac.createGain();
+      const ws = ac.createWaveShaper(), f = ac.createBiquadFilter(), g = ac.createGain(), am = ac.createGain();
+      const lfo = ac.createOscillator(), depth = ac.createGain();
+      o1.type = 'sawtooth'; o2.type = 'square'; o3.type = 'sawtooth';
+      o1.frequency.value = 50; o2.frequency.value = 25; o3.frequency.value = 75;
+      const curve = new Float32Array(1024);
+      for (let i = 0; i < 1024; i++) curve[i] = Math.tanh(2.4 * (i / 511.5 - 1));
+      ws.curve = curve; pre.gain.value = 0.55;
+      f.type = 'lowpass'; f.frequency.value = 600; f.Q.value = 2.2; g.gain.value = 0;
+      lfo.type = 'sine'; lfo.frequency.value = 20; depth.gain.value = 0.2; am.gain.value = 0.8;
+      o1.connect(pre); o2.connect(pre); o3.connect(pre); pre.connect(ws); ws.connect(f); f.connect(g); g.connect(am); am.connect(this.master);
+      lfo.connect(depth); depth.connect(am.gain);
+      o1.start(); o2.start(); o3.start(); lfo.start();
+      this.eng = { o1, o2, o3, f, g, lfo, depth, am };
       const len = ac.sampleRate;
       const buf = ac.createBuffer(1, len, ac.sampleRate);
       const d = buf.getChannelData(0);
@@ -131,13 +141,30 @@ const Sound = {
       this.music.init(this);
     } catch (e) { this.ac = null; }
   },
+  // engine character of each bike: [idle Hz, rev range Hz, filter base, filter range, firing-pulse depth, 3rd voice ratio]
+  // the inline fours scream high and smooth (the R1's crossplane a little lumpier); the twins thump
+  VOICES: [[40, 150, 320, 1500, 0.22, 1.5], [46, 195, 380, 2100, 0.2, 2], [40, 165, 340, 1700, 0.16, 1.5], [44, 210, 400, 2300, 0.1, 2],
+    [30, 108, 270, 1100, 0.3, 1.5], [32, 125, 280, 1300, 0.38, 1.5], [28, 104, 255, 1050, 0.45, 1.5],
+    // 150 cc singles buzz high and rough; the R15 revs highest; the SH's belt drive just drones
+    [50, 225, 420, 2500, 0.36, 2], [52, 235, 430, 2600, 0.34, 2], [50, 240, 440, 2700, 0.32, 2], [54, 270, 460, 2900, 0.3, 2], [46, 120, 360, 1200, 0.18, 1.5],
+    // the CBR250RR's parallel twin screams to 14,000 rpm
+    [52, 290, 480, 3200, 0.22, 2],
+    // the Fireblade's inline four
+    [45, 200, 390, 2200, 0.18, 2]],
+  voiceIdx: 0,
+  voice(i) { this.voiceIdx = i || 0; },   // a bike index, or a voice array of its own (the drift cars)
   engine(rpm, vol) {
     if (!this.eng) return;
-    const t = this.ac.currentTime, f = 38 + rpm * 150;
-    this.eng.o1.frequency.setTargetAtTime(f, t, 0.05);
-    this.eng.o2.frequency.setTargetAtTime(f * 0.5, t, 0.05);
-    this.eng.f.frequency.setTargetAtTime(300 + rpm * 1500, t, 0.05);
-    this.eng.g.gain.setTargetAtTime(vol, t, 0.08);
+    const t = this.ac.currentTime, V = Array.isArray(this.voiceIdx) ? this.voiceIdx : this.VOICES[this.voiceIdx] || this.VOICES[0];
+    const f = V[0] + rpm * V[1], E = this.eng;
+    E.o1.frequency.setTargetAtTime(f, t, 0.05);
+    E.o2.frequency.setTargetAtTime(f * 0.5, t, 0.05);
+    E.o3.frequency.setTargetAtTime(f * V[5] * 1.004, t, 0.05);
+    E.f.frequency.setTargetAtTime(V[2] + rpm * V[3], t, 0.05);
+    E.lfo.frequency.setTargetAtTime(f * 0.5, t, 0.05);
+    E.depth.gain.setTargetAtTime(V[4] * (1 - rpm * 0.5), t, 0.1);
+    E.am.gain.setTargetAtTime(1 - V[4] * 0.5, t, 0.1);
+    E.g.gain.setTargetAtTime(vol * 1.7, t, 0.08);   // a little louder than before
   },
   noise(dur, vol, freq, q, dest) {
     if (!this.ac) return;
@@ -166,6 +193,31 @@ const Sound = {
   thud() { this.noise(0.25, 0.4, 300, 0.7); },
   beep(f, dur) { this.tone(f, f, dur || 0.15, 0.25, 'square'); },
   siren() { this.tone(700, 1100, 0.35, 0.12, 'triangle'); },
+  // ---- drift cars ----
+  // tyre squeal: two detuned, warbling tones over band-passed noise; level 0..1, pitch ~1
+  skid(level, pitch) {
+    if (!this.ac) return;
+    if (!this.sk) {
+      const ac = this.ac, g = ac.createGain(), tone = ac.createGain(), nz = ac.createBufferSource(), bp = ac.createBiquadFilter();
+      g.gain.value = 0; tone.gain.value = 0.18; g.connect(this.master);
+      const os = [0, 1].map(k => { const o = ac.createOscillator(); o.type = 'triangle'; o.frequency.value = 1050 + k * 37; o.connect(tone); o.start(); return o; });
+      const lfo = ac.createOscillator(), ld = ac.createGain(); lfo.frequency.value = 9; ld.gain.value = 55; lfo.connect(ld);
+      for (const o of os) ld.connect(o.frequency);
+      lfo.start(); tone.connect(g);
+      nz.buffer = this.noiseBuf; nz.loop = true; bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 3;
+      nz.connect(bp); bp.connect(g); nz.start();
+      this.sk = { g, os, bp };
+    }
+    const t = this.ac.currentTime, S = this.sk, p = pitch || 1;
+    S.g.gain.setTargetAtTime(U.clamp(level, 0, 1) * 0.5, t, 0.05);
+    S.os[0].frequency.setTargetAtTime(980 * p, t, 0.1); S.os[1].frequency.setTargetAtTime(1020 * p, t, 0.1); S.bp.frequency.setTargetAtTime(1700 * p, t, 0.1);
+  },
+  shift() { this.noise(0.06, 0.3, 380, 1.2); },
+  blowoff() { this.noise(0.45, 0.2, 3400, 0.6); },
+  pop() { this.noise(0.05, 0.6, 220, 0.9); this.noise(0.04, 0.4, 300, 0.9, null); },
+  horn() { this.tone(415, 415, 0.4, 0.12, 'square'); this.tone(520, 520, 0.4, 0.1, 'square'); },
+  // everything that keeps sounding on its own: the engine and the tyres
+  quiet() { this.engine(0, 0); if (this.sk) this.skid(0, 1); },
   toggleMute() {
     this.muted = !this.muted;
     if (this.master) this.master.gain.value = this.muted ? 0 : 0.5;

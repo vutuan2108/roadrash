@@ -1,0 +1,56 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;background:#20242b}#lg{position:fixed;right:6px;top:6px;color:#fff;font:13px monospace;background:#000a;padding:4px}</style></head>
+<body><div id="lg"></div>
+<script src="file:///C:/Users/Administrator/Desktop/New%20folder/road%20rash/js/lib/three.min.js"></script>
+<script>
+// Authored .glb viewer: every material in its own colour (legend), node transforms applied. ?f=file &only=1,2 &hide=0
+// &v=views &zoom &ty &tz. Frame: the glTF one, shown with +x forward (as this model is built).
+const Q = new URLSearchParams(location.search), T = THREE;
+const FILE = Q.get('f') || 'file:///C:/Users/Administrator/Desktop/New%20folder/road%20rash/honda_cbr1000rr.glb';
+const only = Q.get('only') ? Q.get('only').split(',').map(Number) : null, hide = Q.get('hide') ? Q.get('hide').split(',').map(Number) : [];
+const x = new XMLHttpRequest(); x.open('GET', FILE); x.responseType = 'arraybuffer';
+x.onload = () => {
+  const ab = x.response, dv = new DataView(ab); let off = 12, json, bin;
+  while (off < ab.byteLength) { const len = dv.getUint32(off, true), t = dv.getUint32(off + 4, true);
+    if (t === 0x4E4F534A) json = JSON.parse(new TextDecoder().decode(new Uint8Array(ab, off + 8, len))); else bin = ab.slice(off + 8, off + 8 + len); off += 8 + len; }
+  const CT = { 5121: Uint8Array, 5123: Uint16Array, 5125: Uint32Array, 5126: Float32Array }, NC = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 };
+  const acc = i => { const a = json.accessors[i], bv = json.bufferViews[a.bufferView]; return new CT[a.componentType](bin, (bv.byteOffset || 0) + (a.byteOffset || 0), a.count * NC[a.type]); };
+  const nm = json.materials.length, cols = [];
+  for (let i = 0; i < nm; i++) cols.push(new T.Color().setHSL((i * 0.618) % 1, 0.75, i % 2 ? 0.45 : 0.6));
+  const mats = cols.map(c => new T.MeshStandardMaterial({ color: c, roughness: 0.5, metalness: 0.1, side: T.DoubleSide }));
+  const root = new T.Group();
+  const mk = i => { const n = json.nodes[i], o = new T.Group();
+    if (n.matrix) o.applyMatrix4(new T.Matrix4().fromArray(n.matrix));
+    if (n.translation) o.position.fromArray(n.translation); if (n.rotation) o.quaternion.fromArray(n.rotation); if (n.scale) o.scale.fromArray(n.scale);
+    if (n.mesh !== undefined) json.meshes[n.mesh].primitives.forEach(p => {
+      if ((only && !only.includes(p.material)) || hide.includes(p.material)) return;
+      const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(acc(p.attributes.POSITION), 3));
+      if (p.attributes.NORMAL !== undefined) g.setAttribute('normal', new T.BufferAttribute(acc(p.attributes.NORMAL), 3)); else g.computeVertexNormals();
+      if (p.indices !== undefined) g.setIndex(new T.BufferAttribute(acc(p.indices), 1));
+      o.add(new T.Mesh(g, mats[p.material]));
+    });
+    (n.children || []).forEach(c => o.add(mk(c))); return o; };
+  json.scenes[0].nodes.forEach(i => root.add(mk(i)));
+  if (Q.get('s')) { root.scale.setScalar(+Q.get('s')); root.updateMatrixWorld(true); }   // model units -> metres (?s=0.01 for cm)
+  const box = new T.Box3().setFromObject(root), size = box.getSize(new T.Vector3()), ctr = box.getCenter(new T.Vector3());
+  root.position.sub(ctr);
+  document.getElementById('lg').innerHTML = json.materials.map((m, i) => `<span style="color:#${cols[i].getHexString()}">■</span> ${i} ${m.name.slice(0, 28)}`).join('<br>') +
+    `<br>size ${size.x.toFixed(2)} ${size.y.toFixed(2)} ${size.z.toFixed(2)}`;
+  const W = innerWidth, H = innerHeight, ren = new T.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  ren.setSize(W, H); ren.setScissorTest(true); ren.outputEncoding = T.sRGBEncoding; document.body.appendChild(ren.domElement);
+  const scene = new T.Scene(); scene.add(root);
+  scene.add(new T.HemisphereLight(0xffffff, 0x404850, 0.8)); const sun = new T.DirectionalLight(0xffffff, 1.1); sun.position.set(2, 3, 2.5); scene.add(sun);
+  const fl = new T.DirectionalLight(0xffffff, 0.4); fl.position.set(-2, 1, -2); scene.add(fl);
+  // glTF frame: +x forward (to check), y up, z = width
+  const VIEWS = { R: [0, 0.05, 1], L: [0, 0.05, -1], F: [1, 0.1, 0], B: [-1, 0.15, 0], FR: [1, 0.4, 1], RR: [-1, 0.4, 1], T: [0, 1, 0.001], FL: [1, 0.4, -1] };
+  const vs = (Q.get('v') || 'R,L,F,B,FR,T').split(','), nc = +(Q.get('cols') || 3), nr = Math.ceil(vs.length / nc), vw = (W - 260) / nc, vh = H / nr;
+  const R = Math.max(size.x, size.y, size.z) * 1.1, zoom = +(Q.get('zoom') || 1), tgt = new T.Vector3(+(Q.get('tx') || 0), +(Q.get('ty') || 0), 0);
+  vs.forEach((k, i) => { const cam = new T.PerspectiveCamera(22 / zoom, vw / vh, 0.01, 100), d = new T.Vector3(...VIEWS[k]).normalize();
+    cam.position.copy(d.multiplyScalar(R * 2.7)).add(tgt); if (k === 'T') cam.up.set(1, 0, 0); cam.lookAt(tgt);
+    const px = (i % nc) * vw, py = H - (Math.floor(i / nc) + 1) * vh; ren.setViewport(px, py, vw, vh); ren.setScissor(px, py, vw, vh);
+    ren.setClearColor(i % 2 ? 0x2a2f38 : 0x262a32); ren.clear(); ren.render(scene, cam); });
+  window.RESULT = { size: size.toArray(), ctr: ctr.toArray() };
+};
+x.onerror = () => { window.RESULT = { err: 'load failed' }; };
+x.send();
+</script></body></html>

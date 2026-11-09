@@ -2,6 +2,7 @@
 // ============ Game shell: title, menus, shop, results, save, loop ============
 const Game = {
   state: 'title', t: 0, sel: 0, shopSel: 0, shopMsg: '', race: null, demo: null, res: null,
+  dsel: 0, gsel: 0, gmsg: '', drace: null, dres: null,
   last: 0, acc: 0, save: null, raceTheme: 0,
   PRIZES: [1500, 1000, 750, 500, 400, 300, 200, 150, 100, 50, 0, 0],
 
@@ -14,6 +15,7 @@ const Game = {
     }
     this.load();
     this.newDemo();
+    setTimeout(() => { const m = (DRIFT_CARS[this.save.dcar] || DRIFT_CARS[0]).model; Models.loadCar(m).then(() => Models.preloadCars()); }, 1200);
     // invite link (?room=ABCD): straight into that room's waiting list
     const code = new URLSearchParams(location.search).get('room');
     if (code) Net.open(code);
@@ -22,7 +24,8 @@ const Game = {
   load() {
     let s = null;
     try { s = JSON.parse(localStorage.getItem('hb_save') || 'null'); } catch (e) { s = null; }
-    this.save = Object.assign({ money: 2500000, level: 1, owned: [0], bike: 0, hp: { 0: BIKES[0].dur }, passed: [] }, s || {});
+    this.save = Object.assign({ money: 2500000, level: 1, owned: [0], bike: 0, hp: { 0: BIKES[0].dur }, passed: [],
+      dcars: [0], dcar: 0, dpaint: {}, dbest: {}, dai: 3 }, s || {});
     // one-time gift so existing saves also get the 2.5M starting money
     if (!this.save.gift) { this.save.money = Math.max(this.save.money, 2500000); this.save.gift = 1; this.store(); }
   },
@@ -56,7 +59,7 @@ const Game = {
     res.bonus = reason === 'quit' ? 0 : P.kos * 60 * s.level;
     s.money = Math.max(0, s.money + res.prize + res.bonus - res.fine);
     s.hp[s.bike] = P.bikeHp <= 0 || reason === 'wrecked' ? Math.round(BIKES[s.bike].dur * 0.4) : Math.round(P.bikeHp);
-    if (s.passed.length >= THEMES.length && s.level < 5) { s.level++; s.passed = []; res.levelUp = true; }
+    if (s.passed.length >= this.levelNeed() && s.level < 5) { s.level++; s.passed = []; res.levelUp = true; }
     res.money = s.money;
     this.store(); this.res = res; this.state = 'results';
     Sound.engine(0, 0);
@@ -100,24 +103,113 @@ const Game = {
         if (Input.pressed('back')) Net.close();
         break;
       case 'netrace': Net.update(dt); break;
+      case 'netdrift': Net.updateDrift(dt); break;
+      case 'netdres':
+        this.updDemo(dt);
+        if (Input.pressed('ok')) { Sound.beep(660, 0.08); Net.backToRoom(); }
+        break;
       case 'netres':
         this.updDemo(dt);
         if (Input.pressed('ok')) { Sound.beep(660, 0.08); Net.backToRoom(); }
         break;
+      // ---- drift cars
+      case 'dmenu': this.updDemo(dt); this.updDriftMenu(); break;
+      case 'garage': this.updDemo(dt); this.updGarage(); break;
+      case 'drift':
+        if (this.drace.ready === false) break;
+        if (Input.pressed('pause') && !this.drace.over) { this.state = 'dpause'; Sound.quiet(); break; }
+        this.drace.update(dt);
+        if (this.drace.over && this.drace.over.t > 4) this.finishDrift('finished');
+        break;
+      case 'dpause':
+        if (Input.pressed('quit')) this.finishDrift('quit');
+        else if (Input.pressed('ok') || Input.pressed('pause')) this.state = 'drift';
+        break;
+      case 'dres':
+        this.updDemo(dt);
+        if (Input.pressed('ok')) { this.state = 'dmenu'; Sound.beep(660, 0.08); }
+        break;
     }
   },
+  // ---------------- drift mode: stage list, garage, a run, results ----------------
+  driftBest(i) { return this.save.dbest[DRIFT_MAPS[i].id] || 0; },
+  carPaint(i) { return this.save.dpaint[i] || DRIFT_CARS[i].color; },
+  updDriftMenu() {
+    const n = DRIFT_MAPS.length + 4, AI = DRIFT_MAPS.length, s = this.save;
+    if (Input.pressed('up')) { this.dsel = (this.dsel + n - 1) % n; Sound.beep(520, 0.05); }
+    if (Input.pressed('down')) { this.dsel = (this.dsel + 1) % n; Sound.beep(520, 0.05); }
+    if (Input.pressed('back')) { this.state = 'menu'; return; }
+    // the number of computer drivers: left / right (or ENTER to step through)
+    const dir = (Input.pressed('right') ? 1 : 0) - (Input.pressed('left') ? 1 : 0) || (this.dsel === AI && Input.pressed('ok') ? 1 : 0);
+    if (this.dsel === AI) {
+      if (dir) { s.dai = ((s.dai | 0) + dir + DRIFT_AI.max + 1) % (DRIFT_AI.max + 1); this.store(); Sound.beep(700, 0.05); }
+      return;
+    }
+    if (!Input.pressed('ok')) return;
+    Sound.beep(880, 0.1);
+    if (this.dsel < DRIFT_MAPS.length) this.startDrift(this.dsel);
+    else if (this.dsel === AI + 1) Net.open(null, 'drift');   // online: rooms created from here race drift
+    else if (this.dsel === AI + 2) { this.state = 'garage'; this.gsel = s.dcar; this.gmsg = ''; }
+    else this.state = 'menu';
+  },
+  startDrift(i) {
+    const s = this.save;
+    const r = this.drace = new DriftRace({ mapIdx: i, carIdx: s.dcar, paint: this.carPaint(s.dcar), ais: s.dai | 0 });
+    this.state = 'drift';
+    Sound.music.stop();
+    r.ready = false;   // until the 3D models of all its cars are in
+    Promise.all(r.racers.map(c => Models.loadCar(c.spec.model))).then(() => { r.ready = true; }, () => { r.ready = true; });
+  },
+  finishDrift(reason) {
+    const r = this.drace, s = this.save, id = r.def.id, quit = reason === 'quit', score = r.score;
+    const grade = quit ? -1 : r.rank(score), prev = s.dbest[id] || 0, rec = !quit && score > prev;
+    // with computer drivers: the final order by score, and a prize for the top three
+    const table = !quit && r.racers.length > 1 ? r.standings() : null, place = table ? table.findIndex(t => t.me) + 1 : 0;
+    const prize = table ? [3000, 1500, 600][place - 1] || 0 : 0;
+    const money = quit ? 0 : Math.round(score / 10) + [0, 300, 800, 1500, 3000, 6000][grade + 1] + prize;
+    if (rec) s.dbest[id] = score;
+    s.money += money;
+    this.store();
+    this.dres = { map: r.def.name, car: DRIFT_CARS[r.carIdx].name, score, grade, money, rec, prev, best: r.best, hits: r.hits, bumps: r.car.bumps, time: r.time, quit, table, place, prize };
+    this.state = 'dres';
+    Sound.quiet(); Sound.music.start();
+  },
+  updGarage() {
+    const s = this.save, n = DRIFT_CARS.length + 1, i = this.gsel;
+    if (Input.pressed('up')) { this.gsel = (i + n - 1) % n; this.gmsg = ''; Sound.beep(520, 0.05); }
+    if (Input.pressed('down')) { this.gsel = (i + 1) % n; this.gmsg = ''; Sound.beep(520, 0.05); }
+    if (Input.pressed('back')) { this.state = 'dmenu'; return; }
+    // left / right: paint colour of an owned car
+    const dir = (Input.pressed('right') ? 1 : 0) - (Input.pressed('left') ? 1 : 0);
+    if (dir && i < DRIFT_CARS.length) {
+      if (!s.dcars.includes(i)) { this.gmsg = 'Mua xe trước rồi mới sơn được'; Sound.beep(200, 0.1); }
+      else {
+        const k = DRIFT_PAINTS.indexOf(this.carPaint(i)), nk = ((k < 0 ? 0 : k) + dir + DRIFT_PAINTS.length) % DRIFT_PAINTS.length;
+        s.dpaint[i] = DRIFT_PAINTS[nk]; this.store(); Sound.beep(700, 0.04);
+      }
+    }
+    if (!Input.pressed('ok')) return;
+    if (i === DRIFT_CARS.length) { this.state = 'dmenu'; return; }
+    const c = DRIFT_CARS[i];
+    if (s.dcars.includes(i)) { s.dcar = i; this.gmsg = 'Đã chọn ' + c.name; Sound.beep(880, 0.08); }
+    else if (s.money >= c.price) { s.money -= c.price; s.dcars.push(i); s.dcar = i; this.gmsg = 'Đã mua ' + c.name + '!'; Sound.beep(1200, 0.2); }
+    else { this.gmsg = 'Không đủ tiền!'; Sound.beep(200, 0.2); }
+    this.store();
+  },
   updMenu() {
-    const n = THEMES.length + 2;
+    const n = THEMES.length + 3;
     if (Input.pressed('up')) { this.sel = (this.sel + n - 1) % n; Sound.beep(520, 0.05); }
     if (Input.pressed('down')) { this.sel = (this.sel + 1) % n; Sound.beep(520, 0.05); }
     if (Input.pressed('back')) { this.state = 'title'; return; }
     if (Input.pressed('ok')) {
       Sound.beep(880, 0.1);
       if (this.sel < THEMES.length) this.startRace(this.sel);
-      else if (this.sel === THEMES.length) Net.open();
+      else if (this.sel === THEMES.length) { this.state = 'dmenu'; this.dsel = 0; }
+      else if (this.sel === THEMES.length + 1) Net.open();
       else { this.state = 'shop'; this.shopSel = this.save.bike; this.shopMsg = ''; }
     }
   },
+  levelNeed() { return Math.min(4, THEMES.length); },   // top 3 on this many different tracks to go up a level
   repairCost() { const b = BIKES[this.save.bike]; return Math.ceil((b.dur - this.bikeHp()) * 8); },
   updShop() {
     const s = this.save, n = BIKES.length + 2;
@@ -164,7 +256,173 @@ const Game = {
       case 'results': case 'netres': Render.frame(this.demo); this.drawResults(); break;
       case 'online': Render.frame(this.demo); this.dim(0.35); break;
       case 'netrace': Net.draw(); break;
+      case 'netdrift': Net.drawDrift(); break;
+      case 'netdres': Render.frame(this.demo); this.drawDriftResults(); break;
+      case 'dmenu': Render.frame(this.demo); this.drawDriftMenu(); break;
+      case 'garage': Render.frame(this.demo); this.drawGarage(); break;
+      case 'drift':
+        if (this.drace.ready === false || !this.drace.shown) {   // the car models loading, then one frame while the stage is built
+          if (this.drace.ready !== false) this.drace.shown = true;
+          Render.begin(); this.dim(0.6);
+          Render.text(this.drace.ready === false ? 'ĐANG TẢI XE...' : 'ĐANG TẢI CUNG ĐƯỜNG...', W / 2, 140, 32, '#ffd23a', 'center');
+          break;
+        }
+        Render.frame(this.drace, false); Render.driftHud(this.drace);
+        if (this.drace.over && this.drace.over.t > 3) this.dim(Math.min(1, this.drace.over.t - 3));
+        break;
+      case 'dpause': Render.frame(this.drace, false); Render.driftHud(this.drace); this.drawDriftPause(); break;
+      case 'dres': Render.frame(this.demo); this.drawDriftResults(); break;
     }
+  },
+  // the keys of the drift mode (like most PC drift games: CarX, Forza, Assetto Corsa)
+  DKEYS: [['↑ / W', 'ga'], ['↓ / S', 'phanh (giữ khi đứng yên = lùi)'], ['← → / A D', 'lái'], ['SPACE', 'phanh tay (vào drift)'],
+    ['SHIFT', 'côn (giữ rồi thả = đá côn)'], ['E / Q', 'lên / xuống số (số tay)'], ['T', 'số tự động / số tay'], ['N', 'nitro'],
+    ['C', 'đổi góc camera'], ['R', 'đặt lại xe lên đường'], ['H', 'còi'], ['ESC / P', 'tạm dừng']],
+  drawKeys(x, y, cols, size) {
+    this.DKEYS.forEach(([k, d], i) => {
+      const col = i % cols, row = Math.floor(i / cols), xx = x + col * 206, yy = y + row * (size + 2);
+      Render.text(k, xx, yy, size, '#ffd23a', 'left', 62); Render.text(d, xx + 64, yy, size, '#e8e8e8', 'left', 134);
+    });
+  },
+  drawDriftMenu() {
+    const s = this.save, g = Render.g, car = DRIFT_CARS[s.dcar];
+    this.dim(0.4); this.panel(36, 8, 440, 304);
+    Render.text('ĐUA Ô TÔ DRIFT', W / 2, 10, 28, '#ff9a5a', 'center');
+    Render.text('XE: ' + car.name + '   ·   TIỀN: ' + U.money(s.money), W / 2, 37, 15, '#9fe0ff', 'center', 420);
+    const items = DRIFT_MAPS.map((m, i) => {
+      const b = this.driftBest(i), r = DriftRace.prototype.rank.call({ def: m }, b);
+      return { a: m.name, b: m.desc + (m.circuit ? ' · ' + m.laps + ' vòng' : ''), rec: b ? b.toLocaleString('en-US') : '--', grade: b ? DRIFT_RANKS[r] || '-' : '' };
+    });
+    const nai = s.dai | 0;
+    items.push({ a: 'ĐỐI THỦ MÁY', b: 'Số xe máy drift cùng đường (← → để đổi). Xếp hạng theo điểm drift, top 3 có thưởng.',
+      opt: (this.dsel === DRIFT_MAPS.length ? '◄ ' : '') + (nai ? nai + ' XE' : 'TẮT') + (this.dsel === DRIFT_MAPS.length ? ' ►' : '') });
+    items.push({ a: 'CHƠI ONLINE', b: 'Đua drift với bạn bè qua mạng: tạo phòng, gửi link mời, xếp hạng theo điểm drift' });
+    items.push({ a: 'GARA Ô TÔ', b: 'Mua xe drift, chọn xe, đổi màu sơn' }, { a: 'QUAY LẠI', b: '' });
+    const rh = 17;
+    Render.text('KỶ LỤC', 400, 51, 12, '#a8b8d0', 'right'); Render.text('HẠNG', 448, 51, 12, '#a8b8d0', 'right');
+    items.forEach((it, i) => {
+      const y = 63 + i * rh, on = i === this.dsel;
+      if (on) { g.fillStyle = 'rgba(255,154,90,0.2)'; g.fillRect(44, y - 1, 424, rh - 1); g.fillStyle = '#ff9a5a'; g.fillRect(44, y - 1, 3, rh - 1); }
+      Render.text((on ? '> ' : '  ') + it.a, 54, y - 2, 18, on ? '#ffd23a' : '#ffffff', 'left', 250);
+      if (it.rec) Render.text(it.rec, 400, y + 1, 15, '#e8e8e8', 'right', 90);
+      if (it.opt) Render.text(it.opt, 448, y, 16, on ? '#ffd23a' : '#9fe0ff', 'right', 150);
+      if (it.grade) Render.text(it.grade, 448, y, 17, it.grade[0] === 'S' ? '#ffd23a' : '#7fff7f', 'right');
+    });
+    Render.text(items[this.dsel].b, W / 2, 183, 14, '#a8b8d0', 'center', 420);
+    g.fillStyle = 'rgba(255,255,255,0.15)'; g.fillRect(48, 199, 416, 1);
+    Render.text('PHÍM ĐIỀU KHIỂN', W / 2, 200, 13, '#ff9a5a', 'center');
+    this.drawKeys(56, 213, 2, 12);
+    Render.text('↑↓ chọn   ENTER bắt đầu   ESC quay lại', W / 2, 297, 12, '#a8b8d0', 'center');
+  },
+  drawGarage() {
+    const s = this.save, g = Render.g;
+    this.dim(0.45); this.panel(16, 12, 480, 296);
+    Render.text('GARA Ô TÔ DRIFT', 30, 16, 28, '#ff9a5a');
+    Render.text('TIỀN: ' + U.money(s.money), 482, 22, 18, '#ffffff', 'right');
+    const rows = DRIFT_CARS.map((c, i) => [c.name, s.dcars.includes(i) ? (s.dcar === i ? '[ĐANG DÙNG]' : '[ĐÃ CÓ]') : U.money(c.price)]);
+    rows.push(['QUAY LẠI', '']);
+    // the list scrolls: VIS rows in view, kept round the selection
+    const rh = 20, VIS = 10;
+    this.gscroll = U.clamp(this.gscroll || 0, Math.max(0, this.gsel - VIS + 1), Math.min(this.gsel, rows.length - VIS));
+    if (rows.length <= VIS) this.gscroll = 0;
+    rows.slice(this.gscroll, this.gscroll + VIS).forEach(([a, b], k) => {
+      const i = this.gscroll + k, y = 56 + k * rh, on = i === this.gsel;
+      if (on) { g.fillStyle = 'rgba(255,154,90,0.2)'; g.fillRect(24, y - 2, 236, rh - 3); g.fillStyle = '#ff9a5a'; g.fillRect(24, y - 2, 3, rh - 3); }
+      Render.text((on ? '> ' : '  ') + a, 32, y - 1, 15, on ? '#ffd23a' : '#ffffff', 'left', 158);
+      Render.text(b, 254, y + 1, 12, '#9fe0ff', 'right', 64);
+    });
+    if (this.gscroll > 0) Render.text('▲', 142, 45, 11, '#ff9a5a', 'center');
+    if (this.gscroll + VIS < rows.length) Render.text('▼', 142, 56 + VIS * rh - 3, 11, '#ff9a5a', 'center');
+    const ci = this.gsel < DRIFT_CARS.length ? this.gsel : s.dcar, c = DRIFT_CARS[ci], paint = this.carPaint(ci);
+    g.fillStyle = 'rgba(255,255,255,0.06)'; g.fillRect(272, 50, 214, 250);
+    Render.carPreview(c.model, paint, 274, 52, 210, 110, this.t);
+    Render.text(c.name, 379, 163, 17, '#ffd23a', 'center', 206);
+    if (c.real) Render.text('Ngoài đời: ' + c.real, 379, 181, 11, '#a8b8d0', 'center', 208);
+    const top = k => Math.max(...DRIFT_CARS.map(x => x[k]));
+    const stats = [['CÔNG SUẤT', c.hp / top('hp'), c.hp + ' mã lực'], ['MÔ-MEN', c.torque / top('torque'), c.torque + ' Nm'],
+      ['TRỌNG LƯỢNG', c.kg / top('kg'), c.kg + ' kg'], ['VÒNG TUA', c.redline / top('redline'), c.redline + ' v/p'],
+      ['TỐC ĐỘ', c.vmax / top('vmax'), c.vmax + ' km/h']];
+    stats.forEach(([n, f, v], i) => {
+      const y = 199 + i * 13;
+      Render.text(n, 280, y - 3, 12, '#ffffff', 'left', 76);
+      Render.bar(358, y + 1, 64, 5, f, '#ff9a5a');
+      Render.text(v, 482, y - 3, 12, '#9fe0ff', 'right', 58);
+    });
+    // paint swatches (owned cars: left / right to change)
+    DRIFT_PAINTS.forEach((p, k) => {
+      const x = 282 + k * 16.5, on = p === paint;
+      Render.rr(x, 266, 13, 10, 2, p, on ? '#ffd23a' : 'rgba(255,255,255,0.3)');
+      if (on) { g.strokeStyle = '#ffd23a'; g.lineWidth = 1.2; g.strokeRect(x - 1.5, 264.5, 16, 13); }
+    });
+    Render.text(s.dcars.includes(ci) ? '← → đổi màu sơn' : 'Mua xe để đổi màu sơn', 379, 280, 12, '#a8b8d0', 'center', 200);
+    if (this.gmsg) Render.text(this.gmsg, 140, 258, 15, '#7fff7f', 'center', 230);
+    Render.text('ENTER mua/chọn   ESC quay lại', 140, 282, 13, '#a8b8d0', 'center');
+  },
+  drawDriftPause() {
+    this.dim(0.55); this.panel(30, 40, 452, 242);
+    Render.text('TẠM DỪNG', W / 2, 44, 32, '#ffd23a', 'center');
+    this.drawKeys(44, 84, 2, 14);
+    Render.text('ENTER / ESC: tiếp tục      Q: bỏ cuộc      M: bật/tắt âm thanh', W / 2, 186, 15, '#ffffff', 'center', 400);
+    Render.text('Vào cua: kéo phanh tay (SPACE) hoặc đánh lái gắt, giữ ga - đuôi xe văng ra là đang drift.', W / 2, 206, 14, '#7fff7f', 'center', 420);
+    Render.text('Đang trượt: giữ lái VỀ PHÍA CUA để ôm cua · nhấp lái ngược để thẳng xe · giữ lái ngược + ga để đảo sang cua kế.', W / 2, 223, 14, '#7fff7f', 'center', 420);
+    Render.text('Chạm rào / húc xe phía trước: -30% điểm chuỗi · đâm mạnh hoặc xoay xe: mất cả chuỗi.', W / 2, 240, 14, '#ff9a8a', 'center', 420);
+    Render.text('Đối thủ máy: xếp hạng theo điểm drift · drift sát một xe đang drift (SONG HÀNH): điểm x1.5.', W / 2, 257, 14, '#ff9aff', 'center', 420);
+  },
+  drawDriftResults() {
+    const r = this.dres, g = Render.g;
+    if (r.table) { this.drawDriftTable(); return; }
+    this.dim(0.5); this.panel(40, 14, 432, 292);
+    Render.text(r.quit ? 'BỎ CUỘC' : 'HOÀN THÀNH!', W / 2, 16, 30, r.quit ? '#ff8a8a' : '#ffd23a', 'center');
+    Render.text(r.map + '  ·  ' + r.car, W / 2, 46, 15, '#9fe0ff', 'center', 400);
+    Render.text('ĐIỂM DRIFT', 140, 72, 15, '#a8b8d0', 'center');
+    Render.text(r.score.toLocaleString('en-US'), 140, 88, 34, '#ffffff', 'center', 190);
+    if (r.rec) { if (Math.floor(this.t * 3) % 2 === 0) Render.text('KỶ LỤC MỚI!', 140, 126, 20, '#ffd23a', 'center'); }
+    else Render.text('Kỷ lục: ' + r.prev.toLocaleString('en-US'), 140, 128, 14, '#a8b8d0', 'center');
+    if (!r.quit) {
+      Render.text('XẾP HẠNG', 372, 72, 15, '#a8b8d0', 'center');
+      Render.text(r.grade >= 0 ? DRIFT_RANKS[r.grade] : '-', 372, 84, 64, r.grade >= 3 ? '#ffd23a' : r.grade >= 0 ? '#7fff7f' : '#ff8a8a', 'center');
+    }
+    g.fillStyle = 'rgba(255,255,255,0.15)'; g.fillRect(56, 156, 400, 1);
+    const rows = [['Chuỗi drift dài nhất', r.best.chain.toLocaleString('en-US') + ' điểm'], ['Góc trượt lớn nhất', Math.round(r.best.angle) + '°'],
+      ['Tốc độ cao nhất', Math.round(r.best.kmh) + ' km/h'], ['Va chạm rào', String(r.hits)], ['Thời gian', U.fmtTime(r.time)]];
+    rows.forEach(([a, b], i) => { Render.text(a, 70, 162 + i * 17, 15, '#ffffff', 'left', 200); Render.text(b, 442, 162 + i * 17, 15, '#9fe0ff', 'right', 160); });
+    Render.text('Tiền thưởng: +' + U.money(r.money), W / 2, 252, 20, '#7fff7f', 'center');
+    if (Math.floor(this.t * 2) % 2 === 0) Render.text('ENTER để tiếp tục', W / 2, 282, 17, '#ffffff', 'center');
+  },
+  // results with computer drivers: score and grade on the left, the final order by score on the right
+  drawDriftTable() {
+    const r = this.dres, g = Render.g;
+    this.dim(0.5); this.panel(30, 10, 452, 300);
+    Render.text(r.place === 1 ? 'VÔ ĐỊCH!' : 'HẠNG ' + r.place + '/' + r.table.length, W / 2, 12, 30, r.place === 1 ? '#ffd23a' : r.place <= 3 ? '#7fff7f' : '#ffffff', 'center');
+    Render.text(r.map + '  ·  ' + r.car, W / 2, 42, 14, '#9fe0ff', 'center', 420);
+    Render.text('ĐIỂM DRIFT', 128, 62, 14, '#a8b8d0', 'center');
+    Render.text(r.score.toLocaleString('en-US'), 128, 76, 30, '#ffffff', 'center', 180);
+    if (r.rec) { if (Math.floor(this.t * 3) % 2 === 0) Render.text('KỶ LỤC MỚI!', 128, 108, 17, '#ffd23a', 'center'); }
+    else Render.text('Kỷ lục: ' + r.prev.toLocaleString('en-US'), 128, 110, 13, '#a8b8d0', 'center');
+    Render.text('XẾP HẠNG', 100, 132, 14, '#a8b8d0', 'center');
+    Render.text(r.grade >= 0 ? DRIFT_RANKS[r.grade] : '-', 160, 124, 32, r.grade >= 3 ? '#ffd23a' : r.grade >= 0 ? '#7fff7f' : '#ff8a8a', 'center');
+    // the table
+    const x0 = 238, x1 = 470;
+    Render.text('BẢNG ĐIỂM CHUNG CUỘC', (x0 + x1) / 2, 60, 14, '#ff9a5a', 'center');
+    r.table.forEach((t, i) => {
+      const y = 78 + i * 16;
+      if (t.me) { g.fillStyle = 'rgba(255,210,58,0.16)'; g.fillRect(x0 - 4, y - 1, x1 - x0 + 6, 15); }
+      g.fillStyle = t.paint; g.fillRect(x0 + 14, y + 3, 5, 8);
+      const col = t.me ? '#ffd23a' : '#e8e8e8';
+      Render.text((i + 1) + '.', x0, y, 14, col, 'left');
+      Render.text(t.name, x0 + 24, y, 14, col, 'left', 112);
+      Render.text(t.score.toLocaleString('en-US'), x1, y, 14, col, 'right', 70);
+    });
+    g.fillStyle = 'rgba(255,255,255,0.15)'; g.fillRect(46, 178, 420, 1);
+    const rows = [['Chuỗi drift dài nhất', r.best.chain.toLocaleString('en-US')], ['Góc trượt lớn nhất', Math.round(r.best.angle) + '°'],
+      ['Tốc độ cao nhất', Math.round(r.best.kmh) + ' km/h'], ['Chạm rào / chạm xe', r.hits + ' / ' + r.bumps], ['Thời gian', U.fmtTime(r.time)],
+      ['Thưởng hạng ' + r.place, r.prize ? '+' + U.money(r.prize) : '-']];
+    rows.forEach(([a, b], i) => {
+      const x = i % 2 ? 262 : 50, y = 184 + Math.floor(i / 2) * 17;
+      Render.text(a, x, y, 14, '#ffffff', 'left', 130); Render.text(b, x + 200, y, 14, '#9fe0ff', 'right', 80);
+    });
+    Render.text('Tiền thưởng: +' + U.money(r.money), W / 2, 244, 20, '#7fff7f', 'center');
+    if (Math.floor(this.t * 2) % 2 === 0) Render.text(r.online ? 'ENTER: về phòng chờ' : 'ENTER để tiếp tục', W / 2, 280, 17, '#ffffff', 'center');
   },
   dim(a) { const g = Render.g; g.fillStyle = 'rgba(0,0,0,' + a + ')'; g.fillRect(0, 0, W, H); },
   panel(x, y, w, h) {
@@ -190,34 +448,42 @@ const Game = {
     g.fillStyle = gr; g.fillRect(0, 0, W, 140);
     this.bigText('HIGHWAY BRAWL', 18, 72);
     Render.text('ĐUA XE  ·  ĐẤM NHAU  ·  VỀ NHẤT', W / 2, 84, 20, '#ffffff', 'center');
+    Render.text('MỚI: ĐUA Ô TÔ DRIFT TRÊN ĐÈO!', W / 2, 106, 18, '#ff9a5a', 'center');
     if (Math.floor(this.t * 2) % 2 === 0) Render.text('NHẤN ENTER ĐỂ BẮT ĐẦU', W / 2, 192, 26, '#ffd23a', 'center');
     Render.box(60, 228, 392, 88, 0.7);
     Render.text('↑ / W: tăng ga    ↓ / S: phanh    ← → / A D: lái', W / 2, 232, 16, '#e8e8e8', 'center', 380);
     Render.text('Z / J: đạp/đánh bên trái    X / K: đạp/đánh bên phải', W / 2, 249, 16, '#e8e8e8', 'center', 380);
-    Render.text('SPACE / SHIFT + tăng ga: bốc đầu xe', W / 2, 266, 16, '#ffd23a', 'center', 380);
+    Render.text('SPACE / SHIFT + tăng ga: bốc đầu  ·  giữ lúc xuất phát: tăng tốc', W / 2, 266, 16, '#ffd23a', 'center', 380);
     Render.text('ESC / P: tạm dừng    M: bật/tắt âm thanh', W / 2, 283, 16, '#e8e8e8', 'center', 380);
     Render.text('Tay không thì đạp - đang bốc đầu mà trúng đòn là té!', W / 2, 299, 14, '#7fff7f', 'center', 380);
   },
   drawMenu() {
     const s = this.save, b = BIKES[s.bike];
-    this.dim(0.35); this.panel(56, 14, 400, 292);
-    Render.text('CHỌN CHẶNG ĐUA', W / 2, 18, 30, '#ffd23a', 'center');
-    Render.text('CẤP ' + s.level + '/5      TIỀN: ' + U.money(s.money), W / 2, 46, 18, '#ffffff', 'center');
-    Render.text('XE: ' + b.name, 76, 68, 16, '#9fe0ff', 'left', 180);
-    Render.text('ĐỘ BỀN', 262, 68, 16, '#9fe0ff', 'left', 52);
-    Render.bar(320, 73, 116, 7, this.bikeHp() / b.dur, '#f0b020');
-    const items = THEMES.map((t, i) => ({ a: t.name, b: t.desc, ok: s.passed.includes(i) }));
+    this.dim(0.35); this.panel(56, 8, 400, 304);
+    Render.text('CHỌN CHẶNG ĐUA', W / 2, 10, 28, '#ffd23a', 'center');
+    Render.text('CẤP ' + s.level + '/5      TIỀN: ' + U.money(s.money), W / 2, 37, 17, '#ffffff', 'center');
+    Render.text('XE: ' + b.name, 76, 56, 15, '#9fe0ff', 'left', 180);
+    Render.text('ĐỘ BỀN', 262, 56, 15, '#9fe0ff', 'left', 52);
+    Render.bar(320, 61, 116, 7, this.bikeHp() / b.dur, '#f0b020');
+    const laps = Track.laps(s.level);
+    const items = THEMES.map((t, i) => ({ a: t.name, b: t.desc + (t.circuit ? ' · ' + laps + ' vòng' : ''), ok: s.passed.includes(i), gp: t.circuit }));
+    items.push({ a: 'ĐUA Ô TÔ DRIFT', b: 'Mới! Ô tô drift trên đèo cua tay áo - ghi điểm bằng góc trượt', ok: false, col: '#ff9a5a', tag: 'MỚI' });
     items.push({ a: 'CHƠI ONLINE', b: 'Phòng chờ - đua cùng bạn bè qua mạng', ok: false, col: '#7fff7f' });
     items.push({ a: 'CỬA HÀNG XE', b: 'Mua xe mới, sửa xe', ok: false });
+    const g = Render.g, rh = 17;
     items.forEach((it, i) => {
-      const y = 88 + i * 29, on = i === this.sel;
-      if (on) { const g = Render.g; g.fillStyle = 'rgba(255,210,58,0.18)'; g.fillRect(64, y - 2, 384, 28); g.fillStyle = '#ffd23a'; g.fillRect(64, y - 2, 3, 28); }
-      Render.text((on ? '> ' : '  ') + it.a, 76, y - 3, 20, on ? '#ffd23a' : it.col || '#ffffff');
-      Render.text(it.b, 96, y + 12, 13, '#a8b8d0');
-      if (it.ok) Render.text('[ĐẠT]', 440, y, 18, '#7fff7f', 'right');
+      const y = 77 + i * rh, on = i === this.sel;
+      if (on) { g.fillStyle = 'rgba(255,210,58,0.18)'; g.fillRect(64, y - 1, 384, rh - 1); g.fillStyle = '#ffd23a'; g.fillRect(64, y - 1, 3, rh - 1); }
+      Render.text((on ? '> ' : '  ') + it.a, 76, y - 2, 17, on ? '#ffd23a' : it.col || '#ffffff', 'left', 270);
+      if (it.tag && Math.floor(this.t * 3) % 2 === 0) Render.text(it.tag, 392, y - 1, 14, '#ff9a5a', 'right');
+      if (it.gp) Render.text('GP', 392, y, 14, '#5ad0ff', 'right');
+      if (it.ok) Render.text('[ĐẠT]', 440, y - 1, 16, '#7fff7f', 'right');
     });
-    Render.text('Về TOP 3 ở cả ' + THEMES.length + ' chặng để lên cấp ' + Math.min(5, s.level + 1), W / 2, 266, 16, '#ffb000', 'center');
-    Render.text('↑↓ chọn   ENTER xác nhận   ESC quay lại', W / 2, 284, 15, '#a8b8d0', 'center');
+    Render.text(items[this.sel].b, W / 2, 249, 14, '#a8b8d0', 'center', 380);
+    const need = this.levelNeed(), got = Math.min(need, s.passed.length);
+    Render.text(s.level < 5 ? 'Về TOP 3 ở ' + need + ' chặng khác nhau để lên cấp ' + (s.level + 1) + ' (' + got + '/' + need + ')' : 'Đã đạt cấp cao nhất!',
+      W / 2, 268, 15, '#ffb000', 'center', 380);
+    Render.text('↑↓ chọn   ENTER xác nhận   ESC quay lại', W / 2, 287, 14, '#a8b8d0', 'center');
   },
   drawShop() {
     const s = this.save, g = Render.g;
@@ -228,25 +494,30 @@ const Game = {
     const rows = BIKES.map((b, i) => [b.name, s.owned.includes(i) ? (s.bike === i ? '[ĐANG DÙNG]' : '[ĐÃ CÓ]') : U.money(b.price)]);
     rows.push(['SỬA XE', cost > 0 ? U.money(cost) : '--']);
     rows.push(['QUAY LẠI', '']);
-    rows.forEach(([a, b], i) => {
-      const y = 56 + i * 30, on = i === this.shopSel;
-      if (on) { g.fillStyle = 'rgba(255,210,58,0.18)'; g.fillRect(24, y - 2, 236, 26); g.fillStyle = '#ffd23a'; g.fillRect(24, y - 2, 3, 26); }
-      Render.text((on ? '> ' : '  ') + a, 32, y, 20, on ? '#ffd23a' : '#ffffff', 'left', 140);
-      Render.text(b, 254, y + 3, 15, '#9fe0ff', 'right', 76);
-    });
+    // a scrolling window of rows that follows the selection
+    const VIS = Math.min(9, rows.length), rh = 21, fs = 17, first = U.clamp(this.shopSel - 4, 0, rows.length - VIS);
+    for (let k = 0; k < VIS; k++) {
+      const i = first + k, [a, b] = rows[i], y = 56 + k * rh, on = i === this.shopSel;
+      if (on) { g.fillStyle = 'rgba(255,210,58,0.18)'; g.fillRect(24, y - 2, 236, rh - 3); g.fillStyle = '#ffd23a'; g.fillRect(24, y - 2, 3, rh - 3); }
+      Render.text((on ? '> ' : '  ') + a, 32, y, fs, on ? '#ffd23a' : '#ffffff', 'left', 150);
+      Render.text(b, 254, y + 2, 14, '#9fe0ff', 'right', 70);
+    }
+    if (first > 0) Render.text('▲', 142, 45, 11, '#ffd23a', 'center');
+    if (first + VIS < rows.length) Render.text('▼', 142, 56 + VIS * rh - 3, 11, '#ffd23a', 'center');
     const bi = this.shopSel < BIKES.length ? this.shopSel : s.bike, b = BIKES[bi];
     g.fillStyle = 'rgba(255,255,255,0.06)'; g.fillRect(272, 50, 214, 250);
     Render.preview(bi, 274, 52, 210, 134, this.t);
-    Render.text(b.name, 379, 190, 20, '#ffd23a', 'center');
-    const stats = [['TỐC ĐỘ', b.speed / 15500, Math.round(b.speed / 60) + ' km/h'], ['TĂNG TỐC', b.accel / 1.45, ''],
-      ['BÁM ĐƯỜNG', b.handling / 1.18, ''], ['ĐỘ BỀN', b.dur / 170, String(b.dur)]];
+    Render.text(b.name, 379, 190, 20, '#ffd23a', 'center', 206);
+    const top = k => Math.max(...BIKES.map(x => x[k]));
+    const stats = [['TỐC ĐỘ', b.speed / top('speed'), Math.round(b.speed / 60) + ' km/h'], ['TĂNG TỐC', b.accel / top('accel'), ''],
+      ['BÁM ĐƯỜNG', b.handling / top('handling'), ''], ['ĐỘ BỀN', b.dur / top('dur'), String(b.dur)]];
     stats.forEach(([n, f, v], i) => {
       const y = 214 + i * 18;
       Render.text(n, 282, y - 3, 15, '#ffffff', 'left', 70);
       Render.bar(358, y + 2, 70, 7, f, '#3ad84a');
       Render.text(v, 482, y - 3, 13, '#9fe0ff', 'right', 50);
     });
-    if (this.shopMsg) Render.text(this.shopMsg, 140, 248, 16, '#7fff7f', 'center');
+    if (this.shopMsg) Render.text(this.shopMsg, 140, 258, 16, '#7fff7f', 'center');
     Render.text('ENTER mua/chọn   ESC quay lại', 140, 282, 14, '#a8b8d0', 'center');
   },
   drawPause() {

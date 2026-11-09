@@ -4,6 +4,8 @@
 // - the mirror of a networked race: riders, traffic and police are shown ~100 ms behind the server's snapshots
 //   (interpolated), while our own bike is predicted at once with Race.motion() and re-based on every snapshot,
 //   so steering never waits for the network
+// - online drift (room mode 'drift'): our car runs its own physics in a DriftRace (o.net) and we send its state 20
+//   times a second; the other players' cars are remote cars placed from the server's relayed states, ~100 ms behind
 const Net = {
   ws: null, id: null, themes: null, room: null, list: [], autoJoin: null, uiReady: false,
   view: null, seq: 0, pending: [], snaps: [], offset: null, err: { z: 0, x: 0 }, predicting: false,
@@ -20,7 +22,9 @@ const Net = {
   available() { return !!this.server() || location.protocol === 'http:' || location.protocol === 'https:'; },
   // ---------------- overlay ----------------
   $(id) { return document.getElementById(id); },
-  open(code) {
+  // mode: 'drift' when opened from the drift menu (a new room starts as a drift room)
+  open(code, mode) {
+    if (mode) this.wantMode = mode;
     this.initUI();
     this.$('online').hidden = false;
     Game.state = 'online';
@@ -47,7 +51,7 @@ const Net = {
     let name = this.$('ol-name').value.trim();
     if (!name) { name = 'Tay đua ' + (10 + Math.floor(Math.random() * 90)); this.$('ol-name').value = name; }
     try { localStorage.setItem('hb_name', name); } catch (e) { /* ignore */ }
-    return { name, bike: s.bike, bikeHp: Math.max(1, Math.round(Game.bikeHp())), level: s.level };
+    return { name, bike: s.bike, bikeHp: Math.max(1, Math.round(Game.bikeHp())), level: s.level, dcar: s.dcar, dpaint: Game.carPaint(s.dcar) };
   },
   join(code) {
     code = String(code || '').trim().toUpperCase();
@@ -60,14 +64,21 @@ const Net = {
     const $ = id => this.$(id);
     let saved = ''; try { saved = localStorage.getItem('hb_name') || ''; } catch (e) { /* ignore */ }
     $('ol-name').value = saved;
-    $('ol-create').onclick = () => this.send(Object.assign({ t: 'create' }, this.profile()));
+    $('ol-create').onclick = () => this.send(Object.assign({ t: 'create', mode: this.wantMode || 'bike' }, this.profile()));
     $('ol-join').onclick = () => this.join($('ol-code').value);
     $('ol-code').onkeydown = e => { if (e.key === 'Enter') this.join($('ol-code').value); };
     $('ol-back').onclick = () => { if (this.room) { this.send({ t: 'leave' }); this.room = null; this.render(); } else this.close(); };
     $('ol-ready').onclick = () => { const me = this.meInRoom(); if (me) this.send({ t: 'ready', v: !me.ready }); };
     $('ol-start').onclick = () => this.send({ t: 'start' });
-    $('ol-prev').onclick = () => this.room && this.send({ t: 'theme', v: (this.room.theme + this.themeCount() - 1) % this.themeCount() });
-    $('ol-next').onclick = () => this.room && this.send({ t: 'theme', v: (this.room.theme + 1) % this.themeCount() });
+    const stage = d => {   // the stage list of the room's mode
+      const R = this.room; if (!R) return;
+      if (R.mode === 'drift') this.send({ t: 'dmap', v: (R.dmap + d + DRIFT_MAPS.length) % DRIFT_MAPS.length });
+      else this.send({ t: 'theme', v: (R.theme + d + this.themeCount()) % this.themeCount() });
+    };
+    $('ol-prev').onclick = () => stage(-1);
+    $('ol-next').onclick = () => stage(1);
+    $('ol-mbike').onclick = () => this.send({ t: 'mode', v: 'bike' });
+    $('ol-mdrift').onclick = () => this.send({ t: 'mode', v: 'drift' });
     $('ol-copy').onclick = () => {
       const link = location.origin + location.pathname + '?room=' + this.room.code;
       const ok = () => this.status('Đã sao chép link mời - gửi cho bạn bè nhé!');
@@ -89,7 +100,8 @@ const Net = {
       for (const r of this.list) {
         const row = document.createElement('div'); row.className = 'ol-item';
         const info = document.createElement('span');
-        info.textContent = r.code + ' · ' + r.host + ' · ' + r.n + '/' + r.max + ' người · ' + THEMES[r.theme].name + (r.state === 'race' ? ' · đang đua' : '');
+        const stage = r.mode === 'drift' ? 'Drift · ' + (DRIFT_MAPS[r.dmap] || DRIFT_MAPS[0]).name : THEMES[r.theme].name;
+        info.textContent = r.code + ' · ' + r.host + ' · ' + r.n + '/' + r.max + ' người · ' + stage + (r.state === 'race' ? ' · đang đua' : '');
         const b = document.createElement('button'); b.textContent = 'VÀO'; b.disabled = r.state !== 'wait' || r.n >= r.max;
         b.onclick = () => this.join(r.code);
         row.append(info, b); L.append(row);
@@ -97,14 +109,22 @@ const Net = {
       return;
     }
     const host = R.host === this.id, me = this.meInRoom();
+    const drift = R.mode === 'drift';
     $('ol-rcode').textContent = R.code;
-    $('ol-theme').textContent = THEMES[R.theme].name;
+    $('ol-theme').textContent = drift ? (DRIFT_MAPS[R.dmap] || DRIFT_MAPS[0]).name : THEMES[R.theme].name;
     $('ol-prev').disabled = $('ol-next').disabled = !host;
+    $('ol-mbike').disabled = $('ol-mdrift').disabled = !host;
+    $('ol-mbike').className = drift ? '' : 'on'; $('ol-mdrift').className = drift ? 'on' : '';
+    $('ol-note').textContent = drift
+      ? 'Tối đa 8 người, mỗi người một chiếc ô tô drift đang chọn trong gara. Xếp hạng theo điểm drift; drift sát xe người khác được điểm x1,5.'
+      : 'Tối đa 8 người, tay đua máy lấp chỗ trống cho đủ 12 xe. Bạn đua bằng chiếc xe đang chọn trong cửa hàng.';
     const P = $('ol-players'); P.innerHTML = '';
     R.players.forEach((p, i) => {
       const row = document.createElement('div'); row.className = 'ol-item' + (p.id === this.id ? ' me' : '');
       const n = document.createElement('span'); n.textContent = (i + 1) + '. ' + p.name + (p.id === this.id ? ' (bạn)' : '');
-      const bk = document.createElement('span'); bk.className = 'ol-bike'; bk.textContent = BIKES[p.bike].name;
+      const bk = document.createElement('span'); bk.className = 'ol-bike';
+      bk.textContent = drift ? (DRIFT_CARS[p.dcar] || DRIFT_CARS[0]).name : BIKES[p.bike].name;
+      if (drift && p.dpaint) bk.style.borderLeft = '0.5em solid ' + p.dpaint, bk.style.paddingLeft = '0.3em';
       const st = document.createElement('span');
       st.className = 'ol-chip ' + (p.id === R.host ? 'host' : p.ready ? 'ok' : 'wait');
       st.textContent = p.id === R.host ? 'CHỦ PHÒNG' : p.ready ? 'SẴN SÀNG' : 'CHƯA SẴN SÀNG';
@@ -114,7 +134,7 @@ const Net = {
     $('ol-ready').hidden = host; $('ol-start').hidden = !host;
     $('ol-ready').textContent = me && me.ready ? 'HỦY SẴN SÀNG' : 'SẴN SÀNG';
     $('ol-start').disabled = !allReady;
-    $('ol-wait').textContent = host ? (allReady ? (others.length ? 'Mọi người đã sẵn sàng!' : 'Bạn có thể đua một mình với tay đua máy, hoặc đợi bạn bè vào.')
+    $('ol-wait').textContent = host ? (allReady ? (others.length ? 'Mọi người đã sẵn sàng!' : drift ? 'Bạn có thể chạy thử một mình, hoặc đợi bạn bè vào.' : 'Bạn có thể đua một mình với tay đua máy, hoặc đợi bạn bè vào.')
       : 'Đợi mọi người bấm SẴN SÀNG...') : 'Đợi chủ phòng bắt đầu...';
   },
 
@@ -140,7 +160,7 @@ const Net = {
       this.ws = null; this.room = null; this.list = [];
       // never got through: a free-tier host may still be waking up - keep trying for a couple of minutes
       if (!opened && Game.state === 'online' && ++this.tries < 40) { this.retryT = setTimeout(() => this.connect(true), 3000); this.render(); return; }
-      if (Game.state === 'netrace' || Game.state === 'netres') { this.view = null; this.$('online').hidden = false; Game.state = 'online'; }
+      if (['netrace', 'netres', 'netdrift', 'netdres'].includes(Game.state)) { this.view = null; this.dview = null; this.$('online').hidden = false; Game.state = 'online'; }
       if (Game.state === 'online') this.status('Mất kết nối với máy chủ. Bấm QUAY LẠI rồi vào lại CHƠI ONLINE.', true);
       this.render();
     };
@@ -157,6 +177,10 @@ const Net = {
       case 'start': this.onStart(m); break;
       case 's': this.onSnap(m); break;
       case 'end': this.onEnd(m); break;
+      case 'dstart': this.onDriftStart(m); break;
+      case 'dgo': if (this.dview) this.dview.hold = false; break;
+      case 'dsn': this.onDriftSnap(m); break;
+      case 'dend': this.onDriftEnd(m); break;
     }
   },
 
@@ -215,6 +239,7 @@ const Net = {
     v.shake = Math.max(0, v.shake - dt * 2);
     if (v.msgs.length) { v.msgs[0].t -= dt; if (v.msgs[0].t <= 0) v.msgs.shift(); }
     v.findTarget();
+    Sound.voice(P.style);
     if (v.state === 'countdown') Sound.engine(Input.is('up') ? 0.75 : 0.12, 0.1);
     else Sound.engine(P.speed / P.top, P.crash ? 0.02 : 0.08 + 0.06 * P.speed / P.top);
   },
@@ -225,7 +250,7 @@ const Net = {
     const z0 = P.z, x0 = P.x;
     if (this.predicting) {
       const R = L.R[this.myIdx], me = L.me;
-      Object.assign(P, { z: R[0], x: R[1], speed: R[2], pitch: R[4], leanF: me[0], lean: me[0], pitchV: me[1], wheelT: me[2] });
+      Object.assign(P, { z: R[0], x: R[1], speed: R[2], pitch: R[4], leanF: me[0], lean: me[0], pitchV: me[1], wheelT: me[2], launch: me[8] || 0, vx: me[9] || 0, brakeT: me[10] || 0 });
       v.replaying = true;
       for (const p of this.pending) v.motion(P, p.inp, this.TICK);
       v.replaying = false;
@@ -242,7 +267,7 @@ const Net = {
     if (this.offset === null || off > this.offset) this.offset = off; else this.offset += (off - this.offset) * 0.05;
     const P = v.player, R = m.R[this.myIdx], me = m.me;
     P.hp = R[5]; P.weapon = this.WEAPONS[R[9]]; P.inv = R[10]; P.rank = R[11]; P.finished = !!(R[6] & 2);
-    P.crash = R[6] & 1 ? (P.crash || { t: 0 }) : null;
+    this.crashState(P, R, R[13]);
     P.bikeHp = me[3]; P.kos = me[4]; P.place = me[5] || undefined; P.done = me[6] || null;
     this.pending = this.pending.filter(p => p.s > m.ack);
     if (this.predicting && this.canPredict()) this.rebase();
@@ -256,10 +281,16 @@ const Net = {
   applyRider(r, A, B, f) {
     const jump = Math.abs(B[0] - A[0]) > 4000, L = i => jump ? B[i] : A[i] + (B[i] - A[i]) * f, D = f < 0.5 ? A : B;
     r.z = L(0); r.x = L(1); r.speed = L(2); r.lean = r.leanF = L(3); r.pitch = L(4);
-    r.hp = D[5]; r.crash = D[6] & 1 ? (r.crash || { t: 0 }) : null; r.finished = !!(D[6] & 2); r.gone = !!(D[6] & 4);
+    r.hp = D[5]; this.crashState(r, D, A[12] === B[12] ? L(13) : D[13]); r.finished = !!(D[6] & 2); r.gone = !!(D[6] & 4);
     r.weapon = this.WEAPONS[D[9]]; r.inv = D[10]; r.rank = D[11];
     if (B[7] && A[7] === B[7] && B[8] >= A[8]) r.atk = { side: B[7], t: A[8] + (B[8] - A[8]) * f };
     else r.atk = D[7] ? { side: D[7], t: D[8] } : null;
+  },
+  // crash phase (0 thrown, 1 getting up, 2 running back, 3 lifting the bike), the side he stands on, lift progress
+  crashState(r, row, lift) {
+    if (!(row[6] & 1)) { r.crash = null; return; }
+    const c = r.crash || (r.crash = { t: 0 }), code = row[12] || 1;
+    c.ph = Math.abs(code) - 1; c.side = Math.sign(code); c.lift = lift || 0;
   },
   interpolate() {
     const v = this.view, sn = this.snaps; if (!sn.length) return;
@@ -292,7 +323,9 @@ const Net = {
     // thrown riders
     v.bodies = b.B.map(B => {
       const A = a.B.find(x => x[0] === B[0]) || B, owner = B[0] < 0 ? this.police : v.racers[B[0]];
-      return { owner, z: A[1] + (B[1] - A[1]) * f, x: A[2] + (B[2] - A[2]) * f, h: A[3] + (B[3] - A[3]) * f, rot: A[4] + (B[4] - A[4]) * f, vz: B[5] ? 100 : 0 };
+      const same = A[6] === B[6];   // the same phase: blend its clock and facing too
+      return { owner, z: A[1] + (B[1] - A[1]) * f, x: A[2] + (B[2] - A[2]) * f, h: A[3] + (B[3] - A[3]) * f, rot: A[4] + (B[4] - A[4]) * f, vz: B[5] ? 100 : 0,
+        mode: B[6] || 0, mt: same ? A[7] + (B[7] - A[7]) * f : B[7] || 0, face: same && Math.abs(B[8] - A[8]) < 1 ? A[8] + (B[8] - A[8]) * f : B[8] || 0 };
     }).filter(o => o.owner);
   },
   draw() {
@@ -322,8 +355,8 @@ const Net = {
   },
   quitRace() {
     this.send({ t: 'leave' });
-    this.view = null; this.room = null; this.menu = false;
-    Sound.engine(0, 0);
+    this.view = null; this.dview = null; this.room = null; this.menu = false;
+    Sound.engine(0, 0); Sound.quiet();
     this.$('online').hidden = false; Game.state = 'online';
     this.send({ t: 'list' }); this.render();
   },
@@ -345,6 +378,107 @@ const Net = {
     Game.store(); Game.res = res; Game.state = 'netres';
     this.view = null;
     Sound.engine(0, 0);
+  },
+  // ================= online drift =================
+  onDriftStart(m) {
+    const me = m.cars.find(c => c.id === this.id) || m.cars[0];
+    const r = new DriftRace({ mapIdx: U.clamp(m.map | 0, 0, DRIFT_MAPS.length - 1), carIdx: U.clamp(me.car | 0, 0, DRIFT_CARS.length - 1), paint: me.paint,
+      net: { me: this.id, cars: m.cars } });
+    r.ready = false;   // the 3D models of all the cars first
+    Promise.all(r.racers.map(c => Models.loadCar(c.spec.model))).then(() => { r.ready = true; }, () => { r.ready = true; });
+    this.dview = r; this.dsnaps = []; this.offset = null; this.loaded = false; this.menu = false; this.finSent = false; this.sendT = 0;
+    this.hideOverlay();
+    Game.state = 'netdrift';
+    Sound.music.stop();
+  },
+  // our car's state for the others: [x, z, heading, vx, vz, steer, flags, smoke, rear slide, front slide, progress
+  // (segments), score, yaw rate, drift angle]; flags: 1 drifting, 2 handbrake, 4 braking, 8 nitro, 16 throttle,
+  // 32 exhaust pop, 64 finished
+  driftState() {
+    const r = this.dview, c = r.car;
+    const flags = (c.drifting ? 1 : 0) | (c.hand ? 2 : 0) | (c.brk > 0 ? 4 : 0) | (c.nitroOn ? 8 : 0) | (c.gas ? 16 : 0) | (c.backfire > 0 ? 32 : 0) | (c.fin ? 64 : 0);
+    return [c.px, c.pz, c.psi, c.vx, c.vz, c.steer, flags, c.smoke, c.rearSlide, c.frontSlide, c.sAbs + c.al, r.score, c.w, c.beta];
+  },
+  onDriftSnap(m) {
+    if (!this.dview) return;
+    this.dsnaps.push(m);
+    if (this.dsnaps.length > 40) this.dsnaps.shift();
+    const off = m.n / 60 - performance.now() / 1000;
+    if (this.offset === null || off > this.offset) this.offset = off; else this.offset += (off - this.offset) * 0.05;
+  },
+  // the other players' cars, ~INTERP s behind the newest relayed state
+  interpDrift() {
+    const r = this.dview, sn = this.dsnaps; if (!sn.length) return;
+    const t = performance.now() / 1000 + this.offset - this.INTERP;
+    let i = sn.length - 1;
+    while (i > 0 && sn[i].n / 60 > t) i--;
+    if (i === sn.length - 1 && i > 0) i--;
+    const a = sn[i], b = sn[Math.min(i + 1, sn.length - 1)], ta = a.n / 60, tb = b.n / 60, L = sn[sn.length - 1];
+    const f = tb > ta ? U.clamp((t - ta) / (tb - ta), 0, 1.25) : 0;
+    const row = (s, id) => s.P.find(x => x[0] === id);
+    const wrap = d => { while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
+    for (const c of r.racers) {
+      if (!c.remote) continue;
+      const B = row(b, c.netId), A = row(a, c.netId) || B;
+      if (!B) { if (c.seen && !row(L, c.netId)) c.gone = true; continue; }   // (left the race)
+      c.seen = true; c.gone = false;
+      const jump = Math.hypot(B[1] - A[1], B[2] - A[2]) > 30, l = k => jump ? B[k] : A[k] + (B[k] - A[k]) * f;
+      c.px = l(1); c.pz = l(2); c.psi = jump ? B[3] : A[3] + wrap(B[3] - A[3]) * f;
+      c.vx = l(4); c.vz = l(5); c.steer = l(6); c.w = l(13); c.beta = l(14);
+      const F = B[7] | 0, sn2 = Math.sin(c.psi), cs2 = Math.cos(c.psi);
+      c.u = c.vx * sn2 + c.vz * cs2; c.v = c.vx * cs2 - c.vz * sn2;
+      c.drifting = !!(F & 1); c.hand = !!(F & 2); c.brk = F & 4 ? 1 : 0; c.nitroOn = !!(F & 8); c.gas = F & 16 ? 1 : 0;
+      c.backfire = F & 32 ? 0.1 : 0; c.fin = F & 64 ? 1 : 0;
+      c.smoke = l(8); c.rearSlide = l(9); c.frontSlide = l(10); c.wheelSpin = 0; c.sHint = l(11); c.score = Math.round(B[12]);
+    }
+  },
+  updateDrift(dt) {
+    const r = this.dview; if (!r) return;
+    if (Input.pressed('pause')) this.menu = !this.menu;
+    if (this.menu && Input.pressed('quit')) { this.quitRace(); return; }
+    if (r.ready === false || !this.loaded) return;
+    this.interpDrift();
+    r.update(dt, this.menu ? { steer: 0, gas: false, brake: false } : DriftRace.readKeys());
+    this.sendT -= dt;
+    if (this.sendT <= 0) { this.sendT = 0.05; this.send({ t: 'dst', d: this.driftState() }); }
+    if (r.over && !this.finSent) { this.finSent = true; this.send({ t: 'dfin', score: r.score, time: r.time }); }
+  },
+  drawDrift() {
+    const r = this.dview; if (!r) return;
+    if (r.ready === false || !r.shown) {   // the car models loading, then one frame while the stage is built
+      if (r.ready !== false) r.shown = true;
+      Render.begin(); Game.dim(0.6);
+      Render.text(r.ready === false ? 'ĐANG TẢI XE...' : 'ĐANG TẢI CUNG ĐƯỜNG...', W / 2, 140, 32, '#ffd23a', 'center');
+      return;
+    }
+    Render.frame(r, false); Render.driftHud(r);
+    if (!this.loaded) { this.loaded = true; this.send({ t: 'loaded' }); }
+    if (r.hold) { Game.dim(0.35); Render.text('ĐỢI NGƯỜI CHƠI KHÁC TẢI XONG...', W / 2, 120, 26, '#ffd23a', 'center'); }
+    else if (r.over && r.over.t > 2) {
+      const left = r.racers.filter(c => c.remote && !c.gone && !c.fin).length;
+      Render.text(left ? 'Đợi ' + left + ' người nữa về đích (tối đa 75 giây)...' : 'Đang chốt bảng điểm...', W / 2, 150, 18, '#ffffff', 'center', W - 40);
+    }
+    if (this.menu) {
+      Game.dim(0.5); Game.panel(116, 96, 280, 110);
+      Render.text('ĐANG ĐUA ONLINE', W / 2, 102, 30, '#ffd23a', 'center');
+      Render.text('ESC: tiếp tục đua', W / 2, 140, 20, '#ffffff', 'center');
+      Render.text('Q: rời cuộc đua', W / 2, 166, 20, '#ff8a8a', 'center');
+    }
+  },
+  // the final table from the server: money as offline (score, grade, a prize for the top three); online scores do not
+  // touch the stage records
+  onDriftEnd(m) {
+    const r = this.dview; if (!r) return;
+    const s = Game.save, rows = m.rows || [], place = Math.max(1, rows.findIndex(x => x.id === this.id) + 1), score = r.score;
+    const grade = r.rank(score), prize = rows.length > 1 ? [3000, 1500, 600][place - 1] || 0 : 0;
+    const money = Math.round(score / 10) + [0, 300, 800, 1500, 3000, 6000][grade + 1] + prize;
+    s.money += money; Game.store();
+    Game.dres = { map: r.def.name, car: DRIFT_CARS[r.carIdx].name, score, grade, money, rec: false, prev: Game.driftBest(r.mapIdx), best: r.best,
+      hits: r.hits, bumps: r.car.bumps, time: r.time, quit: false, place, prize, online: true,
+      table: rows.map(x => ({ name: x.id === this.id ? 'BẠN' : x.name + (x.left ? ' (đã rời)' : ''), score: x.score, paint: x.paint, me: x.id === this.id })) };
+    Game.state = 'netdres';
+    this.dview = null;
+    Sound.quiet(); Sound.engine(0, 0);
   },
   // back from the results screen to the waiting room (with our repaired / damaged bike)
   backToRoom() {

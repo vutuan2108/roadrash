@@ -5,12 +5,28 @@
 //  - online server (o.server): several humans fed by network input; feedback is queued in `events` for the clients
 //  - online client mirror (o.view): no simulation at all, Net fills it from snapshots and only predicts its own
 //    bike with motion()
+// real bikes; the order is fixed (saved garages store these numbers). color = the factory main colour, which also
+// switches on that bike's stock livery in the 3D model. Ranked roughly like the real things (power, weight, handling)
 const BIKES = [
-  { name: 'Sói Xám 250', price: 0, speed: 11500, accel: 1.0, handling: 1.0, dur: 100, color: '#8a8f99' },
-  { name: 'Hổ Mang 600', price: 6000, speed: 12800, accel: 1.15, handling: 1.06, dur: 120, color: '#2f9a3a' },
-  { name: 'Đại Bàng 750', price: 15000, speed: 14000, accel: 1.3, handling: 1.12, dur: 140, color: '#1f5fd0' },
-  { name: 'Rồng Lửa 1000', price: 32000, speed: 15500, accel: 1.45, handling: 1.18, dur: 170, color: '#d01c1c' },
+  { name: 'Kawasaki Z900', price: 0, speed: 12000, accel: 1.05, handling: 1.04, dur: 110, color: '#5fb52a' },
+  { name: 'Yamaha YZF-R1', price: 30000, speed: 15300, accel: 1.45, handling: 1.16, dur: 140, color: '#1d3ea8' },
+  { name: 'Kawasaki Ninja 1000SX', price: 16000, speed: 14000, accel: 1.3, handling: 1.08, dur: 165, color: '#2a8a35' },
+  { name: 'BMW S 1000 RR', price: 34000, speed: 15600, accel: 1.48, handling: 1.18, dur: 150, color: '#eef0f2' },
+  { name: 'Kawasaki W800', price: 8000, speed: 11000, accel: 0.98, handling: 1.1, dur: 130, color: '#141519' },
+  { name: 'Honda Africa Twin', price: 22000, speed: 13000, accel: 1.2, handling: 1.1, dur: 200, color: '#f0f1ee' },
+  { name: 'Honda Rebel 1100', price: 14000, speed: 12400, accel: 1.22, handling: 0.98, dur: 185, color: '#17181c' },
+  // the 150 cc street favourites: slower, but light and quick to turn
+  { name: 'Honda Winner X', price: 2500, speed: 10000, accel: 1.05, handling: 1.2, dur: 95, color: '#cc1f26' },
+  { name: 'Yamaha Exciter 155', price: 2800, speed: 10200, accel: 1.08, handling: 1.22, dur: 95, color: '#1d4bb8' },
+  { name: 'Suzuki Raider R150', price: 3000, speed: 10500, accel: 1.1, handling: 1.18, dur: 90, color: '#1c1d21' },
+  { name: 'Yamaha YZF-R15 V4', price: 5500, speed: 11000, accel: 1.08, handling: 1.26, dur: 105, color: '#1f47bd' },
+  { name: 'Honda SH 160i', price: 4500, speed: 9300, accel: 0.95, handling: 1.05, dur: 120, color: '#f3f3f1' },
+  // 250 cc twin sport bike: quicker than the 150s, still light and sharp
+  { name: 'Honda CBR250RR', price: 7500, speed: 11800, accel: 1.14, handling: 1.26, dur: 110, color: '#c8121f' },
+  // the Fireblade: a 1000 cc superbike, as fast as the R1
+  { name: 'Honda CBR1000RR Fireblade', price: 32000, speed: 15400, accel: 1.46, handling: 1.17, dur: 145, color: '#c8121f' },
 ];
+const BIKE_STYLES = BIKES.length;   // one look per bike; rivals and the police ride these too
 const PANTS = ['#2b3a6b', '#1a1a1a', '#3a2a1a', '#4a4a5a', '#2f4a8a'];
 const RIVALS = [
   ['Tèo Bão', '#b5262c', '#f2f2f2', '#1a1a1a', null, 'chain'],
@@ -50,6 +66,14 @@ const RIDER_L = 210;    // half bike length in road units (~1 m)
 const CAR_DIM = { sedan: { w: 0.35, len: 972 }, suv: { w: 0.372, len: 1020 }, van: { w: 0.40, len: 1253 }, truck: { w: 0.49, len: 1880 } };
 // wheelie: pitch in radians (front wheel up) about the rear axle
 const WHEELIE = { hold: 0.5, max: 0.9, fall: 0.3, boost: 0.06 };
+// holding the wheelie button as the lights go green: a wheelie launch with extra pull while the front stays up
+const LAUNCH = { time: 2.4, boost: 0.45, fade: 0.8 };
+// after a crash the rider gets up, runs to the bike, stands it up and rides on (seconds; run speed in m/s;
+// stand = how far beside the bike the rider stands, in half road-widths)
+const CRASH = { minTumble: 1.0, maxTumble: 4.5, up: 0.5, run: 8, lift: 0.8, stand: 0.11 };
+// the brake bites progressively (speed lost per second, x top speed): a tap only takes a little off, holding it squeezes
+// harder until full braking after `full` seconds
+const BRAKE = { min: 0.25, max: 1.1, full: 1.2 };
 // starting grid [row, column], back row first: humans take the back slots, AI riders fill the rest (12 bikes)
 const GRID = [[3, 1], [3, 0], [3, 2], [2, 1], [2, 0], [2, 2], [1, 1], [1, 0], [1, 2], [0, 1], [0, 0], [0, 2]];
 const FIELD = GRID.length;
@@ -72,11 +96,14 @@ class Race {
     this.seed = o.seed !== undefined ? o.seed : o.themeIdx * 977 + o.level * 131 + 7;
     const tr = Track.build(this.theme, o.level, this.seed);
     this.segs = tr.segs; this.startZ = tr.startZ; this.finishZ = tr.finishZ;
+    // circuits: laps of lapN segments from the line at lineZ; the tarmac is edge half road-widths wide, the barrier at wall
+    this.circuit = !!this.theme.circuit; this.E = this.theme.edge || 1; this.wall = this.theme.wall || 3.2;
+    this.lapN = tr.lapN || 0; this.laps = tr.laps || 0; this.lineZ = tr.lineZ || 0; this.map = tr.map || null; this.pit = tr.pit || null;
     const online = !!o.humans, hs = o.humans || [{ id: 'me', name: 'BẠN', bikeIdx: o.bikeIdx, bikeHp: o.bikeHp }];
     this.humans = hs.map((h, i) => {
       const bike = BIKES[h.bikeIdx], [row, col] = GRID[i];
       const r = this.mkRider({ isPlayer: true, id: h.id, name: h.name, pal: humanPal(h.bikeIdx, online ? i : -1), style: h.bikeIdx,
-        top: bike.speed, hp: 100, x: [-0.5, 0, 0.5][col], z: this.startZ + (3 - row) * 650 });
+        top: bike.speed, hp: 100, x: [-0.5, 0, 0.5][col] * this.E, z: this.startZ + (3 - row) * 650 });
       return Object.assign(r, { bike, bikeMax: bike.dur, bikeHp: h.bikeHp !== undefined ? h.bikeHp : bike.dur, kos: 0, input: NO_INPUT, done: null });
     });
     this.player = this.humans[0];   // the local human (single player; the client mirror re-points it at its own bike)
@@ -88,7 +115,8 @@ class Race {
       const rv = roster ? RIVALS[roster[i].rv] : pool[i];
       const skill = U.clamp(1 - i / 11 * 0.7 + U.rand(-0.1, 0.1), 0, 1);
       const r = this.mkRider({
-        name: rv.name, pal: rv.pal, rv: RIVALS.indexOf(rv), x: [-0.5, 0, 0.5][col], z: this.startZ + (3 - row) * 650,
+        name: rv.name, pal: rv.pal, rv: RIVALS.indexOf(rv), x: [-0.5, 0, 0.5][col] * this.E, z: this.startZ + (3 - row) * 650,
+        lineOff: U.rand(-0.22, 0.22),   // where this rider likes to sit relative to the racing line (circuits)
         top: (10600 + this.level * 650) * (0.84 + skill * 0.16), skill,
         hp: roster ? roster[i].hp : 55 + this.level * 12 + skill * 20, aggr: U.rand(0.3, 0.9),
         weapon: Math.random() < 0.3 + this.level * 0.06 ? rv.weapon : null,
@@ -98,7 +126,7 @@ class Race {
     this.police = null; this.policeTimer = U.rand(35, 60) / (0.7 + this.level * 0.15); this.policeGen = 0;
     this.cars = []; this.carTurn = 0;
     if (!this.view) {
-      const nCars = 10 + this.level * 2;
+      const nCars = this.circuit ? 0 : 10 + this.level * 2;   // circuits are closed: no traffic, no police
       for (let i = 0; i < nCars; i++) this.cars.push(this.placeCar(this.newCar(this.startZ + 40000 + i * 66000 / nCars)));
     }
     this.bodies = []; this.msgs = []; this.events = [];
@@ -111,7 +139,7 @@ class Race {
   mkRider(o) {
     const r = Object.assign({ kind: 'rider', speed: 0, lean: 0, leanF: 0, atk: null, cool: U.rand(1, 3), crash: null,
       inv: 0, laneT: U.rand(1, 4), finished: false, time: 0, rank: 0, weapon: null, skill: 0.5, aggr: 0.5, hp: 100,
-      pitch: 0, pitchV: 0, wheelT: 0, wheelie: 0 }, o);
+      pitch: 0, pitchV: 0, wheelT: 0, wheelie: 0, launch: 0, vx: 0, lap: 1, brakeT: 0 }, o);
     r.maxHp = r.hp; r.targetX = r.x;
     return r;
   }
@@ -185,13 +213,21 @@ class Race {
       if (c !== this.lastBeep) { this.lastBeep = c; if (c > 0) this.fx('beep', null, 0); }
       if (this.count <= 0) {
         this.state = 'racing'; this.fx('go', null, 0); this.say(null, 'ĐI!', '#7fff7f', 1, 56);
-        for (const r of this.racers) if (!r.isPlayer && Math.random() < 0.4) r.wheelie = U.rand(0.6, 1.4);   // launch wheelies
+        for (const r of this.racers) if (!r.isPlayer) {   // everybody gets going before the first punches; some pull launch wheelies
+          r.cool = Math.max(r.cool, U.rand(1.2, 2.4));
+          if (Math.random() < 0.4) r.wheelie = U.rand(0.6, 1.4);
+        }
+        // humans holding the wheelie button at the green light get a wheelie launch
+        if (!this.demo) for (const h of this.humans) if (h.input.wheel && !h.done) {
+          h.launch = LAUNCH.time;
+          this.say(h, 'XUẤT PHÁT BỐC ĐẦU!', '#ffd23a', 1.4, 30);
+        }
       }
-      if (this.local && !this.demo) Sound.engine(Input.is('up') ? 0.75 : 0.12, 0.1);
+      if (this.local && !this.demo) { Sound.voice(this.player.style); Sound.engine(Input.is('up') ? 0.75 : 0.12, 0.1); }
     } else {
       this.time += dt;
       const P = this.player;
-      if (this.local && !this.demo) Sound.engine(P.speed / P.top, P.crash ? 0.02 : 0.08 + 0.06 * P.speed / P.top);
+      if (this.local && !this.demo) { Sound.voice(P.style); Sound.engine(P.speed / P.top, P.crash ? 0.02 : 0.08 + 0.06 * P.speed / P.top); }
     }
     if (this.local) this.player.input = this.demo ? NO_INPUT : Race.readKeys();
     for (const h of this.humans) this.updateHuman(h, dt);
@@ -218,45 +254,99 @@ class Race {
     if (h.gone) return;
     if (h.crash) { this.updateCrash(h, dt); return; }
     let inp = NO_INPUT;
-    if (this.state === 'racing') inp = !h.done && !this.demo ? h.input : { steer: this.autoSteer(h, dt), gas: this.demo, brake: false, wheel: false };
+    if (this.state === 'racing') inp = !h.done && !this.demo ? h.input : this.autoInput(h, dt);
     if (inp.atkL) this.startAttack(h, -1);
     if (inp.atkR) this.startAttack(h, 1);
     const zPrev = h.z;
     this.motion(h, inp, dt);
-    if (Math.abs(h.x) > 0.95) this.propCollide(h, zPrev);
+    if (Math.abs(h.x) > this.E - 0.05) this.propCollide(h, zPrev);
+    if (this.circuit && Math.abs(h.x) >= this.wall - 0.01) {   // into the barrier at the edge of the run-off
+      if (h.speed > h.top * 0.25) { this.crash(h, 'prop'); return; }
+      h.speed = Math.min(h.speed, h.top * 0.1); h.vx = 0;
+    }
+    if (this.circuit && !h.done && this.state === 'racing') {
+      const lap = this.lapOf(h);
+      if (lap > h.lap) { h.lap = lap; this.say(h, lap === this.laps ? 'VÒNG CUỐI!' : 'VÒNG ' + lap + '/' + this.laps, '#ffd23a', 1.8, 36); }
+    }
     this.carCollide(h, dt);
     this.updateAttack(h, dt);
   }
+  lapOf(r) { return U.clamp(Math.floor((r.z - this.lineZ) / (this.lapN * CFG.segL)) + 1, 1, this.laps); }
+  // the bend under a rider: the lateral acceleration it asks for (m/s², + = right-hand bend) and how much of the grip that is
+  bend(r, seg, gripK) {
+    const v = r.speed * CFG.KZ, need = v * v * seg.curve * CURV_M;
+    return { need, ratio: Math.abs(need) / (CORNER.grip * gripK) };
+  }
+  // how far the bike leans over (1 = full lean, knee on the tarmac, at the grip limit; + = right): the bend, plus a little
+  // for changing line (lat = sideways speed -1..1)
+  static leanFor(need, ratio, lat, sp) {
+    return U.clamp(Math.sign(need) * Math.min(1.05, Math.pow(ratio, 0.75)) + 0.32 * lat * Math.min(1, sp * 1.5), -1.1, 1.1);
+  }
+  // how fast (half road-widths/s, + = to the left) a bend pushes the bike wide
+  static drift(need, ratio) {
+    return Math.sign(need) * (Math.min(1, ratio) * CORNER.drift + Math.min(CORNER.slideMax, Math.max(0, ratio - 1) * CORNER.slide));
+  }
   // throttle, brake, steering and wheelie of a human-ridden bike (the online client predicts its own bike with this)
   motion(r, inp, dt) {
-    const B = r.bike, seg = this.findSeg(r.z), sp = r.speed / r.top;
+    const B = r.bike, seg = this.findSeg(r.z), sp = r.speed / r.top, E = this.E;
     // wheelie: needs the throttle open; the brake slams the front down
     this.updatePitch(r, dt, inp.wheel && inp.gas && !inp.brake, inp.brake);
     const wk = U.clamp(r.pitch / 0.4, 0, 1), topE = r.top * (1 + WHEELIE.boost * wk);
-    if (r.speed > 30 || inp.gas) {
-      // front wheel in the air: much less steering
-      const dx = dt * 2.2 * Math.max(0.3, Math.min(1, sp * 1.3)) * B.handling * (1 - 0.55 * wk);
-      r.x += inp.steer * dx;
-      r.x -= dx * sp * seg.curve * 0.2;
-    }
-    r.leanF += (U.clamp(inp.steer * 2 * (1 - 0.5 * wk) + seg.curve * 0.12 * sp, -2, 2) - r.leanF) * Math.min(1, dt * 10);
+    // steering builds up over a moment; a bend pushes the bike wide, gently while the tyres grip and harder once it is
+    // taken too fast (so slow corners want the brakes). Front wheel in the air: much less steering and grip
+    const { need, ratio } = this.bend(r, seg, B.handling * (1 - 0.5 * wk)), drift = Race.drift(need, ratio);
+    const auth = r.speed > 30 || inp.gas ? Math.max(0.3, Math.min(1, sp * 1.3)) * B.handling * (1 - 0.55 * wk) : 0;
+    r.vx += (inp.steer * CORNER.steer * auth - r.vx) * Math.min(1, dt * CORNER.resp);
+    r.x += (r.vx - drift) * dt;
+    r.leanF += (Race.leanFor(need, ratio, r.vx / CORNER.steer, sp) - r.leanF) * Math.min(1, dt * 6);
     r.lean = r.leanF;
-    if (inp.gas) r.speed += r.top / 5 * B.accel * (1.25 - r.speed / topE) * dt;
-    else if (inp.brake) r.speed -= r.top * 1.1 * dt;
+    // wheelie launch: extra pull for a couple of seconds, as long as the throttle and the wheelie button stay held
+    let pull = 1;
+    if (r.launch > 0) {
+      if (inp.gas && inp.wheel && !inp.brake) { pull = 1 + LAUNCH.boost * Math.min(1, r.launch / LAUNCH.fade); r.launch = Math.max(0, r.launch - dt); }
+      else r.launch = 0;
+    }
+    if (!inp.brake) r.brakeT = 0;
+    if (inp.gas) r.speed += r.top / 5 * B.accel * pull * (1.25 - r.speed / topE) * dt;
+    else if (inp.brake) {
+      r.brakeT = Math.min(BRAKE.full, r.brakeT + dt);
+      const k = r.brakeT / BRAKE.full;
+      r.speed -= r.top * (BRAKE.min + (BRAKE.max - BRAKE.min) * k * k) * dt;
+    }
     else r.speed -= r.top / 5 * (r.finished ? 1.2 : 0.7) * dt;
-    if (Math.abs(r.x) > 1.05 && r.speed > r.top * 0.3) { r.speed -= r.top * 0.8 * dt; this.fx('rumble', r); }
+    if (ratio > 1) r.speed -= r.top * CORNER.scrub * Math.min(2, ratio - 1) * dt;   // too fast for the bend: the tyres scrub it off
+    const off = Math.abs(r.x) - E;
+    if (off > 0.05 && !this.circuit) { if (r.speed > r.top * 0.3) { r.speed -= r.top * 0.8 * dt; this.fx('rumble', r); } }
+    else if (off > 0.05) {   // circuit: the kerb, then the painted run-off, then grass - or the gravel trap outside a bend
+      if (off > 0.24) {   // [braking, speed (of top) it brakes down to]: you can always ride back out at a crawl
+        const [k, low] = off < 0.5 ? [0.25, 0.55] : seg.gravel === Math.sign(r.x) ? [1.5, 0.18] : [0.7, 0.3];
+        if (r.speed > r.top * low) r.speed -= r.top * k * dt;
+      }
+      if (r.speed > r.top * 0.3) this.fx('rumble', r);
+    }
     // a wheelie is worth a little extra top speed; it bleeds off gently once the front is down
     if (r.speed > topE) r.speed = Math.max(topE, r.speed - r.top * 0.2 * dt);
     r.speed = Math.max(0, r.speed);
-    r.x = U.clamp(r.x, -3.2, 3.2);
+    r.x = U.clamp(r.x, -this.wall, this.wall);
     r.z += r.speed * dt;
   }
-  autoSteer(r, dt) {
+  // the title-screen demo and humans who are done ride themselves: follow a lane (or the racing line), brake for bends
+  // (keep = steer for the targetX already set)
+  autoInput(r, dt, keep) {
+    const seg = this.findSeg(r.z), B = r.bike;
     r.laneT -= dt;
-    if (r.laneT <= 0) { r.laneT = U.rand(3, 6); r.targetX = U.pick([-0.3, 0, 0.3, 0.5]); }
-    this.avoidCars(r);
-    const seg = this.findSeg(r.z), sp = r.speed / r.top;
-    return U.clamp((r.targetX - r.x) * 4 + seg.curve * 0.2 * sp, -1, 1);
+    if (keep) { /* target chosen by the caller */ }
+    else if (this.circuit) r.targetX = this.findSeg(r.z + 25 * CFG.segL).line * this.E;
+    else {
+      if (r.laneT <= 0) { r.laneT = U.rand(3, 6); r.targetX = U.pick([-0.3, 0, 0.3, 0.5]); }
+      this.avoidCars(r);
+    }
+    const { need, ratio } = this.bend(r, seg, B.handling);
+    const drift = Race.drift(need, ratio);
+    const auth = Math.max(0.3, Math.min(1, r.speed / r.top * 1.3)) * B.handling * CORNER.steer;
+    const vmax = seg.vlim * Math.sqrt(B.handling) / CFG.KZ;
+    return { steer: U.clamp(((r.targetX - r.x) * 2.5 + drift) / auth, -1, 1), gas: this.demo && r.speed < vmax * 0.97,
+      brake: r.speed > vmax * 1.04, wheel: false };
   }
   // wheelie pitch: the throttle lifts the front towards a balance angle (with a little wobble), gravity drops it
   updatePitch(r, dt, lift, brake) {
@@ -344,6 +434,7 @@ class Race {
     best.x += side * 0.07; best.speed *= 0.985;
     this.fx('hit', null, a.z);
     if (best.isPlayer) this.fx('hurt', best);
+    if (best.launch > 0 && best.hp > 0) { best.launch = 0; best.pitch = Math.min(best.pitch, 0.12); best.pitchV = 0; }   // a hit just slams a launch wheelie down
     if (best.hp <= 0 || best.pitch > WHEELIE.fall) {   // a hit during a wheelie knocks the rider off
       this.crash(best, best.hp <= 0 ? 'ko' : 'fall');
       if (a.isPlayer) {
@@ -359,12 +450,15 @@ class Race {
     a.weapon = from.weapon; from.weapon = null;
     this.say(a, 'CƯỚP ĐƯỢC ' + (a.weapon === 'chain' ? 'XÍCH' : 'GẬY') + '!', '#7fff7f', 1.6, 28);
   }
+  // a crash: the rider is thrown (tumble), gets up, runs back to the bike, stands it up and rides on.
+  // crash.ph: 0 tumble, 1 getting up, 2 running to the bike, 3 lifting it; crash.side: which side of the bike he stands
   crash(r, cause) {
     if (r.crash) return;
-    r.crash = { t: 0, dur: r.isPlayer ? 3.0 : 2.6 };
-    r.atk = null; r.engaged = false; r.pitch = 0; r.pitchV = 0; r.wheelT = 0; r.wheelie = 0;
+    r.crash = { t: 0, ph: 0, pt: 0, lift: 0, side: Math.random() < 0.5 ? -1 : 1 };
+    r.atk = null; r.engaged = false; r.pitch = 0; r.pitchV = 0; r.wheelT = 0; r.wheelie = 0; r.launch = 0;
+    // the rider is thrown over the bars and lands some 5-16 m ahead of where the bike stops, then runs back to it
     this.bodies.push({ kind: 'body', owner: r, pal: r.pal, z: r.z + 60, x: r.x, h: 120,
-      vz: r.speed * 0.6 + 900, vh: 1500, vx: U.rand(-0.5, 0.5), rot: 0, frame: 0 });
+      vz: r.speed * 0.6 + 1200, vh: 1500, vx: U.rand(-0.4, 0.4), rot: 0, frame: 0, mode: 0, mt: 0, face: 0 });
     if (r.isPlayer) {
       this.fx('crash', r); r.weapon = null;
       r.bikeHp -= cause === 'ko' ? 6 : cause === 'car' ? U.rand(25, 38) : cause === 'fall' ? U.rand(8, 14) : U.rand(15, 26);
@@ -375,24 +469,54 @@ class Race {
     if (!r.isPlayer || this.server) this.fx('thud', null, r.z);
   }
   updateCrash(r, dt) {
-    const c = r.crash; c.t += dt;
+    const c = r.crash; c.t += dt; c.pt += dt;
+    // the bike slides to a stop
     r.speed = Math.max(0, r.speed - (r.speed * 2.2 + 1500) * dt);
     r.z += r.speed * dt;
-    if (c.t < c.dur) return;
+    const b = this.bodies.find(o => o.owner === r);
+    if (!b) { this.remount(r); return; }
+    const next = ph => { c.ph = ph; c.pt = 0; b.mode = ph; b.mt = 0; };
+    if (c.ph === 0) {   // tumbling: wait until both the rider and the bike lie still
+      const still = b.h <= 0 && b.vh <= 0 && b.vz < 60 && r.speed < 150;
+      if (c.t >= CRASH.minTumble && still || c.t >= CRASH.maxTumble) {
+        b.vz = 0; b.vh = 0; b.h = 0; b.vx = 0;
+        if (r.isPlayer && r.bikeHp <= 0) { r.bikeHp = 0; this.retire(r, 'wrecked'); }
+        next(1);
+      }
+      return;
+    }
+    b.mt += dt;
+    // where he stands to pick the bike up: beside it, on the side its seat faces
+    const tx = U.clamp(r.x + c.side * CRASH.stand, -this.wall, this.wall), tz = r.z - 20;
+    if (c.ph === 1) { if (c.pt >= CRASH.up) next(2); return; }
+    if (c.ph === 2) {   // run to the bike (distances in metres: z is 216 units/m, x is 5 m per unit)
+      const dxm = (tx - b.x) * 5, dzm = (tz - b.z) / 216, d = Math.hypot(dxm, dzm), step = CRASH.run * dt;
+      if (d <= step || c.pt > 8) { b.x = tx; b.z = tz; next(3); b.face = -c.side * Math.PI / 2; return; }
+      b.x += dxm / d * step / 5; b.z += dzm / d * step * 216;
+      b.face = Math.atan2(dxm, dzm);
+      return;
+    }
+    // lifting: stand the bike up and wheel it back onto the road
+    c.lift = Math.min(1, c.pt / CRASH.lift);
+    r.x += (U.clamp(r.x, 0.1 - this.E, this.E - 0.1) - r.x) * Math.min(1, dt * 3);
+    b.x = U.clamp(r.x + c.side * CRASH.stand, -this.wall, this.wall); b.z = tz;
+    if (c.pt >= CRASH.lift) this.remount(r);
+  }
+  // back on the bike: a moment of grace (no flashing) so nobody is knocked straight off again
+  remount(r) {
     this.bodies = this.bodies.filter(b => b.owner !== r);
-    r.crash = null; r.speed = 0; r.inv = 1.6; r.x = U.clamp(r.x, -0.8, 0.8);
+    r.crash = null; r.speed = 0; r.inv = 0.8; r.vx = 0; r.x = U.clamp(r.x, 0.1 - this.E, this.E - 0.1);
     r.hp = r.isPlayer ? r.maxHp : r.maxHp * 0.7;
-    if (r.isPolice) { this.police = null; this.policeTimer = U.rand(25, 45); return; }
-    if (r.isPlayer && r.bikeHp <= 0) { r.bikeHp = 0; this.retire(r, 'wrecked'); }
   }
   updateBodies(dt) {
     for (const b of this.bodies) {
+      if (b.mode) continue;   // on his feet: moved by updateCrash
       if (b.h > 0 || b.vh > 0) {
         b.vh -= 4200 * dt; b.h += b.vh * dt;
         if (b.h <= 0) { b.h = 0; b.vh = b.vh < -700 ? -b.vh * 0.35 : 0; b.vz *= 0.55; }
       }
-      b.vz = Math.max(0, b.vz - 2200 * dt); b.z += b.vz * dt;
-      b.x += b.vx * dt; b.vx *= 1 - dt * 2;
+      b.vz = Math.max(0, b.vz - (b.h > 0 ? 2200 : 2200 + b.vz) * dt); b.z += b.vz * dt;   // sliding on the tarmac brakes harder
+      b.x = U.clamp(b.x + b.vx * dt, -this.wall, this.wall); b.vx *= 1 - dt * 2;
       const moving = b.vz > 50 || b.h > 0;
       if (moving) b.rot += dt * (8 + b.vz / 450);
       b.frame = moving ? Math.floor(b.rot) % 8 : 2;
@@ -423,10 +547,11 @@ class Race {
     return false;
   }
   steerTo(r, dt) {
-    const d = r.targetX - r.x, step = 1.3 * dt;
-    r.x += U.clamp(d, -step, step);
-    r.lean = U.clamp(d * 10, -2, 2);
-    r.x = U.clamp(r.x, -1, 1);
+    const step = (this.circuit ? 1.6 : 1.3) * dt, mv = U.clamp(r.targetX - r.x, -step, step);
+    r.x = U.clamp(r.x + mv, -this.E, this.E);
+    const { need, ratio } = this.bend(r, this.findSeg(r.z), 1.08);
+    r.leanF += (Race.leanFor(need, ratio, step > 0 ? mv / step : 0, r.speed / r.top) - r.leanF) * Math.min(1, dt * 6);
+    r.lean = r.leanF;
   }
   aiAttack(r, T) {
     const dz = r.z - T.z, ddx = T.x - r.x, reach = r.weapon ? 0.6 : 0.46;
@@ -445,9 +570,10 @@ class Race {
     let want = r.top;
     if (T && !this.demo && !r.finished) { if (dzT > 6000) want *= 0.9; else if (dzT < -5000) want *= 1.08; }
     if (r.finished) want = r.top * 0.4;
-    want *= 1 - Math.min(0.12, Math.abs(seg.curve) * 0.015);
+    if (!this.circuit) want *= 1 - Math.min(0.12, Math.abs(seg.curve) * 0.015);
     r.laneT -= dt;
-    if (r.laneT <= 0) { r.laneT = U.rand(2, 5); r.targetX = U.pick([-0.6, -0.25, 0.1, 0.45, 0.7]); }
+    if (this.circuit) r.targetX = (this.findSeg(r.z + 25 * CFG.segL).line + r.lineOff) * this.E;   // racing line
+    else if (r.laneT <= 0) { r.laneT = U.rand(2, 5); r.targetX = U.pick([-0.6, -0.25, 0.1, 0.45, 0.7]); }
     const canFight = T && !this.demo && !T.crash && !r.finished && this.state === 'racing';
     const near = canFight && Math.abs(dzT) < 900;
     if (near) { if (!r.engaged && Math.random() < r.aggr * dt * 2) r.engaged = true; } else r.engaged = false;
@@ -456,6 +582,9 @@ class Race {
       if (dzT > 150) want = Math.min(want, T.speed * 0.97);
       else if (dzT < -150) want = Math.max(want, Math.min(r.top * 1.05, T.speed * 1.05));
     }
+    // no faster than the bends ahead allow (a better rider dares a little more)
+    want = Math.min(want, seg.vlim * Math.sqrt(0.92 + 0.16 * r.skill) / CFG.KZ);
+    r.targetX = U.clamp(r.targetX, 0.12 - this.E, this.E - 0.12);
     if (r.speed < want) r.speed = Math.min(want, r.speed + r.top / 4.5 * dt);
     else r.speed = Math.max(want, r.speed - r.top / 2.5 * dt);
     const avoiding = this.avoidCars(r);
@@ -472,7 +601,7 @@ class Race {
 
   // one police bike at a time, chasing one human (its target)
   updatePolice(dt) {
-    if (this.demo || this.state !== 'racing') return;
+    if (this.demo || this.circuit || this.state !== 'racing') return;
     if (!this.police) {
       const pool = this.humans.filter(h => !h.done && !h.gone && h.z < this.finishZ - 30000);
       if (!pool.length) return;

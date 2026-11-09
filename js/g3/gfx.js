@@ -39,6 +39,10 @@ const G3 = (() => {
   for (let i = 0; i < 5; i++) CELL['plM' + i] = [1280 + i * 128, 224, 128, 96];                                                     // motorbike plates
   for (let i = 0; i < 10; i++) CELL['fac' + i] = [i * 128, 0, 128, 512];
   for (let i = 0; i < 6; i++) CELL['bb' + i] = [(i % 4) * 256, 512 + (i / 4 | 0) * 128, 256, 128];
+  // circuit furniture: sponsor boards, the crowd, braking markers, the event banner, pit garages and hospitality glass
+  for (let i = 0; i < 9; i++) CELL['ad' + i] = [1280 + (i % 3) * 256, 320 + (i / 3 | 0) * 64, 256, 64];
+  for (let i = 0; i < 3; i++) CELL['brk' + i] = [1280 + i * 64, 768, 64, 128];
+  Object.assign(CELL, { crowd: [1024, 768, 256, 256], gpb: [1536, 768, 512, 128], garage: [1280, 896, 256, 128], vip: [1536, 896, 512, 128] });
   const uvRect = k => { const [x, y, w, h] = CELL[k]; return [(x + 1) / AW, 1 - (y + h - 1) / AH, (x + w - 1) / AW, 1 - (y + 1) / AH]; };
   const WHITE = [(1280 + 32) / AW, 1 - 32 / AH];
   const FAC_FLOORS = [3, 5, 4, 6, 3, 7, 4, 5, 8, 4];
@@ -224,6 +228,92 @@ const G3 = (() => {
     g.fillStyle = 'rgba(255,255,255,0.85)'; g.fillRect(x, y, 256, 4); g.fillRect(x, y + 124, 256, 4);
     grain(g, x, y, 256, 128, 120, 0.06, rnd);
   }
+  // made-up trackside sponsors (no real brands)
+  const GP_ADS = [['NHỚT SIÊU TỐC', '#c81e1e', '#ffffff'], ['LỐP BÁM ĐƯỜNG', '#141414', '#ffd23a'], ['XĂNG 95 VIỆT', '#1f4fb0', '#ffffff'],
+    ['HIGHWAY BRAWL', '#ffd23a', '#141414'], ['CÀ PHÊ SỮA ĐÁ', '#5a3010', '#fff0c8'], ['BẢO HIỂM MOTO', '#0f6a5a', '#ffffff'],
+    ['NƯỚC TĂNG LỰC', '#e05010', '#ffffff'], ['PHỤ TÙNG XỊN', '#202a3a', '#3af0ff'], ['MŨ BẢO HIỂM TỐT', '#f2f2f2', '#c81e1e']];
+  function gpAd(g, x, y, w, h, i) {
+    const [t, bg, fg] = GP_ADS[i % GP_ADS.length];
+    g.fillStyle = bg; g.fillRect(x, y, w, h);
+    g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(x, y, w, h * 0.42);
+    g.fillStyle = fg; g.textAlign = 'center'; g.textBaseline = 'middle'; fitText(g, t, x + w / 2, y + h / 2 + 1, w - 18, h * 0.62, '900');
+    g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(x, y + h - 3, w, 3); g.fillRect(x + w - 2, y, 2, h);
+  }
+  function gpCells(g, e) {
+    for (let i = 0; i < 9; i++) {
+      const [x, y, w, h] = CELL['ad' + i];
+      gpAd(g, x, y, w, h, i);
+      e.globalAlpha = 0.5; e.drawImage(g.canvas, x, y, w, h, x, y, w, h); e.globalAlpha = 1;
+    }
+    { const [x, y, w, h] = CELL.crowd, rnd = U.rng(77);                                         // packed terraces, 18 rows
+      g.fillStyle = '#2a2e38'; g.fillRect(x, y, w, h);
+      for (let r = 0; r < 18; r++) {
+        const y0 = y + r * (h / 18);
+        g.fillStyle = r % 2 ? '#3a4050' : '#343a48'; g.fillRect(x, y0 + 9, w, 5);
+        for (let k = 0; k < 24; k++) {
+          if (rnd() < 0.1) continue;
+          const px = x + k * (w / 24) + rnd() * 3, top = rnd() < 0.15 ? 'hsl(' + (rnd() * 360 | 0) + ',80%,55%)' : 'hsl(' + (rnd() * 360 | 0) + ',' + (30 + rnd() * 50 | 0) + '%,' + (30 + rnd() * 45 | 0) + '%)';
+          g.fillStyle = top; g.fillRect(px, y0 + 5, 7, 7);
+          g.fillStyle = ['#f0c8a0', '#d8a878', '#b07850', '#e8b890'][rnd() * 4 | 0]; g.fillRect(px + 1.5, y0 + 1, 4, 4);
+          if (rnd() < 0.05) { g.fillStyle = rnd() < 0.5 ? '#d81a1a' : '#ffd21a'; g.fillRect(px + 5, y0 - 3, 6, 4); }
+        }
+      }
+      e.globalAlpha = 0.25; e.drawImage(g.canvas, x, y, w, h, x, y, w, h); e.globalAlpha = 1; }
+    ['50', '100', '150'].forEach((n, i) => {                                                    // braking markers
+      const [x, y, w, h] = CELL['brk' + i];
+      g.fillStyle = '#f4f4f0'; g.fillRect(x, y, w, h); g.fillStyle = '#141414'; g.fillRect(x, y, w, 5); g.fillRect(x, y + h - 5, w, 5);
+      g.textAlign = 'center'; g.textBaseline = 'middle'; fitText(g, n, x + w / 2, y + h / 2, w - 6, 58, '900');
+      e.fillStyle = '#909090'; e.fillRect(x, y, w, h);
+    });
+    { const [x, y, w, h] = CELL.gpb, gr = g.createLinearGradient(x, y, x, y + h);               // event banner
+      gr.addColorStop(0, '#1d3a8a'); gr.addColorStop(1, '#0a1640'); g.fillStyle = gr; g.fillRect(x, y, w, h);
+      for (let k = 0; k < 6; k++) for (let r = 0; r < 8; r++) { g.fillStyle = (k + r) % 2 ? '#111' : '#fff'; g.fillRect(x + k * 8, y + r * 16, 8, 16); g.fillRect(x + w - 48 + k * 8, y + r * 16, 8, 16); }
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = '#ffd23a'; fitText(g, 'HIGHWAY BRAWL GP', x + w / 2, y + 52, w - 120, 58, '900');
+      g.fillStyle = '#ffffff'; fitText(g, 'GIẢI ĐUA MÔ TÔ VIỆT NAM', x + w / 2, y + 100, w - 140, 24, '700');
+      e.globalAlpha = 0.7; e.drawImage(g.canvas, x, y, w, h, x, y, w, h); e.globalAlpha = 1; }
+    { const [x, y, w, h] = CELL.garage, rnd = U.rng(5);                                         // open garage, tinted by the team colour
+      const gr = g.createLinearGradient(x, y, x, y + h); gr.addColorStop(0, '#d8d8d8'); gr.addColorStop(0.75, '#9a9a9a'); gr.addColorStop(1, '#3a3a3a');
+      g.fillStyle = gr; g.fillRect(x, y, w, h);
+      g.fillStyle = '#e8e8e8'; g.fillRect(x, y, w, 12);
+      for (let k = 0; k < 5; k++) { g.fillStyle = '#5a5a5a'; g.fillRect(x + 10 + k * 48, y + 30, 32, 52); g.fillStyle = '#7a7a7a'; for (let d = 0; d < 4; d++) g.fillRect(x + 12 + k * 48, y + 33 + d * 12, 28, 9); }
+      g.fillStyle = '#202020'; g.fillRect(x, y + 104, w, 24);
+      for (let k = 0; k < 3; k++) { g.fillStyle = '#151515'; g.fillRect(x + 40 + k * 70 + rnd() * 10, y + 86, 34, 18); g.beginPath(); g.arc(x + 46 + k * 70, y + 104, 7, 0, 7); g.arc(x + 70 + k * 70, y + 104, 7, 0, 7); g.fill(); }
+      e.fillStyle = '#806a50'; e.fillRect(x, y + 12, w, 92); }
+    { const [x, y, w, h] = CELL.vip, rnd = U.rng(9);                                            // hospitality glazing
+      const gr = g.createLinearGradient(x, y, x, y + h); gr.addColorStop(0, '#6a8aa8'); gr.addColorStop(1, '#22344a');
+      g.fillStyle = gr; g.fillRect(x, y, w, h);
+      for (let k = 0; k < 40; k++) { g.fillStyle = 'hsl(' + (rnd() * 360 | 0) + ',30%,' + (25 + rnd() * 30 | 0) + '%)'; g.fillRect(x + rnd() * w, y + 60 + rnd() * 30, 6, 24); }
+      g.fillStyle = 'rgba(255,255,255,0.18)'; for (let k = 0; k < 8; k++) g.fillRect(x + k * 64 + 8, y, 18, h);
+      g.fillStyle = '#d8dce2'; for (let k = 0; k <= 8; k++) g.fillRect(x + k * 64 - 2, y, 4, h);
+      e.fillStyle = '#c8a878'; e.fillRect(x, y, w, h); e.fillStyle = '#000'; for (let k = 0; k <= 8; k++) e.fillRect(x + k * 64 - 2, y, 4, h); }
+  }
+  // strip of 8 sponsor boards for the continuous trackside barrier (4 m each)
+  function adStrip() {
+    const c = canvas(2048, 64), g = c.getContext('2d');
+    for (let i = 0; i < 8; i++) gpAd(g, i * 256, 0, 256, 64, (i * 5) % 9);
+    return tex(c, { repeat: true });
+  }
+  // circuit tarmac: dark, fine-grained, white lines along both edges (the ribbon is 14 m wide)
+  function circuitTex(look, hw = 7) {   // hw: half width of the track (m); the texture spans it
+    const c = canvas(512, 1024), g = c.getContext('2d'), rnd = U.rng(13), PX = 512 / (2 * hw), k = hw / 7;
+    g.fillStyle = look.asphalt; g.fillRect(0, 0, 512, 1024);
+    for (let i = 0; i < 14000; i++) {
+      const v = rnd(); g.fillStyle = v < 0.5 ? `rgba(0,0,0,${0.04 + rnd() * 0.1})` : `rgba(255,255,255,${0.03 + rnd() * 0.07})`;
+      g.fillRect(rnd() * 512, rnd() * 1024, 1 + rnd() * 1.5, 1 + rnd() * 1.5);
+    }
+    for (const w of [-2.6, -0.4, 1.8]) {                                                          // rubbered-in lines
+      const cx = 256 + w * k * PX, gr = g.createLinearGradient(cx - 40, 0, cx + 40, 0);
+      gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.5, 'rgba(0,0,0,0.12)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = gr; g.fillRect(cx - 40, 0, 80, 1024);
+    }
+    for (const s of [-1, 1]) {
+      const lw = 12 / k, lx = 256 + s * (hw - 0.22) * PX - lw / 2;   // a line of the same width in metres
+      g.fillStyle = '#ececE8'; g.fillRect(lx, 0, lw, 1024);
+      for (let i = 0; i < 300; i++) { g.fillStyle = `rgba(60,60,60,${rnd() * 0.3})`; g.fillRect(lx + rnd() * lw, rnd() * 1024, 2, 2); }
+    }
+    return tex(c, { repeat: true });
+  }
   function buildAtlas() {
     const cv = canvas(AW, AH), ce = canvas(AW, AH), g = cv.getContext('2d'), e = ce.getContext('2d');
     g.fillStyle = '#808080'; g.fillRect(0, 0, AW, AH); e.fillStyle = '#000'; e.fillRect(0, 0, AW, AH);
@@ -231,6 +321,7 @@ const G3 = (() => {
     cell('white', '#ffffff'); cell('glow', '#fff4d0');
     { const [x, y, w, h] = CELL.glow; e.fillStyle = '#ffe0a0'; e.fillRect(x, y, w, h); }
     for (let i = 0; i < 10; i++) facade(g, e, i);
+    gpCells(g, e);
     for (let i = 0; i < 6; i++) {
       billboard(g, i);
       const [x, y] = CELL['bb' + i]; e.globalAlpha = 0.45; e.drawImage(cv, x, y, 256, 128, x, y, 256, 128); e.globalAlpha = 1;
@@ -330,17 +421,17 @@ const G3 = (() => {
     g.putImageData(d, 0, 0);
     return tex(c, { repeat: true });
   }
-  function roadTex(theme, look) {
-    const c = canvas(512, 1024), g = c.getContext('2d'), rnd = U.rng(11), PX = 51.2;
+  function roadTex(theme, look, hw = 5) {   // hw: half width of the road (m); the texture spans it, lines keep their width
+    const c = canvas(512, 1024), g = c.getContext('2d'), rnd = U.rng(11), PX = 512 / (2 * hw), k = PX / 51.2;
     g.fillStyle = look.asphalt; g.fillRect(0, 0, 512, 1024);
     for (let i = 0; i < 9000; i++) {
       const v = rnd(); g.fillStyle = v < 0.5 ? `rgba(0,0,0,${0.05 + rnd() * 0.12})` : `rgba(255,255,255,${0.04 + rnd() * 0.1})`;
       g.fillRect(rnd() * 512, rnd() * 1024, 1 + rnd() * 2, 1 + rnd() * 2);
     }
-    for (const lx of [-2.5, 2.5]) for (const w of [-0.75, 0.75]) {                                 // darker wheel tracks
-      const cx = 256 + (lx + w) * PX, gr = g.createLinearGradient(cx - 18, 0, cx + 18, 0);
+    for (const lx of [-hw / 2, hw / 2]) for (const w of [-0.75, 0.75]) {                           // darker wheel tracks
+      const cx = 256 + (lx + w) * PX, gr = g.createLinearGradient(cx - 18 * k, 0, cx + 18 * k, 0);
       gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.5, 'rgba(0,0,0,0.10)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
-      g.fillStyle = gr; g.fillRect(cx - 18, 0, 36, 1024);
+      g.fillStyle = gr; g.fillRect(cx - 18 * k, 0, 36 * k, 1024);
     }
     for (let i = 0; i < 4; i++) { g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(40 + rnd() * 380, rnd() * 900, 30 + rnd() * 70, 40 + rnd() * 120); }  // patches
     for (let i = 0; i < 6; i++) {                                                                  // cracks
@@ -353,10 +444,10 @@ const G3 = (() => {
       g.fillStyle = col; g.fillRect(x, y0, w, y1 - y0);
       for (let i = 0; i < (y1 - y0) / 3; i++) { g.fillStyle = `rgba(60,60,60,${rnd() * 0.35})`; g.fillRect(x + rnd() * w, y0 + rnd() * (y1 - y0), 2, 2); }
     };
-    for (const s of [-1, 1]) paint(256 + s * 4.62 * PX - 4, 8, 0, 1024, '#e8e8e2');               // edge lines
+    for (const s of [-1, 1]) paint(256 + s * (hw - 0.38) * PX - 4 * k, 8 * k, 0, 1024, '#e8e8e2');   // edge lines
     const lc = look.centre;
-    if (lc === 'double') { paint(244, 7, 0, 1024, '#f0c020'); paint(261, 7, 0, 1024, '#f0c020'); }
-    else for (const y0 of [0, 512]) paint(252, 8, y0, y0 + 205, lc === 'dashY' ? '#f0d040' : '#ececE6');
+    if (lc === 'double') { paint(256 - 12 * k, 7 * k, 0, 1024, '#f0c020'); paint(256 + 5 * k, 7 * k, 0, 1024, '#f0c020'); }
+    else for (const y0 of [0, 512]) paint(256 - 4 * k, 8 * k, y0, y0 + 205, lc === 'dashY' ? '#f0d040' : '#ececE6');
     return tex(c, { repeat: true });
   }
   function radialTex(inner, outer) {
@@ -403,7 +494,7 @@ const G3 = (() => {
   // ---------------- shared materials ----------------
   const G = {
     T, lin, mix, mul, smooth, hash, vnoise, fbm, Mesher, Bag, geo, canvas, tex, uvRect, CELL, FAC_FLOORS, SANS, fitText,
-    roadTex, radialTex, aniso: 4, mats: null, tx: null,
+    roadTex, circuitTex, adStrip, radialTex, aniso: 4, mats: null, tx: null,
     init(renderer) {
       this.aniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
       const atlas = buildAtlas();

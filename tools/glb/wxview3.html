@@ -1,0 +1,42 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;background:#20242b}#info{position:fixed;left:8px;top:6px;color:#fff;font:14px monospace}</style></head>
+<body><div id="info">loading</div>
+<script src="file:///C:/Users/Administrator/Desktop/New%20folder/road%20rash/js/lib/three.min.js"></script>
+<script src="file:///F:/hb_tmp/wx/winnerx.js"></script>
+<script src="glbrt.js"></script>
+<script>
+const T = THREE; T.ColorManagement.legacyMode = false;
+const Q = new URLSearchParams(location.search);
+const D = HB_GLB.winnerx, xf = { s: 1.278 / 1.23, oy: -0.0403, oz: -0.0322 };
+const { g, tx } = GLBRT.decode(T, D);
+g.applyMatrix4(new T.Matrix4().compose(new T.Vector3(0, xf.oy, xf.oz), new T.Quaternion(), new T.Vector3(xf.s, xf.s, xf.s)));
+const paint = new T.Color(Q.get('paint') || '#c8121f'), n = g.attributes.position.count, C = new Float32Array(n * 3);
+for (let i = 0; i < n; i++) { C[i * 3] = paint.r; C[i * 3 + 1] = paint.g; C[i * 3 + 2] = paint.b; }
+g.setAttribute('color', new T.BufferAttribute(C, 3));
+const mat = GLBRT.material(T, tx, D, xf);
+const model = new T.Group(); model.add(new T.Mesh(g, mat));
+for (const [z, y, r, w] of [[0.639, 0.287, 0.287, 0.045], [-0.639, 0.294, 0.294, 0.06]]) {
+  const t = new T.Mesh(new T.TorusGeometry(r - w, w, 12, 40), new T.MeshStandardMaterial({ color: '#141416', roughness: 0.8 }));
+  t.rotation.y = Math.PI / 2; t.position.set(0, y, z); model.add(t);
+  const rim = new T.Mesh(new T.CylinderGeometry(r - w * 1.6, r - w * 1.6, 0.03, 30), new T.MeshStandardMaterial({ color: '#2a2b30', roughness: 0.5 }));
+  rim.rotation.z = Math.PI / 2; rim.position.set(0, y, z); model.add(rim);
+}
+const W = innerWidth, H = innerHeight, ren = new T.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+ren.setSize(W, H); ren.setScissorTest(true); ren.outputEncoding = T.sRGBEncoding; ren.toneMapping = T.ACESFilmicToneMapping; ren.toneMappingExposure = 1.1;
+document.body.appendChild(ren.domElement);
+const scene = new T.Scene(); scene.add(model); model.position.y = -0.6;
+scene.add(new T.HemisphereLight(0xdde8ff, 0x3a3630, 0.9));
+const sun = new T.DirectionalLight(0xffffff, 2.2); sun.position.set(2, 4, 3); scene.add(sun);
+const fill = new T.DirectionalLight(0xffffff, 0.6); fill.position.set(-3, 1.5, -2); scene.add(fill);
+const VIEWS = { L: [1, 0.05, 0], R: [-1, 0.05, 0], F: [0, 0.15, 1], B: [0, 0.2, -1], FR: [-1, 0.4, 1.1], FL: [1, 0.4, 1.1], RR: [-1, 0.45, -1], T: [0.001, 1, 0], RL: [1, 0.35, -1.1] };
+const views = (Q.get('v') || 'R,FR,F,L,RR,FL').split(','), cols = +(Q.get('cols') || 3), rows = Math.ceil(views.length / cols), vw = W / cols, vh = H / rows;
+const zoom = +(Q.get('zoom') || 1), tgt = new T.Vector3(0, +(Q.get('ty') || 0), +(Q.get('tz') || 0));
+views.forEach((k, i) => {
+  const cam = new T.PerspectiveCamera(22 / zoom, vw / vh, 0.01, 50), d = new T.Vector3(...VIEWS[k]).normalize();
+  cam.position.copy(d.multiplyScalar(6.2)).add(tgt); if (k === 'T') cam.up.set(0, 0, 1); cam.lookAt(tgt);
+  const x = (i % cols) * vw, y = H - (Math.floor(i / cols) + 1) * vh;
+  ren.setViewport(x, y, vw, vh); ren.setScissor(x, y, vw, vh); ren.setClearColor(i % 2 ? 0x2a2f38 : 0x262a32); ren.clear(); ren.render(scene, cam);
+});
+document.getElementById('info').textContent = 'verts ' + n + ' | ' + views.join(' ') + ' | webgl2 ' + ren.capabilities.isWebGL2;
+window.RESULT = 1;
+</script></body></html>

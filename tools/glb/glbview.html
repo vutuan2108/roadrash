@@ -1,0 +1,54 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;background:#20242b}#info{position:fixed;left:8px;top:6px;color:#fff;font:14px monospace}</style></head>
+<body><div id="info">loading</div>
+<script src="file:///C:/Users/Administrator/Desktop/New%20folder/road%20rash/js/lib/three.min.js"></script>
+<script>
+// generic viewer for packed bodies: ?m=cbr loads F:/hb_tmp/cbr/cbr.js; wheels drawn as stand-ins at the model's axles
+const Q = new URLSearchParams(location.search), MN = Q.get('m') || 'cbr';
+const CFG = {
+  winnerx: { file: 'F:/hb_tmp/wx/winnerx.js', xf: { s: 1.278 / 1.23, ox: -0.0203, oy: -0.0403, oz: -0.0322 }, W: [[0.639, 0.287, 0.287, 0.045], [-0.639, 0.294, 0.294, 0.06]],
+    sh: { mask: { z0: 0.6, y0: 0.64, y1: 0.83, xw: 0.1, led: { y: 0.745, slope: 0.3, x0: 0.02, x1: 0.105 } }, seat: { z0: -0.8, z1: 0, y0: 0.78 }, tail: { z1: -0.68, y0: 0.8, y1: 0.95, ly: 0.872 } } },
+  cbr: { file: 'F:/hb_tmp/cbr/cbr.js', xf: window.CBR_XF || { s: 1, ox: 0, oy: 0, oz: 0 }, W: [[0.614, 0.301, 0.3, 0.06], [-0.607, 0.33, 0.326, 0.09]], sh: window.CBR_SH || {} },
+};
+document.write(`<script src="file:///${CFG[MN].file}"><\/script><script src="glbrt.js"><\/script>`);
+</script>
+<script src="cbrcfg.js"></script>
+<script>
+const T = THREE; T.ColorManagement.legacyMode = false;
+const K = CFG[MN]; if (MN === 'cbr' && window.CBR_XF) { K.xf = CBR_XF; K.sh = CBR_SH; K.W = CBR_W; }
+const D = HB_GLB[MN], xf = K.xf;
+const { g, tx } = GLBRT.decode(T, D);
+g.applyMatrix4(new T.Matrix4().compose(new T.Vector3(xf.ox, xf.oy, xf.oz), new T.Quaternion(), new T.Vector3(xf.s, xf.s, xf.s)));
+const paint = new T.Color(Q.get('paint') || '#c8121f'), n = g.attributes.position.count, Cc = new Float32Array(n * 3);
+for (let i = 0; i < n; i++) { Cc[i * 3] = paint.r; Cc[i * 3 + 1] = paint.g; Cc[i * 3 + 2] = paint.b; }
+g.setAttribute('color', new T.BufferAttribute(Cc, 3));
+const model = new T.Group(); model.add(new T.Mesh(g, GLBRT.material(T, tx, D, xf, K.sh)));
+if (!Q.get('nowheel')) for (const [z, y, r, w] of K.W) {
+  const t = new T.Mesh(new T.TorusGeometry(r - w, w, 12, 40), new T.MeshStandardMaterial({ color: '#141416', roughness: 0.8 }));
+  t.rotation.y = Math.PI / 2; t.position.set(0, y, z); model.add(t);
+  const rim = new T.Mesh(new T.CylinderGeometry(r - w * 1.6, r - w * 1.6, 0.03, 30), new T.MeshStandardMaterial({ color: '#2a2b30', roughness: 0.5 }));
+  rim.rotation.z = Math.PI / 2; rim.position.set(0, y, z); model.add(rim);
+}
+const W = innerWidth, H = innerHeight, ren = new T.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+ren.setSize(W, H); ren.setScissorTest(true); ren.outputEncoding = T.sRGBEncoding; ren.toneMapping = T.ACESFilmicToneMapping; ren.toneMappingExposure = 1.1;
+document.body.appendChild(ren.domElement);
+const scene = new T.Scene(); scene.add(model); model.position.y = -0.6;
+scene.add(new T.HemisphereLight(0xdde8ff, 0x3a3630, 0.9));
+const sun = new T.DirectionalLight(0xffffff, 2.2); sun.position.set(2, 4, 3); scene.add(sun);
+const fill = new T.DirectionalLight(0xffffff, 0.6); fill.position.set(-3, 1.5, -2); scene.add(fill);
+const VIEWS = { L: [1, 0.05, 0], R: [-1, 0.05, 0], F: [0, 0.15, 1], B: [0, 0.2, -1], FR: [-1, 0.4, 1.1], FL: [1, 0.4, 1.1], RR: [-1, 0.45, -1], T: [0.001, 1, 0], RL: [1, 0.35, -1.1] };
+const views = (Q.get('v') || 'R,FR,F,L,RR,FL').split(','), cols = +(Q.get('cols') || 3), rows = Math.ceil(views.length / cols), vw = W / cols, vh = H / rows;
+const zoom = +(Q.get('zoom') || 1), tgt = new T.Vector3(0, +(Q.get('ty') || 0), +(Q.get('tz') || 0));
+const ortho = Q.get('ortho');
+views.forEach((k, i) => {
+  let cam;
+  if (ortho) { const hh = 0.75 / zoom; cam = new T.OrthographicCamera(-hh * vw / vh, hh * vw / vh, hh, -hh, 0.01, 50); }
+  else cam = new T.PerspectiveCamera(22 / zoom, vw / vh, 0.01, 50);
+  const d = new T.Vector3(...VIEWS[k]).normalize();
+  cam.position.copy(d.multiplyScalar(6.2)).add(tgt); if (k === 'T') cam.up.set(0, 0, 1); cam.lookAt(tgt);
+  const x = (i % cols) * vw, y = H - (Math.floor(i / cols) + 1) * vh;
+  ren.setViewport(x, y, vw, vh); ren.setScissor(x, y, vw, vh); ren.setClearColor(i % 2 ? 0x2a2f38 : 0x262a32); ren.clear(); ren.render(scene, cam);
+});
+document.getElementById('info').textContent = MN + ' verts ' + n + ' | ' + views.join(' ');
+window.RESULT = 1;
+</script></body></html>

@@ -2,3 +2,7 @@ node_modules/
 public/
 npm-debug.log*
 .claude/settings.local.json
+
+# source 3D models (built into js/g3/*.js by tools/glb, not needed to run the game)
+car/
+/*.glb

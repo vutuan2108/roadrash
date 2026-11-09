@@ -1,0 +1,21 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+html,body{margin:0;background:#111;color:#ff0;font:13px monospace}
+.c{position:relative;display:inline-block;overflow:hidden;margin:4px;border:1px solid #555;background-image:url(file:///F:/hb_tmp/wx/tex_prev.png);background-repeat:no-repeat;image-rendering:pixelated}
+.l{position:absolute;left:2px;top:2px;background:#000a;padding:1px 3px}
+.g{position:absolute;background:#0f08}
+</style></head><body>
+<script>
+// crops of the 2048x1280 livery map: [x, y, w, h] in texture px, shown at zoom z with a 10 px grid
+const C = (new URLSearchParams(location.search).get('c') || '1180,1010,230,70;1480,520,180,150;1360,560,300,120;660,540,280,160;1690,680,160,120').split(';').map(s => s.split(',').map(Number));
+const Z = +(new URLSearchParams(location.search).get('z') || 3);
+for (const [x, y, w, h] of C) {
+  const d = document.createElement('div'); d.className = 'c'; d.style.width = w * Z + 'px'; d.style.height = h * Z + 'px';
+  d.style.backgroundSize = 2048 * Z + 'px ' + 1280 * Z + 'px'; d.style.backgroundPosition = -x * Z + 'px ' + -y * Z + 'px';
+  for (let gx = Math.ceil(x / 10) * 10; gx < x + w; gx += 10) { const l = document.createElement('div'); l.className = 'g'; Object.assign(l.style, { left: (gx - x) * Z + 'px', top: 0, width: '1px', height: '100%', opacity: gx % 50 ? 0.35 : 1 }); d.appendChild(l); }
+  for (let gy = Math.ceil(y / 10) * 10; gy < y + h; gy += 10) { const l = document.createElement('div'); l.className = 'g'; Object.assign(l.style, { top: (gy - y) * Z + 'px', left: 0, height: '1px', width: '100%', opacity: gy % 50 ? 0.35 : 1 }); d.appendChild(l); }
+  const t = document.createElement('div'); t.className = 'l'; t.textContent = `${x},${y} ${w}x${h} (bright lines every 50)`; d.appendChild(t);
+  document.body.appendChild(d);
+}
+window.RESULT = 1;
+</script></body></html>
