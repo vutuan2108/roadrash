@@ -92,7 +92,7 @@ const Input = {
     ok: ['Enter', 'Space'], back: ['Escape', 'Backspace'],
     pause: ['Escape', 'KeyP'], mute: ['KeyM'], quit: ['KeyQ'], repair: ['KeyR'],
     // drift cars (the same keys most PC drift games use): handbrake, clutch, nitro, gears, camera, reset, horn
-    hand: ['Space'], clutch: ['ShiftLeft', 'ShiftRight'], nitro: ['KeyN'], gearUp: ['KeyE'], gearDn: ['KeyQ'], gearMode: ['KeyT'],
+    hand: ['Space'], clutch: ['ShiftLeft', 'ShiftRight'], nitro: ['KeyN'], gearUp: ['KeyB', 'KeyE'], gearDn: ['KeyV', 'KeyQ'], gearMode: ['KeyT'],
     cam: ['KeyC'], reset: ['KeyR'], horn: ['KeyH'],
   },
   is(a) { return this.map[a].some(k => this.down[k]); },

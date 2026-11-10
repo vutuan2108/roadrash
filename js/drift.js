@@ -13,45 +13,42 @@
 // len / hw: body ends and half width for the walls. voice: engine sound (see Sound.engine). real: the real car in one line
 // (the garage), vmax: the game's top speed (km/h, measured flat out for 40 s; the garage)
 const DRIFT_CARS = [
-  { name: 'Toyota AE86 Trueno', model: 'ae86', price: 0, color: '#f2f2f0', hp: 190, kg: 950, vmax: 231, real: '4A-GE 1.6L 4 máy · zin 130 mã lực · 200 km/h',
-    mass: 960, a: 1.12, b: 1.28, h: 0.48, torque: 230, pk: 0.74, redline: 7800, idle: 950, gears: [3.59, 2.02, 1.38, 1.0, 0.86],
-    final: 4.3, R: 0.29, drag: 0.352, muF: 1.08, muR: 1.14, pkF: 0.13, pkR: 0.11, slide: 0.84, lock: 0.8, steerIn: 0.62, brake: 1.0,
-    maxAng: 1.0, turbo: false, voice: [30, 250, 330, 2300, 0.26, 2] },
-  { name: 'Nissan Silvia S15', model: 's15', price: 18000, color: '#f0c419', hp: 360, kg: 1240, vmax: 312, real: 'SR20DET 2.0L 4 máy turbo · zin 250 mã lực · 250 km/h',
-    mass: 1240, a: 1.15, b: 1.375, h: 0.48, torque: 435, pk: 0.62, redline: 7500, idle: 900, gears: [3.32, 1.9, 1.31, 1.0, 0.76, 0.59],
-    final: 4.08, R: 0.31, drag: 0.28, muF: 1.1, muR: 1.16, pkF: 0.12, pkR: 0.105, slide: 0.84, lock: 0.82, steerIn: 0.6, brake: 1.05,
+  // All from the player's 3D models in car/ (built into js/g3/<model>.js by tools/glb), cheapest first. Real figures in
+  // `real`; in the game the drift-build rule (about +45 % power and torque; the pro builds capped), gears / final drive
+  // / redline / weight as the real cars
+  // Datsun 280Z (S30), the free starter car: L28E 2.8 L six, 170 hp (early rating) at 5600 rpm, 221 Nm at 4400 rpm, about 1270 kg; 5-speed
+  { name: 'Datsun 280Z', model: 'z280', price: 0, color: '#e8650f', hp: 250, kg: 1270, vmax: 236, real: 'L28E 2.8L 6 máy thẳng hàng · zin 170 mã lực · 205 km/h',
+    mass: 1270, a: 1.083, b: 1.222, h: 0.5, torque: 320, pk: 0.68, redline: 6500, idle: 750, gears: [3.321, 2.077, 1.308, 1.0, 0.864],
+    final: 3.9, R: 0.324, drag: 0.36, muF: 1.08, muR: 1.14, pkF: 0.13, pkR: 0.11, slide: 0.84, lock: 0.82, steerIn: 0.62, brake: 1.0,
+    maxAng: 1.0, turbo: true, voice: [26, 220, 290, 1900, 0.3, 2] },
+  // Nissan 180SX (RPS13) Type X: SR20DET 2.0 L turbo four, 205 PS at 6000 rpm, 275 Nm at 4000 rpm, about 1220 kg,
+  // 5-speed 3.321 / 1.902 / 1.308 / 1.000 / 0.759, final 4.083, about 230 km/h. Here with an aero kit and a wing
+  { name: 'Nissan 180SX', model: 'n180', price: 8000, color: '#8e949c', hp: 295, kg: 1220, vmax: 277, real: 'SR20DET 2.0L 4 máy turbo · zin 205 mã lực · 230 km/h',
+    mass: 1220, a: 1.114, b: 1.361, h: 0.48, torque: 400, pk: 0.6, redline: 7500, idle: 900, gears: [3.321, 1.902, 1.308, 1.0, 0.759],
+    final: 4.083, R: 0.303, drag: 0.29, muF: 1.1, muR: 1.16, pkF: 0.12, pkR: 0.105, slide: 0.84, lock: 0.84, steerIn: 0.62, brake: 1.05,
     maxAng: 1.02, turbo: true, voice: [29, 240, 310, 2200, 0.22, 2] },
-  { name: 'Mazda RX-7 FD3S', model: 'fd', price: 26000, color: '#c0161e', hp: 405, kg: 1280, vmax: 310, real: '13B-REW rotary twin-turbo · zin 280 mã lực · 250 km/h',
-    mass: 1280, a: 1.21, b: 1.21, h: 0.46, torque: 465, pk: 0.7, redline: 8000, idle: 1000, gears: [3.48, 2.02, 1.39, 1.0, 0.76],
-    final: 4.1, R: 0.32, drag: 0.264, muF: 1.1, muR: 1.16, pkF: 0.12, pkR: 0.105, slide: 0.85, lock: 0.84, steerIn: 0.62, brake: 1.08,
-    maxAng: 1.05, turbo: true, voice: [40, 320, 420, 2900, 0.12, 3] },
-  { name: 'Toyota Supra A80', model: 'supra', price: 40000, color: '#e8650f', hp: 465, kg: 1500, vmax: 337, real: '2JZ-GTE 3.0L 6 máy twin-turbo · zin 320 mã lực · 250 km/h',
-    mass: 1510, a: 1.2, b: 1.35, h: 0.49, torque: 680, pk: 0.55, redline: 7000, idle: 850, gears: [3.83, 2.36, 1.69, 1.31, 1.0, 0.79],
-    final: 3.27, R: 0.33, drag: 0.288, muF: 1.1, muR: 1.16, pkF: 0.12, pkR: 0.105, slide: 0.84, lock: 0.82, steerIn: 0.58, brake: 1.1,
-    maxAng: 0.98, turbo: true, voice: [33, 270, 340, 2400, 0.1, 1.5] },
-  { name: 'Ford Mustang GT', model: 'mustang', price: 55000, color: '#1f6fd0', hp: 650, kg: 1720, vmax: 354, real: 'Coyote 5.0L V8 · zin 460 mã lực · 250 km/h',
-    mass: 1720, a: 1.28, b: 1.44, h: 0.52, torque: 810, pk: 0.6, redline: 7400, idle: 750, gears: [3.66, 2.43, 1.69, 1.32, 1.0, 0.65],
-    final: 3.55, R: 0.35, drag: 0.336, muF: 1.12, muR: 1.18, pkF: 0.12, pkR: 0.105, slide: 0.84, lock: 0.8, steerIn: 0.56, brake: 1.12,
-    maxAng: 1.0, turbo: false, voice: [24, 200, 250, 1500, 0.44, 1.5] },
-  // from the player's own 3D models (car/*.glb -> js/g3/gr86.js, s15c.js). GR86 (ZN8) stock: 2.4 L FA24 boxer, 228 hp at
+  // Ford Mustang 1965 hardtop: 289 cu in (4.7 L) V8 with the four-barrel carburettor, 225 hp at 4800 rpm, 305 lb-ft
+  // (414 Nm) at 3200 rpm, about 1300 kg, 4-speed Toploader 2.78 / 1.93 / 1.36 / 1.00, about 190 km/h
+  { name: 'Ford Mustang 1965', model: 'm65', price: 12000, color: '#16245a', hp: 326, kg: 1300, vmax: 217, real: '289 V8 4.7L · zin 225 mã lực · 190 km/h',
+    mass: 1300, a: 1.207, b: 1.536, h: 0.52, torque: 600, pk: 0.55, redline: 6000, idle: 700, gears: [2.78, 1.93, 1.36, 1.0],
+    final: 3.2, R: 0.307, drag: 0.38, muF: 1.06, muR: 1.12, pkF: 0.13, pkR: 0.11, slide: 0.84, lock: 0.78, steerIn: 0.6, brake: 0.95,
+    maxAng: 1.0, turbo: false, voice: [22, 190, 240, 1400, 0.5, 1.5] },
+  // Toyota GR86 (ZN8) stock: 2.4 L FA24 boxer, 228 hp at
   // 7000 rpm, 250 Nm, 1270 kg, the real 6-speed and 4.30 final drive; here with a turbo kit like the others (+45 %)
   { name: 'Toyota GR86 Pandem', model: 'gr86', price: 14000, color: '#c0161e', hp: 330, kg: 1280, vmax: 281, real: 'FA24 2.4L 4 máy boxer · zin 228 mã lực · 226 km/h',
     mass: 1280, a: 1.21, b: 1.365, h: 0.46, torque: 360, pk: 0.6, redline: 7500, idle: 800, gears: [3.626, 2.188, 1.541, 1.213, 1.0, 0.767],
     final: 4.3, R: 0.328, drag: 0.3, muF: 1.1, muR: 1.16, pkF: 0.12, pkR: 0.105, slide: 0.84, lock: 0.84, steerIn: 0.62, brake: 1.08,
     maxAng: 1.02, turbo: true, voice: [27, 230, 300, 2100, 0.3, 2] },
-  // S15 pro-am drift build: SR20DET with a big turbo (about 350 hp on the street, +45 % here like the others), stripped
-  // with a cage (1190 kg), angle kit, 4.3 final drive on the Spec-R 6-speed
-  { name: 'Nissan Silvia S15 Custom', model: 's15c', price: 60000, color: '#f2f2f0', hp: 500, kg: 1190, vmax: 340, real: 'SR20DET độ turbo lớn · ~350 mã lực ngoài đời',
-    mass: 1190, a: 1.135, b: 1.39, h: 0.47, torque: 560, pk: 0.62, redline: 8000, idle: 950, gears: [3.32, 1.9, 1.31, 1.0, 0.76, 0.59],
-    final: 4.3, R: 0.342, drag: 0.33, muF: 1.12, muR: 1.18, pkF: 0.12, pkR: 0.105, slide: 0.84, lock: 0.9, steerIn: 0.62, brake: 1.12,
-    maxAng: 1.08, turbo: true, voice: [31, 250, 330, 2400, 0.3, 2] },
-  // ---- from the player's 3D models in car/ (built into js/g3/<model>.js). Real figures in `real`; in the game the
-  // drift-build rule as above (about +45 % power and torque), gears / final drive / redline / weight as the real cars
-  // Datsun 280Z (S30): L28E 2.8 L six, 170 hp (early rating) at 5600 rpm, 221 Nm at 4400 rpm, about 1270 kg; 5-speed
-  { name: 'Datsun 280Z', model: 'z280', price: 9000, color: '#e8650f', hp: 250, kg: 1270, vmax: 236, real: 'L28E 2.8L 6 máy thẳng hàng · zin 170 mã lực · 205 km/h',
-    mass: 1270, a: 1.083, b: 1.222, h: 0.5, torque: 320, pk: 0.68, redline: 6500, idle: 750, gears: [3.321, 2.077, 1.308, 1.0, 0.864],
-    final: 3.9, R: 0.324, drag: 0.36, muF: 1.08, muR: 1.14, pkF: 0.13, pkR: 0.11, slide: 0.84, lock: 0.82, steerIn: 0.62, brake: 1.0,
-    maxAng: 1.0, turbo: true, voice: [26, 220, 290, 1900, 0.3, 2] },
+  // Ford Mustang Boss 302 (1970): 302 cu in (5.0 L) V8, 290 hp at 5800 rpm, 290 lb-ft (393 Nm) at 4300 rpm, about
+  // 1450 kg, close-ratio 4-speed Toploader 2.32 / 1.69 / 1.29 / 1.00, 3.50 axle, 0-60 mph 6.9 s
+  { name: 'Ford Mustang Boss 302', model: 'boss', price: 24000, color: '#1ea0dc', hp: 420, kg: 1450, vmax: 228, real: 'Boss 302 V8 5.0L · zin 290 mã lực · 0–96 km/h 6,9 giây',
+    mass: 1450, a: 1.207, b: 1.536, h: 0.5, torque: 570, pk: 0.66, redline: 6500, idle: 800, gears: [2.32, 1.69, 1.29, 1.0],
+    final: 3.5, R: 0.326, drag: 0.36, muF: 1.08, muR: 1.14, pkF: 0.13, pkR: 0.11, slide: 0.84, lock: 0.8, steerIn: 0.6, brake: 1.0,
+    maxAng: 1.0, turbo: false, voice: [24, 200, 260, 1600, 0.46, 1.5] },
+  { name: 'Toyota Supra A80', model: 'supra', price: 40000, color: '#e8650f', hp: 465, kg: 1500, vmax: 337, real: '2JZ-GTE 3.0L 6 máy twin-turbo · zin 320 mã lực · 250 km/h',
+    mass: 1510, a: 1.2, b: 1.35, h: 0.49, torque: 680, pk: 0.55, redline: 7000, idle: 850, gears: [3.83, 2.36, 1.69, 1.31, 1.0, 0.79],
+    final: 3.27, R: 0.33, drag: 0.288, muF: 1.1, muR: 1.16, pkF: 0.12, pkR: 0.105, slide: 0.84, lock: 0.82, steerIn: 0.58, brake: 1.1,
+    maxAng: 0.98, turbo: true, voice: [33, 270, 340, 2400, 0.1, 1.5] },
   // Nissan Skyline GT-R R34: RB26DETT 2.6 L twin-turbo six, 280 PS at 6800 rpm, 392 Nm, 1560 kg, Getrag 6-speed
   // 3.827 / 2.360 / 1.685 / 1.312 / 1.000 / 0.793, final 3.545. Four-wheel drive in real life - rear drive here (drift build)
   { name: 'Nissan Skyline GT-R R34', model: 'r34', price: 45000, color: '#1f6fd0', hp: 400, kg: 1560, vmax: 336, real: 'RB26DETT 2.6L 6 máy twin-turbo · zin 280 mã lực · 250 km/h',
@@ -64,69 +61,291 @@ const DRIFT_CARS = [
     mass: 1310, a: 1.2125, b: 1.2125, h: 0.46, torque: 650, pk: 0.62, redline: 8000, idle: 1000, gears: [3.483, 2.015, 1.391, 1.0, 0.719],
     final: 4.1, R: 0.34, drag: 0.29, muF: 1.12, muR: 1.18, pkF: 0.12, pkR: 0.105, slide: 0.85, lock: 0.86, steerIn: 0.62, brake: 1.1,
     maxAng: 1.05, turbo: true, voice: [40, 320, 420, 2900, 0.12, 3] },
-  // Mazda RX-7 FD3S, BN Sports BLS kit: built 13B rotary, about 600 hp on the street (BN Sports BLS build); capped here
-  { name: 'Mazda RX-7 BN Sports', model: 'rx7bn', price: 75000, color: '#c0161e', hp: 700, kg: 1250, vmax: 331, real: '13B rotary độ lớn · ~600 mã lực (bản BN Sports BLS)',
-    mass: 1250, a: 1.2125, b: 1.2125, h: 0.46, torque: 720, pk: 0.65, redline: 8500, idle: 1100, gears: [3.483, 2.015, 1.391, 1.0, 0.719],
-    final: 4.3, R: 0.319, drag: 0.32, muF: 1.14, muR: 1.2, pkF: 0.12, pkR: 0.105, slide: 0.85, lock: 0.9, steerIn: 0.62, brake: 1.15,
-    maxAng: 1.08, turbo: true, voice: [42, 330, 440, 3000, 0.16, 3] },
+  // Ford Mustang GT-R: a 2018 Mustang GT fastback (S550) with a race kit. Coyote 5.0 L V8, 460 hp at 7000 rpm,
+  // 420 lb-ft (569 Nm) at 4600 rpm, about 1680 kg, 6-speed manual (first 3.66), 250 km/h (limited)
+  { name: 'Ford Mustang GT-R', model: 'gtr', price: 55000, color: '#14161a', hp: 650, kg: 1650, vmax: 340, real: 'Coyote 5.0L V8 (Mustang GT 2018) · zin 460 mã lực · 250 km/h',
+    mass: 1650, a: 1.278, b: 1.442, h: 0.5, torque: 810, pk: 0.6, redline: 7500, idle: 750, gears: [3.66, 2.43, 1.69, 1.32, 1.0, 0.65],
+    final: 3.55, R: 0.317, drag: 0.44, muF: 1.12, muR: 1.18, pkF: 0.12, pkR: 0.105, slide: 0.84, lock: 0.82, steerIn: 0.56, brake: 1.15,
+    maxAng: 1.0, turbo: false, voice: [24, 200, 250, 1500, 0.44, 1.5] },
+  // S15 pro-am drift build: SR20DET with a big turbo (about 350 hp on the street, +45 % here like the others), stripped
+  // with a cage (1190 kg), angle kit, 4.3 final drive on the Spec-R 6-speed
+  { name: 'Nissan Silvia S15 Custom', model: 's15c', price: 60000, color: '#f2f2f0', hp: 500, kg: 1190, vmax: 340, real: 'SR20DET độ turbo lớn · ~350 mã lực ngoài đời',
+    mass: 1190, a: 1.135, b: 1.39, h: 0.47, torque: 560, pk: 0.62, redline: 8000, idle: 950, gears: [3.32, 1.9, 1.31, 1.0, 0.76, 0.59],
+    final: 4.3, R: 0.342, drag: 0.33, muF: 1.12, muR: 1.18, pkF: 0.12, pkR: 0.105, slide: 0.84, lock: 0.9, steerIn: 0.62, brake: 1.12,
+    maxAng: 1.08, turbo: true, voice: [31, 250, 330, 2400, 0.3, 2],
+    align: { camF: -5.5, camR: -1, toeF: -0.1, toeR: 0.15, cas: 8.5 } },   // (comes with a pro-am drift alignment)
   // Porsche 911 GT2 (993): 3.6 L twin-turbo flat six, 430 PS at 5750 rpm, 540 Nm, 1295 kg, rear drive, 6-speed
   // (ratios estimated from the 993 Turbo box), 0-100 4.4 s, 295 km/h. Rear engine: 38 % of the weight on the front
   { name: 'Porsche 911 GT2 (993)', model: 'gt2', price: 65000, color: '#f0c419', hp: 615, kg: 1295, vmax: 321, real: '3.6L 6 máy boxer twin-turbo · zin 430 mã lực · 295 km/h',
     mass: 1295, a: 1.409, b: 0.863, h: 0.48, torque: 780, pk: 0.66, redline: 6800, idle: 900, gears: [3.82, 2.15, 1.56, 1.21, 0.97, 0.75],
     final: 3.44, R: 0.323, drag: 0.3, muF: 1.12, muR: 1.2, pkF: 0.12, pkR: 0.105, slide: 0.84, lock: 0.8, steerIn: 0.58, brake: 1.15,
     maxAng: 0.98, turbo: true, voice: [30, 240, 320, 2100, 0.28, 2] },
+  // Mazda RX-7 FD3S, BN Sports BLS kit: built 13B rotary, about 600 hp on the street (BN Sports BLS build); capped here
+  { name: 'Mazda RX-7 BN Sports', model: 'rx7bn', price: 75000, color: '#c0161e', hp: 700, kg: 1250, vmax: 331, real: '13B rotary độ lớn · ~600 mã lực (bản BN Sports BLS)',
+    mass: 1250, a: 1.2125, b: 1.2125, h: 0.46, torque: 720, pk: 0.65, redline: 8500, idle: 1100, gears: [3.483, 2.015, 1.391, 1.0, 0.719],
+    final: 4.3, R: 0.319, drag: 0.32, muF: 1.14, muR: 1.2, pkF: 0.12, pkR: 0.105, slide: 0.85, lock: 0.9, steerIn: 0.62, brake: 1.15,
+    maxAng: 1.08, turbo: true, voice: [42, 330, 440, 3000, 0.16, 3] },
+  // Nissan GT-R R35 with the Liberty Walk LB-Silhouette WORKS GT 35GT-RR kit: VR38DETT 3.8 L twin-turbo V6, 570 PS at
+  // 6800 rpm, 633 Nm, about 1750 kg, 6-speed dual clutch, 315 km/h. Four-wheel drive in real life - rear drive here
+  { name: 'Nissan GT-R R35 LB-Silhouette', model: 'r35', price: 85000, color: '#f2f2f0', hp: 800, kg: 1700, vmax: 329, real: 'VR38DETT 3.8L V6 twin-turbo · zin 570 mã lực · 315 km/h',
+    mass: 1700, a: 1.279, b: 1.501, h: 0.47, torque: 900, pk: 0.55, redline: 7100, idle: 900, gears: [4.056, 2.301, 1.595, 1.248, 1.001, 0.796],
+    final: 3.7, R: 0.362, drag: 0.31, muF: 1.14, muR: 1.2, pkF: 0.12, pkR: 0.105, slide: 0.84, lock: 0.82, steerIn: 0.58, brake: 1.18,
+    maxAng: 1.0, turbo: true, voice: [30, 250, 320, 2200, 0.24, 2] },
   // Ferrari F40, Liberty Walk kit: 2.9 L twin-turbo V8, 478 PS at 7000 rpm, 577 Nm at 4000 rpm, about 1250 kg, 5-speed
   // (ratios estimated to its 324 km/h at the 7750 redline), 0-100 4.1 s. Mid engine: 42 % on the front
   { name: 'Ferrari F40 LB-Works', model: 'f40', price: 90000, color: '#c0161e', hp: 685, kg: 1254, vmax: 313, real: '2.9L V8 twin-turbo · zin 478 mã lực · 324 km/h',
     mass: 1254, a: 1.421, b: 1.029, h: 0.45, torque: 835, pk: 0.52, redline: 7750, idle: 950, gears: [2.077, 1.474, 1.13, 0.917, 0.759],
     final: 3.9, R: 0.317, drag: 0.3, muF: 1.14, muR: 1.2, pkF: 0.12, pkR: 0.105, slide: 0.84, lock: 0.8, steerIn: 0.58, brake: 1.15,
     maxAng: 1.0, turbo: true, voice: [28, 230, 310, 2100, 0.26, 2] },
+  // Nissan 180SX of Team Toyo Tires Drift Wisteria, D1 Grand Prix 2018 car #66 (Hideyuki Fujino): a 2JZ swap stroked
+  // to 3.4 L, about 850 PS. Capped here like the other pro builds
+  { name: 'Nissan 180SX Wisteria D1', model: 'wis', price: 100000, color: '#1f6fd0', hp: 780, kg: 1200, vmax: 315, real: '2JZ 3.4L độ (thay máy) · ~850 mã lực · xe D1GP #66',
+    mass: 1200, a: 1.114, b: 1.361, h: 0.46, torque: 900, pk: 0.6, redline: 8000, idle: 1000, gears: [3.827, 2.36, 1.685, 1.312, 1.0, 0.793],
+    final: 3.7, R: 0.306, drag: 0.32, muF: 1.16, muR: 1.22, pkF: 0.12, pkR: 0.105, slide: 0.85, lock: 0.95, steerIn: 0.64, brake: 1.15,
+    maxAng: 1.12, turbo: true, voice: [33, 270, 340, 2400, 0.1, 1.5],
+    align: { camF: -5, camR: -0.75, toeF: -0.05, toeR: 0.2, cas: 9 } },   // (its D1 alignment)
 ];
 // body ends (rear, front) and half width of each model, for the walls
-const DRIFT_BODY = { ae86: [-2.0, 2.18, 0.83], s15: [-2.2, 2.25, 0.86], fd: [-2.1, 2.19, 0.88], supra: [-2.24, 2.28, 0.9], mustang: [-2.36, 2.43, 0.96],
-  gr86: [-2.22, 2.17, 0.97], s15c: [-2.4, 2.2, 0.98], z280: [-2.1, 2.18, 0.88], r34: [-2.38, 2.22, 0.95], rx7vs: [-2.2, 2.13, 0.97],
-  rx7bn: [-2.25, 2.2, 0.98], gt2: [-1.88, 2.3, 0.93], f40: [-1.92, 2.5, 1.0] };
-const DRIFT_PAINTS = ['#f2f2f0', '#14161a', '#8e949c', '#c0161e', '#e8650f', '#f0c419', '#2f8a3a', '#1f6fd0', '#16245a', '#6a2c91', '#e85aa0', '#20b8b0'];
+const DRIFT_BODY = { z280: [-2.1, 2.18, 0.88], n180: [-2.4, 2.14, 0.9], m65: [-2.52, 2.04, 0.9], gr86: [-2.22, 2.17, 0.97],
+  boss: [-2.52, 2.17, 0.91], supra: [-2.24, 2.28, 0.9], r34: [-2.38, 2.22, 0.95], rx7vs: [-2.2, 2.13, 0.97], gtr: [-2.55, 2.28, 1.02],
+  s15c: [-2.4, 2.2, 0.98], gt2: [-1.88, 2.3, 0.93], rx7bn: [-2.25, 2.2, 0.98], r35: [-2.55, 2.35, 1.03], f40: [-1.92, 2.5, 1.0],
+  wis: [-2.42, 2.12, 0.96] };
+const DRIFT_PAINTS = ['#f2f2f0', '#14161a', '#8e949c', '#c0161e', '#e8650f', '#f0c419', '#2f8a3a', '#1ea0dc', '#1f6fd0', '#16245a', '#6a2c91', '#e85aa0', '#20b8b0'];
+
+// ---------------- wheel alignment: camber, toe, caster ----------------
+// Degrees, each wheel. camF / camR: camber (- = the top of the tyre leans in towards the car), toeF / toeR: toe (+ = toe-in,
+// the front of the tyre points in; - = toe-out), cas: caster (the steering axis leans back at the top). rng: [lowest,
+// highest, step]. stock: a street car's factory alignment - the handling the rest of this file was tuned with, so every
+// effect below is 1 (or 0) there. A car may come with its own (spec.align: the pro builds)
+const DEG = Math.PI / 180;
+const ALIGN = {
+  keys: ['camF', 'camR', 'toeF', 'toeR', 'cas'],
+  rng: { camF: [-8, 2, 0.25], camR: [-4, 2, 0.25], toeF: [-1, 1, 0.05], toeR: [-1, 1, 0.05], cas: [2, 12, 0.25] },
+  stock: { camF: -0.75, camR: -1.25, toeF: 0.05, toeR: 0.1, cas: 5.5 },
+  // body roll (degrees per m/s² sideways) and the share of it that reaches the tyres' camber (strut front, multi-link
+  // rear); ltF: the front's share of the load transfer against an even split (drift cars are stiffer at the front)
+  roll: 0.3, rollF: 0.7, rollR: 0.45, ltF: 1.45, track: 1.5,
+  // a loaded tyre grips best at opt degrees of camber to the road; it loses kNeg (on its inner shoulder) / kPos (rolled
+  // onto the outer one) per degree² away from that, never below floor
+  opt: -0.8, kNeg: 0.005, kPos: 0.008, floor: 0.6,
+  // the moments the garage judges a setup at: a drift (sideways acceleration m/s² + counter-steer, rad) and a turn-in
+  drift: { ay: 7.5, steer: -0.42 }, turn: { ay: 5, steer: 0.08 },
+};
+const Align = {
+  def(spec) { return this.clean(spec.align || ALIGN.stock); },
+  // a valid setup (saves, the network): every angle on its step, within its range
+  clean(a) {
+    const o = {};
+    for (const k of ALIGN.keys) {
+      const [lo, hi, st] = ALIGN.rng[k], v = Number(a && a[k]);
+      o[k] = Number.isFinite(v) ? U.clamp(Math.round(v / st) * st, lo, hi) : ALIGN.stock[k];
+      o[k] = +o[k].toFixed(2);
+    }
+    return o;
+  },
+  same(a, b) { return ALIGN.keys.every(k => Math.abs(a[k] - b[k]) < 1e-6); },
+  // grip of a loaded tyre at camber g (degrees, to the road)
+  grip(g) { const d = g - ALIGN.opt; return Math.max(ALIGN.floor, 1 - (d > 0 ? ALIGN.kPos : ALIGN.kNeg) * d * d); },
+  // the camber the caster adds to the LEFT front wheel steered by d (rad, + = left): + = its top leans out. Both wheels
+  // lean the way they are steered, so the wheel on the outside of the steer gains negative camber, the inside one positive
+  casG(cas, d) { return Math.asin(Math.sin(cas * DEG) * Math.sin(d)) / DEG; },
+  // camber of the left and right wheel (degrees) of an axle at sideways acceleration ay (m/s², + = turning left: the body
+  // rolls right, the left wheel's top leans in, the right one's out) and steer (rad)
+  cambers(a, front, ay, steer) {
+    const cam = front ? a.camF : a.camR, ph = ay * ALIGN.roll * (front ? ALIGN.rollF : ALIGN.rollR), cg = front ? this.casG(a.cas, steer) : 0;
+    return [cam - ph + cg, cam + ph - cg];
+  },
+  // sideways grip of an axle: its two tyres weighted by their load
+  axle(a, front, ay, steer, h) {
+    const [gL, gR] = this.cambers(a, front, ay, steer);
+    const lt = U.clamp(ay * h / (ALIGN.track * 9.81) * (front ? ALIGN.ltF : 2 - ALIGN.ltF), -0.48, 0.48);
+    return (0.5 - lt) * this.grip(gL) + (0.5 + lt) * this.grip(gR);
+  },
+  // ... against the stock alignment in the same moment (the physics multiplies the tyres' grip by it)
+  axleK(a, front, ay, steer, h) { return this.axle(a, front, ay, steer, h) / this.axle(ALIGN.stock, front, ay, steer, h); },
+  // the effects that do not change from moment to moment (each 1, or 0, with the stock alignment):
+  // brake: front braking grip (camber tilts the tyre onto one shoulder), trac: rear traction (camber; toe-in adds forward
+  // bite, too much drags), pkF: the front's peak slip (toe-out = sharper turn-in), steer: how fast the keys turn the
+  // wheels (toe-out quicker; lots of caster = heavy), self: how fast the wheel spins back into counter-steer in a drift
+  // (caster's self-centring), yawD: yaw damping at speed while gripping, 1/s (toe-in and caster calm the car, toe-out
+  // makes it darty), snap: how firmly a tail swinging past the car's angle is caught (rear toe-out: it snaps round),
+  // drag: speed a drift sheds from the toed-out outer rear tyre scrubbing sideways (m/s²), gripR: rear grip while
+  // gripping (toe-in: steady and slower to break into a drift, toe-out: loose), scrub: rolling resistance from toe.
+  // (None of them touches the drift assist's hold on the angle or the line: the assists turn any looseness into a
+  // slide - drift points - so an alignment that only made the car twitchier would earn points instead of costing them)
+  fx(a) {
+    const s = ALIGN.stock, out = t => Math.min(0, t);
+    const lonF = g => 1 - 0.0045 * (g + 0.3) ** 2, lonR = g => 1 - 0.006 * (g + 0.3) ** 2;
+    // forward bite: best at about 0.2° of rear toe-in, less toed out (the tyres push against each other)
+    const bite = t => 1 + 0.06 * t - 0.2 * t * t;
+    // front toe-out quickens the steering (no further past about 0.2°: beyond that it only scrubs and wanders)
+    const quick = t => 1 + 0.12 * Math.tanh(-t / 0.15);
+    const heavy = c => Math.max(0.5, 1 - 0.012 * Math.max(0, c - 6) ** 2), self = c => 0.55 + 0.08 * c;
+    const light = heavy(a.cas) / heavy(s.cas);
+    // yaw damping: the real figure (yawRaw, the garage shows it) and what the physics uses - capped on the twitchy side
+    // (see above). Toe either way scrubs, much more past a few tenths of a degree
+    const yawRaw = 1.2 * (a.toeF - s.toeF) - 4 * (out(a.toeF) ** 2 - out(s.toeF) ** 2) + 0.07 * (a.cas - s.cas) + 0.3 * (a.toeR - s.toeR);
+    const sc = t => 0.006 * Math.abs(t) + 0.04 * Math.max(0, Math.abs(t) - 0.3) ** 2;
+    return {
+      brake: lonF(a.camF) / lonF(s.camF),
+      trac: Math.max(0.9, lonR(a.camR) * bite(a.toeR) / (lonR(s.camR) * bite(s.toeR))),
+      pkF: quick(s.toeF) / quick(a.toeF),
+      light, steer: quick(a.toeF) / quick(s.toeF) * light,
+      self: self(a.cas) / self(s.cas),
+      yawRaw, yawD: U.clamp(yawRaw, -0.3, 0.8),
+      snap: U.clamp(1 + 1.2 * a.toeR, 0.4, 1), drag: 1.2 * Math.max(0, -a.toeR),
+      gripR: U.clamp(1 + 0.06 * (a.toeR - s.toeR), 0.96, 1.04),
+      scrub: sc(a.toeF) + sc(a.toeR) - sc(s.toeF) - sc(s.toeR),
+    };
+  },
+  // what the garage shows: each effect as a ratio to the stock alignment (> 1 better), with its weight in the drift rating
+  STATS: [['frontD', 'BÁM ĐẦU KHI DRIFT', 0.26], ['turn', 'BÁM ĐẦU VÀO CUA', 0.08], ['rearD', 'BÁM ĐUÔI KHI DRIFT', 0.06],
+    ['trac', 'LỰC KÉO (BÁM GA)', 0.12], ['brake', 'PHANH', 0.04], ['resp', 'ĂN LÁI', 0.07], ['self', 'TỰ TRẢ LÁI NGƯỢC', 0.1],
+    ['light', 'NHẸ LÁI', 0.08], ['hs', 'ỔN ĐỊNH TỐC ĐỘ CAO', 0.08], ['snap', 'CHỐNG GIẬT XOAY', 0.06], ['init', 'DỄ VÀO DRIFT', 0.04],
+    ['roll', 'GIỮ TỐC (MA SÁT LỐP)', 0.05]],
+  // (the rating: a weighted sum of the logs; a car with more weight over the rear axle needs its tail steadier)
+  stats(a, spec, noScore) {
+    const f = this.fx(a), h = spec ? spec.h : 0.48, D = ALIGN.drift, Tn = ALIGN.turn, rearK = spec ? 2 * spec.a / (spec.a + spec.b) : 1;
+    const st = {
+      frontD: this.axleK(a, true, D.ay, D.steer, h), rearD: this.axleK(a, false, D.ay, D.steer, h), turn: this.axleK(a, true, Tn.ay, Tn.steer, h),
+      resp: f.steer / f.pkF, self: f.self, light: f.light, snap: f.snap, init: 1 / f.gripR,
+      trac: f.trac, brake: 0.62 * f.brake + 0.38, hs: f.yawRaw < 0 ? Math.max(0.3, 1 + f.yawRaw / 3) : 1 + 0.25 * Math.tanh(f.yawRaw / 0.75), roll: 1 - f.scrub * 6 - f.drag * 0.12,
+    };
+    let sc = 0;
+    for (const [k, , w] of this.STATS) sc += w * (k === 'snap' || k === 'hs' ? rearK : 1) * Math.log(Math.max(0.05, st[k]));
+    st.raw = sc;
+    // 50 = the stock alignment, 100 = the best this car can get
+    if (!noScore) { const best = this.best(spec); st.score = U.clamp(Math.round(50 + 50 * sc / Math.max(1e-6, best.raw)), 0, 100); }
+    return st;
+  },
+  _best: {},
+  best(spec) {
+    const k = spec ? spec.model : '-';
+    if (!this._best[k]) { const a = this.optimize(spec); this._best[k] = { a, raw: this.stats(a, spec, true).raw }; }
+    return this._best[k];
+  },
+  // the best drift setup for a car: coordinate search over the steps from the stock one
+  optimize(spec, from) {
+    let a = this.clean(from || ALIGN.stock), best = this.stats(a, spec, true).raw;
+    for (let pass = 0; pass < 60; pass++) {
+      let moved = false;
+      for (const k of ALIGN.keys) for (const dir of [1, -1]) for (const n of [8, 4, 2, 1]) {
+        const b = Object.assign({}, a); b[k] += dir * n * ALIGN.rng[k][2];
+        if (b[k] < ALIGN.rng[k][0] - 1e-9 || b[k] > ALIGN.rng[k][1] + 1e-9) continue;
+        const v = this.stats(this.clean(b), spec, true).raw;
+        if (v > best + 1e-9) { best = v; a = this.clean(b); moved = true; }
+      }
+      if (!moved) break;
+    }
+    return a;
+  },
+};
 
 // ---------------- maps ----------------
 // Mountain passes are point-to-point: a list of moves ['S', metres] straight, ['L' | 'R', degrees, radius] corners;
 // drop = metres the road falls from start to finish, waves = [metres, waves over the run, phase] of rise and fall.
 // The arena is a closed circuit like the GP tracks (corner points [x, y, radius]). edge = half width of the tarmac and
-// wall = the guard rail / barrier (x5 m from the centre line). grades: scores for C, B, A, S, SS
+// wall = the guard rail / barrier (x5 m from the centre line). grades: scores for C, B, A, S, SS. scenery: 'forest'
+// lines the road with pines (else rocks and leafy trees); World keys the sky, terrain and far scenery by id
 const DRIFT_MAPS = [
   {
-    id: 'dMaPiLeng', name: 'Đèo Mã Pí Lèng', desc: 'Hà Giang · 5,5 km vách đá, vực Nho Quế, cua tay áo, ba đoạn zíc zắc, hai đoạn rắn lượn',
+    id: 'dMaPiLeng', name: 'Đèo Mã Pí Lèng', desc: 'Hà Giang · 6,7 km vách đá, vực Nho Quế, 8 cua tay áo, zíc zắc và rắn lượn nối nhau',
     edge: 1.8, wall: 2.15, drop: 115, waves: [[7, 4, 0.4], [3, 11, 1.3]], centre: 'double',
-    grades: [40000, 105000, 210000, 350000, 540000],
-    seq: [['S', 150], ['L', 55, 70], ['S', 60], ['R', 85, 38], ['S', 40], ['L', 40, 60], ['R', 45, 50], ['S', 90],
-      ['L', 165, 18], ['S', 110], ['R', 150, 21], ['S', 80],
-      ['L', 70, 34], ['R', 80, 30], ['L', 75, 32], ['R', 60, 36], ['S', 70],                          // zig-zag
-      ['L', 35, 80], ['R', 35, 80], ['S', 110], ['R', 170, 17], ['S', 130], ['L', 160, 19], ['S', 90],
-      ['R', 65, 42], ['L', 100, 27], ['S', 60], ['R', 120, 24], ['S', 80], ['L', 60, 45], ['S', 120],
-      ['R', 90, 30], ['L', 90, 30], ['R', 90, 30], ['L', 90, 30], ['S', 100],                        // the snake
-      ['R', 175, 20], ['S', 120], ['L', 175, 20], ['S', 150],
-      ['R', 50, 40], ['L', 70, 35], ['R', 70, 35], ['L', 50, 40], ['S', 80],
-      ['R', 140, 24], ['S', 70], ['L', 130, 26], ['S', 100],
-      ['L', 60, 34], ['R', 75, 30], ['L', 75, 30], ['R', 60, 34], ['S', 80],                         // second zig-zag
-      ['L', 170, 19], ['S', 110], ['R', 170, 19], ['S', 140],                                        // hairpin pair
-      ['L', 85, 28], ['R', 90, 28], ['L', 90, 28], ['R', 85, 28], ['S', 90],                         // second snake
-      ['R', 120, 24], ['S', 60], ['L', 45, 50], ['R', 45, 50], ['S', 160]],
+    grades: [64000, 158000, 319000, 536000, 842000],
+    seq: [['S',  150], ['L',  55,  70], ['S',  60], ['R',  85,  38], ['S',  40], ['L',  40,  60], ['R',  45,  50], ['S',  90], ['L',  165,  18],
+      ['S',  110], ['R',  150,  21], ['S',  80], ['L',  70,  34], ['R',  80,  30], ['L',  75,  32], ['R',  60,  36], ['S',  70], ['L',  35,  80],
+      ['R',  35,  80], ['S',  110], ['R',  170,  17], ['S',  130], ['L',  160,  19], ['S',  90], ['R',  65,  42], ['L',  100,  27], ['S',  60],
+      ['R',  120,  24], ['S',  80], ['L',  60,  45], ['S',  120], ['R',  90,  30], ['L',  90,  30], ['R',  90,  30], ['L',  90,  30], ['S',  100],
+      ['R',  175,  20], ['S',  120], ['L',  175,  20], ['S',  150], ['R',  50,  40], ['L',  70,  35], ['R',  70,  35], ['L',  50,  40], ['S',  80],
+      ['R',  140,  24], ['S',  70], ['L',  130,  26], ['S',  100], ['L',  60,  34], ['R',  75,  30], ['L',  75,  30], ['R',  60,  34], ['S',  80],
+      ['L',  170,  19], ['S',  110], ['R',  170,  19], ['S',  140], ['L',  85,  28], ['R',  90,  28], ['L',  90,  28], ['R',  85,  28], ['S',  90],
+      ['R',  120,  24], ['S',  60], ['L',  45,  50], ['R',  45,  50], ['R',  65,  32], ['L',  86,  32], ['R',  76,  28], ['L',  57,  34], ['S',  74],
+      ['L',  85,  30], ['R',  90,  30], ['L',  90,  30], ['R',  90,  30], ['S',  91], ['R',  67,  36], ['L',  85,  31], ['R',  84,  29], ['L',  67,  35],
+      ['S',  61], ['L',  66,  34], ['R',  85,  30], ['L',  79,  29], ['R',  60,  34], ['S',  86], ['L',  59,  33], ['R',  84,  28], ['L',  77,  30],
+      ['R',  58,  32], ['S',  82], ['S',  160]],
   },
   {
-    id: 'dOQuyHo', name: 'Đèo Ô Quy Hồ', desc: 'Sa Pa · 5,3 km rừng thông hoàng hôn, mười cua kẹp tóc, các khúc ngoặt liên hoàn',
-    edge: 1.8, wall: 2.15, drop: 140, waves: [[6, 5, 1.1], [2.5, 12, 0.2]], centre: 'dash',
-    grades: [31000, 73000, 150000, 270000, 440000],
-    seq: [['S', 150], ['R', 45, 90], ['S', 50], ['L', 70, 45], ['S', 70],
-      ['R', 175, 17], ['S', 150], ['L', 175, 17], ['S', 150], ['R', 175, 18], ['S', 120],
-      ['L', 80, 40], ['R', 60, 45], ['L', 50, 55], ['S', 90], ['R', 110, 26], ['S', 60], ['L', 140, 22], ['S', 100],
-      ['R', 40, 70], ['L', 40, 70], ['S', 80], ['L', 170, 18], ['S', 140], ['R', 170, 18], ['S', 110],
-      ['L', 90, 32], ['S', 50], ['R', 75, 36], ['S', 120],
-      ['L', 60, 38], ['R', 85, 32], ['L', 85, 32], ['R', 85, 32], ['L', 60, 38], ['S', 90],          // linked bends
-      ['R', 160, 20], ['S', 100], ['L', 160, 20], ['S', 80],
-      ['R', 45, 50], ['L', 70, 36], ['R', 90, 30], ['L', 70, 36], ['S', 100],
-      ['R', 175, 18], ['S', 130], ['L', 175, 18], ['S', 130], ['R', 175, 18], ['S', 100],          // three more hairpins
-      ['L', 65, 34], ['R', 85, 30], ['L', 85, 30], ['R', 85, 30], ['L', 65, 34], ['S', 90],         // linked bends
-      ['R', 110, 26], ['S', 50], ['L', 110, 26], ['S', 180]],
+    id: 'dOQuyHo', name: 'Đèo Ô Quy Hồ', desc: 'Sa Pa · 6,5 km rừng thông hoàng hôn, 10 cua kẹp tóc, các khúc ngoặt liên hoàn',
+    edge: 1.8, wall: 2.15, drop: 140, waves: [[6, 5, 1.1], [2.5, 12, 0.2]], centre: 'dash', scenery: 'forest',
+    grades: [59000, 145000, 293000, 493000, 774000],
+    seq: [['S',  150], ['R',  45,  90], ['S',  50], ['L',  70,  45], ['S',  70], ['R',  175,  17], ['S',  150], ['L',  175,  17], ['S',  150],
+      ['R',  175,  18], ['S',  120], ['L',  80,  40], ['R',  60,  45], ['L',  50,  55], ['S',  90], ['R',  110,  26], ['S',  60], ['L',  140,  22],
+      ['S',  100], ['R',  40,  70], ['L',  40,  70], ['S',  80], ['L',  170,  18], ['S',  140], ['R',  170,  18], ['S',  110], ['L',  90,  32],
+      ['S',  50], ['R',  75,  36], ['S',  120], ['L',  60,  38], ['R',  85,  32], ['L',  85,  32], ['R',  85,  32], ['L',  60,  38], ['S',  90],
+      ['R',  160,  20], ['S',  100], ['L',  160,  20], ['S',  80], ['R',  45,  50], ['L',  70,  36], ['R',  90,  30], ['L',  70,  36], ['S',  100],
+      ['R',  175,  18], ['S',  130], ['L',  175,  18], ['S',  130], ['R',  175,  18], ['S',  100], ['L',  65,  34], ['R',  85,  30], ['L',  85,  30],
+      ['R',  85,  30], ['L',  65,  34], ['S',  90], ['R',  110,  26], ['S',  50], ['L',  110,  26], ['L',  65,  36], ['R',  83,  28], ['L',  82,  29],
+      ['R',  57,  33], ['S',  85], ['R',  86,  29], ['L',  90,  29], ['R',  90,  29], ['L',  86,  29], ['S',  88], ['R',  56,  33], ['L',  83,  32],
+      ['R',  83,  32], ['L',  68,  34], ['S',  85], ['L',  94,  29], ['R',  90,  29], ['L',  90,  29], ['R',  91,  29], ['S',  94], ['R',  70,  35],
+      ['L',  81,  30], ['R',  84,  31], ['L',  57,  32], ['S',  69], ['S',  160]],
+  },
+  {
+    id: 'dHaiVan', name: 'Đèo Hải Vân', desc: 'Đà Nẵng – Huế · 7,3 km vách đá trên biển, 6 cua tay áo, khúc ngoặt dồn dập',
+    edge: 1.8, wall: 2.15, drop: 130, waves: [[8, 3, 0.9], [3, 9, 0.2]], centre: 'double',
+    grades: [80000, 199000, 401000, 674000, 1058000],
+    seq: [['S',  150], ['R',  140,  23], ['S',  77], ['L',  123,  24], ['S',  71], ['R',  69,  34], ['L',  85,  31], ['R',  83,  29], ['L',  64,  34],
+      ['S',  89], ['L',  45,  50], ['R',  67,  35], ['L',  89,  30], ['R',  79,  33], ['S',  97], ['R',  88,  29], ['L',  90,  29], ['R',  90,  29],
+      ['L',  91,  29], ['S',  97], ['R',  171,  18], ['S',  104], ['R',  59,  34], ['L',  79,  30], ['R',  84,  30], ['L',  69,  35], ['S',  85],
+      ['L',  124,  22], ['S',  69], ['R',  110,  24], ['S',  101], ['L',  171,  20], ['S',  105], ['R',  63,  35], ['L',  80,  31], ['R',  77,  32],
+      ['L',  65,  34], ['S',  84], ['R',  162,  20], ['S',  113], ['R',  68,  32], ['S',  67], ['L',  87,  27], ['R',  90,  27], ['L',  90,  27],
+      ['R',  88,  27], ['S',  81], ['R',  70,  34], ['L',  85,  32], ['R',  79,  28], ['L',  59,  33], ['S',  78], ['L',  91,  28], ['R',  90,  28],
+      ['L',  90,  28], ['R',  90,  28], ['S',  95], ['L',  170,  21], ['S',  125], ['L',  64,  36], ['R',  78,  30], ['L',  76,  30], ['R',  69,  33],
+      ['S',  79], ['L',  62,  34], ['R',  86,  31], ['L',  87,  29], ['R',  68,  34], ['S',  78], ['R',  134,  22], ['S',  61], ['L',  107,  23],
+      ['S',  94], ['L',  48,  54], ['R',  75,  35], ['L',  87,  30], ['R',  80,  34], ['S',  96], ['L',  46,  49], ['R',  72,  35], ['L',  92,  31],
+      ['R',  71,  33], ['S',  91], ['R',  71,  37], ['S',  65], ['L',  58,  34], ['R',  85,  28], ['L',  80,  31], ['R',  59,  34], ['S',  87],
+      ['R',  165,  20], ['S',  97], ['L',  133,  24], ['S',  65], ['R',  135,  23], ['S',  79], ['L',  163,  18], ['S',  121], ['L',  95,  29],
+      ['R',  90,  29], ['L',  90,  29], ['R',  92,  29], ['S',  87], ['S',  160]],
+  },
+  {
+    id: 'dKhauPha', name: 'Đèo Khau Phạ', desc: 'Yên Bái · 6,9 km giữa ruộng bậc thang mùa lúa chín, 74 khúc cua gấp',
+    edge: 1.8, wall: 2.15, drop: 120, waves: [[6, 4, 2.0], [3, 10, 0.7]], centre: 'dash',
+    grades: [94000, 233000, 470000, 790000, 1241000],
+    seq: [['S',  150], ['L',  175,  19], ['S',  115], ['R',  176,  19], ['S',  123], ['L',  128,  26], ['S',  67], ['R',  119,  26], ['S',  93],
+      ['R',  42,  51], ['L',  69,  34], ['R',  85,  31], ['L',  73,  37], ['S',  95], ['L',  64,  34], ['R',  78,  28], ['L',  82,  29], ['R',  64,  35],
+      ['S',  69], ['R',  90,  29], ['L',  90,  29], ['R',  90,  29], ['L',  94,  29], ['S',  96], ['L',  49,  52], ['R',  73,  34], ['L',  86,  32],
+      ['R',  76,  35], ['S',  85], ['R',  79,  31], ['S',  51], ['R',  69,  33], ['L',  81,  28], ['R',  81,  28], ['L',  67,  33], ['S',  60],
+      ['L',  46,  55], ['R',  71,  36], ['L',  93,  30], ['R',  71,  36], ['S',  79], ['R',  64,  34], ['L',  82,  30], ['R',  86,  30], ['L',  63,  35],
+      ['S',  62], ['R',  93,  27], ['L',  90,  27], ['R',  90,  27], ['L',  87,  27], ['S',  89], ['L',  88,  27], ['R',  90,  27], ['L',  90,  27],
+      ['R',  94,  27], ['S',  95], ['R',  46,  54], ['L',  79,  36], ['R',  92,  30], ['L',  72,  33], ['S',  95], ['R',  90,  27], ['L',  90,  27],
+      ['R',  90,  27], ['L',  85,  27], ['S',  87], ['L',  67,  32], ['R',  88,  32], ['L',  85,  31], ['R',  62,  34], ['S',  72], ['L',  62,  34],
+      ['R',  80,  30], ['L',  87,  29], ['R',  66,  34], ['S',  80], ['R',  85,  29], ['L',  90,  29], ['R',  90,  29], ['L',  86,  29], ['S',  88],
+      ['R',  93,  29], ['L',  90,  29], ['R',  90,  29], ['L',  92,  29], ['S',  86], ['R',  162,  17], ['S',  128], ['R',  63,  34], ['L',  76,  30],
+      ['R',  87,  29], ['L',  69,  33], ['S',  65], ['R',  70,  36], ['L',  86,  30], ['R',  78,  31], ['L',  65,  35], ['S',  68], ['L',  61,  34],
+      ['R',  82,  30], ['L',  83,  31], ['R',  66,  34], ['S',  70], ['S',  160]],
+  },
+  {
+    id: 'dPhaDin', name: 'Đèo Pha Đin', desc: 'Điện Biên – Sơn La · 7,4 km sương sớm, cua nối cua không nghỉ, 79 khúc cua gấp',
+    edge: 1.8, wall: 2.15, drop: 150, waves: [[7, 5, 0.3], [2.5, 13, 1.6]], centre: 'double',
+    grades: [106000, 263000, 529000, 889000, 1398000],
+    seq: [['S',  150], ['R',  63,  36], ['L',  78,  29], ['R',  75,  32], ['L',  59,  34], ['S',  65], ['R',  92,  29], ['L',  90,  29], ['R',  90,  29],
+      ['L',  93,  29], ['S',  91], ['L',  44,  51], ['R',  73,  35], ['L',  89,  31], ['R',  70,  35], ['S',  89], ['R',  59,  36], ['L',  77,  32],
+      ['R',  83,  31], ['L',  57,  34], ['S',  66], ['L',  85,  27], ['R',  90,  27], ['L',  90,  27], ['R',  88,  27], ['S',  87], ['R',  59,  33],
+      ['L',  81,  29], ['R',  84,  30], ['L',  62,  34], ['S',  83], ['L',  44,  53], ['R',  72,  35], ['L',  93,  31], ['R',  76,  36], ['S',  81],
+      ['R',  92,  27], ['L',  90,  27], ['R',  90,  27], ['L',  86,  27], ['S',  94], ['R',  65,  36], ['L',  83,  30], ['R',  88,  30], ['L',  69,  34],
+      ['S',  75], ['L',  60,  34], ['R',  80,  28], ['L',  79,  31], ['R',  55,  35], ['S',  76], ['R',  47,  49], ['L',  65,  34], ['R',  88,  29],
+      ['L',  79,  36], ['S',  85], ['R',  62,  34], ['L',  86,  30], ['R',  86,  30], ['L',  61,  33], ['S',  86], ['L',  61,  34], ['R',  82,  30],
+      ['L',  84,  31], ['R',  60,  34], ['S',  89], ['R',  92,  28], ['L',  90,  28], ['R',  90,  28], ['L',  94,  28], ['S',  100], ['R',  93,  28],
+      ['L',  90,  28], ['R',  90,  28], ['L',  94,  28], ['S',  89], ['R',  130,  25], ['S',  57], ['L',  109,  24], ['S',  77], ['L',  86,  29],
+      ['R',  90,  29], ['L',  90,  29], ['R',  90,  29], ['S',  87], ['R',  94,  27], ['L',  90,  27], ['R',  90,  27], ['L',  89,  27], ['S',  99],
+      ['R',  58,  33], ['L',  84,  31], ['R',  82,  30], ['L',  66,  33], ['S',  88], ['L',  82,  39], ['S',  78], ['R',  87,  29], ['L',  90,  29],
+      ['R',  90,  29], ['L',  95,  29], ['S',  100], ['L',  48,  48], ['R',  79,  33], ['L',  85,  31], ['R',  79,  37], ['S',  82], ['S',  160]],
+  },
+  {
+    id: 'dKhanhLe', name: 'Đèo Khánh Lê', desc: 'Nha Trang – Đà Lạt · 7,1 km rừng thông lúc chạng vạng, 3 cua tay áo, zíc zắc liền nhau',
+    edge: 1.8, wall: 2.15, drop: 160, waves: [[6, 4, 1.4], [3, 11, 0.5]], centre: 'dash', scenery: 'forest',
+    grades: [92000, 229000, 462000, 777000, 1220000],
+    seq: [['S',  150], ['L',  64,  35], ['R',  80,  29], ['L',  86,  31], ['R',  66,  33], ['S',  74], ['L',  169,  18], ['S',  107], ['R',  176,  18],
+      ['S',  119], ['R',  62,  33], ['L',  78,  32], ['R',  84,  31], ['L',  67,  35], ['S',  76], ['R',  76,  39], ['S',  54], ['R',  47,  51],
+      ['L',  75,  35], ['R',  89,  29], ['L',  73,  34], ['S',  95], ['R',  69,  39], ['S',  74], ['L',  65,  32], ['R',  86,  30], ['L',  82,  29],
+      ['R',  59,  33], ['S',  84], ['L',  162,  20], ['S',  111], ['L',  90,  29], ['R',  90,  29], ['L',  90,  29], ['R',  92,  29], ['S',  96],
+      ['R',  44,  53], ['L',  75,  34], ['R',  84,  32], ['L',  78,  36], ['S',  73], ['L',  44,  52], ['R',  76,  34], ['L',  89,  30], ['R',  68,  37],
+      ['S',  85], ['R',  59,  36], ['L',  79,  28], ['R',  88,  30], ['L',  59,  33], ['S',  83], ['L',  69,  32], ['S',  67], ['R',  70,  33],
+      ['L',  78,  30], ['R',  78,  31], ['L',  68,  33], ['S',  85], ['R',  61,  33], ['L',  87,  31], ['R',  80,  29], ['L',  58,  32], ['S',  82],
+      ['R',  59,  33], ['L',  84,  32], ['R',  78,  30], ['L',  55,  34], ['S',  79], ['L',  42,  50], ['R',  73,  35], ['L',  94,  31], ['R',  72,  34],
+      ['S',  79], ['R',  47,  50], ['L',  69,  37], ['R',  91,  31], ['L',  66,  36], ['S',  79], ['L',  89,  32], ['S',  73], ['R',  93,  29],
+      ['L',  90,  29], ['R',  90,  29], ['L',  91,  29], ['S',  99], ['R',  121,  23], ['S',  74], ['L',  129,  24], ['S',  71], ['R',  69,  36],
+      ['L',  81,  29], ['R',  78,  31], ['L',  67,  33], ['S',  80], ['R',  88,  37], ['S',  76], ['R',  69,  33], ['L',  81,  29], ['R',  85,  32],
+      ['L',  64,  34], ['S',  66], ['R',  89,  30], ['L',  90,  30], ['R',  90,  30], ['L',  86,  30], ['S',  96], ['S',  160]],
   },
   {
     id: 'dArena', name: 'Sân drift đêm Bình Dương', desc: 'Sân kín dưới đèn pha · đường rộng 22 m · 27 khúc cua mỗi vòng, nối tiếp nhau',
@@ -234,7 +453,7 @@ const DriftTrack = {
       const step = c.R < 30 ? 7 : 10, out = -c.dir;
       for (let k = Math.round(c.n * 0.15); k < c.n * 0.92; k += step) put(c.i + k, 'sign', c.dir, out * (W + 0.04));
     }
-    const forest = map.id === 'dOQuyHo';
+    const forest = map.scenery === 'forest';
     for (let n = 50; n < N - 10; n++) {
       if (Math.abs(n - line) < 4 || Math.abs(n - fin) < 4) continue;
       const s = rnd() < 0.5 ? -1 : 1;
@@ -277,10 +496,11 @@ const tyreCurve = x => { const a = Math.abs(x), y = a < 1 ? a * (2 - a) : Math.m
 const torqueCurve = (x, pk) => U.clamp(1 - Math.pow((x - pk) / (x < pk ? pk + 0.1 : 1.3 - pk), 2) * (x < pk ? 0.55 : 0.5), 0.3, 1);
 const smoothK = (a, b, x) => { const t = U.clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 // scoring: points per second = angle factor x km/h x rate; a chain banks after `gap` s without drifting; the
-// multiplier grows every multT s of drifting and with every change of direction; `wall` m from the rail = close bonus
+// multiplier grows every multD m of drifting (by distance, not time: a slower drift must not build it faster) and with
+// every change of direction; `wall` m from the rail = close bonus
 // crash: speed (m/s) into the rail (or another car) that loses the whole chain (a softer brush only costs 30% of it)
 // tandem: drifting within this many metres of another drifting car scores x1.5
-const DSCORE = { minKmh: 22, minAng: 12, rate: 6, gap: 1.6, multT: 3, maxMult: 5, wall: 1.0, spin: 112, crash: 3.5, tandem: 7 };
+const DSCORE = { minKmh: 22, minAng: 12, rate: 6, gap: 1.6, multD: 60, maxMult: 5, wall: 1.0, spin: 112, crash: 3.5, tandem: 7 };
 // tyres take TRACTION x more grip straight ahead (launch, braking) than sideways; brakes BRAKE_K x the car's value
 const TRACTION = 1.35, BRAKE_K = 1.3;
 // a drift keeps its angle this long (s) after the keys stop pointing into the bend
@@ -307,6 +527,17 @@ const TANDEM = { gap: 6.5, k: 0.7, follow: 30 };
 // much more its tyres / the path assist pull round a bend and how much less speed its drifts shed (x 1 + boost), push =
 // the most unseen push along its way on the straights (m/s²)
 const CHASE = { fast: 0.3, boost: 0.45, push: 4.5 };
+// engine braking (off the throttle, in gear): above `from` of the redline it grows by up to hi g at the redline (a low
+// gear at speed holds the car back hard). A downshift that makes the engine jump more than `slack` of the redline also
+// jolts the car as the clutch bites: jolt m/s² per unit of redline jumped (at most max), fading at fade 1/s - the rear
+// tyres take it, the nose dips
+const EBRAKE = { hi: 0.2, from: 0.55, jolt: 11, slack: 0.1, max: 0.4, fade: 4 };
+// the hard setting: the road and its rails this many times as wide (half, plus a quarter of that)
+const DRIFT_HARD = 0.625;
+// ... where the computer drivers take more care: fast = x their speed into the bends, chase = x the extra speed and
+// push of one catching the player up, lane = x how far off the centre line their own line runs, follow = how far back (m)
+// they take the player's line and drift where the player did (further back that ran them into the rails)
+const HARD_AI = { fast: 0.9, chase: 0.4, lane: 0.5, follow: 12 };
 const DRIFT_RANKS = ['C', 'B', 'A', 'S', 'SS'];
 
 // computer drivers: names, the most of them, metres between grid rows. Each gets a skill 0..1 (how fast it dares into
@@ -317,12 +548,14 @@ const DRIFT_AI = {
 };
 
 class DriftRace {
-  // o: { mapIdx, carIdx, paint, ais (computer drivers), seed?, aiSeed?, net? }. net = { me, cars: [{ id, name, car, paint }] }
-  // for an online race: the cars of the other players (remote: no physics here, Net moves them) in the server's grid order
+  // o: { mapIdx, carIdx, paint, al (wheel alignment, see ALIGN), ais (computer drivers), seed?, aiSeed?, net? }. net = { me,
+  // cars: [{ id, name, car, paint, al }] } for an online race: the cars of the other players (remote: no physics here, Net
+  // moves them; their alignment only shows on their wheels) in the server's grid order
   constructor(o) {
     this.drift = true; this.local = true;
-    this.mapIdx = o.mapIdx; this.def = DRIFT_MAPS[o.mapIdx];
-    const d = this.def;
+    this.mapIdx = o.mapIdx; this.def = DRIFT_MAPS[o.mapIdx]; this.hard = !!o.hard;
+    // (hard: the same stage with the tarmac and the rails DRIFT_HARD x as far from the centre line)
+    const d = this.hard ? Object.assign({}, this.def, { edge: this.def.edge * DRIFT_HARD, wall: this.def.wall * DRIFT_HARD }) : this.def;
     // what World needs to know about the stage (it keys its look by theme.id)
     this.theme = { id: d.id, name: d.name, night: !!d.night, circuit: !!d.circuit, edge: d.edge, wall: d.wall, centre: d.centre };
     const tr = DriftTrack.build(d, o.seed || (o.mapIdx * 977 + 41));
@@ -335,7 +568,7 @@ class DriftRace {
     this.state = 'countdown'; this.camMode = 0;
     const spec = DRIFT_CARS[o.carIdx];
     this.carIdx = o.carIdx; this.paint = o.paint || spec.color;
-    const c = this.car = this.mkCar(o.carIdx, this.paint, 'BẠN');
+    const c = this.car = this.mkCar(o.carIdx, this.paint, 'BẠN', o.al);
     c.isPlayer = true;
     this.racers = [c];
     if (o.net) {   // online: the others as remote cars, everyone on the grid in the server's order
@@ -343,7 +576,7 @@ class DriftRace {
       const grid = [];
       for (const n of o.net.cars) {
         if (n.id === o.net.me) { c.netId = n.id; grid.push(c); continue; }
-        const r = this.mkCar(U.clamp(n.car | 0, 0, DRIFT_CARS.length - 1), n.paint, n.name);
+        const r = this.mkCar(U.clamp(n.car | 0, 0, DRIFT_CARS.length - 1), n.paint, n.name, n.al);
         r.remote = true; r.netId = n.id;
         this.racers.push(r); grid.push(r);
       }
@@ -363,7 +596,8 @@ class DriftRace {
       const ci = rankd[U.clamp(rankd.indexOf(o.carIdx) + Math.floor(rnd() * 3) - 1, 0, DRIFT_CARS.length - 1)];
       const a = this.mkCar(ci, paints[k % paints.length], names[k]);
       const skill = U.clamp((nAi > 1 ? 0.2 + 0.75 * k / (nAi - 1) : 0.6) + (rnd() - 0.5) * 0.15, 0, 1);
-      a.ai = { skill, fast: 0.98 + 0.27 * skill, hbR: 40 + 22 * skill, hb: 0.28 + 0.22 * skill, lane: (rnd() - 0.5) * 3, hbT: 0, hbCool: 0, stuckT: 0,
+      const hk = this.hard ? HARD_AI : { fast: 1, lane: 1 };
+      a.ai = { skill, fast: (0.98 + 0.27 * skill) * hk.fast, hbR: 40 + 22 * skill, hb: 0.28 + 0.22 * skill, lane: (rnd() - 0.5) * 3 * hk.lane, hbT: 0, hbCool: 0, stuckT: 0,
         react: 0.1 + rnd() * 0.6 };   // reaction to the green light (s): the field strings out before the first bend
       this.racers.push(a);
     }
@@ -377,12 +611,15 @@ class DriftRace {
     this.player = { z: this.startZ, x: 0, speed: 0, top: 50 / CFG.KZ, pal: { id: 'dcar' }, lean: 0, pitch: 0, crash: null, isPlayer: true, lap: 1 };
     this.syncPlayer();
   }
-  mkCar(ci, paint, name) {
+  // align: the car's wheel alignment (al; default: what the car comes with); fx: its effects that do not change (Align.fx)
+  mkCar(ci, paint, name, al) {
     const spec = DRIFT_CARS[ci];
+    al = Align.clean(al || Align.def(spec));
     return { spec, carIdx: ci, paint, name, isPlayer: false, ai: null, body: DRIFT_BODY[spec.model], I: spec.mass * spec.a * spec.b * 1.05,
+      align: al, fx: Align.fx(al), gF: 1, gR: 1, gFs: 1, ayA: 0,
       pq: {}, wq: {}, placed: false, auto: true,
       px: 0, pz: 0, psi: 0, vx: 0, vz: 0, w: 0, steer: 0, sIn: 0, ax: 0, ay: 0,
-      u: 0, v: 0, beta: 0, gear: 1, nextGear: 1, shiftT: 0, revT: 0, rpm: spec.idle, spin: 0, kick: 0, clutch: false, limiter: false,
+      u: 0, v: 0, beta: 0, gear: 1, nextGear: 1, shiftT: 0, shock: 0, revT: 0, rpm: spec.idle, spin: 0, kick: 0, clutch: false, limiter: false,
       drive: 0, brk: 0, hand: false, gas: 0, nitro: 0.5, nitroOn: false, surf: 1, seg: 0, sAbs: 0, al: 0, off: 0, h: 0, y: 0, slope: 0,
       rearSlide: 0, frontSlide: 0, wheelSpin: 0, smoke: 0, hit: 0, hitT: 0, bump: 0, bumpT: 0, near: 99, wrongT: 0, backfire: 0, lastGas: 0,
       drifting: false, dside: 1, dk: 0, dTarget: 0, pathK: 0, toward: 0, holdT: 0, awayT: 0, swing: false, fRatio: 0, bPrev: 0, feintT: 0, looseT: 0,
@@ -493,7 +730,7 @@ class DriftRace {
   resetCar(c = this.car) {
     if (c.chain) this.loseChain(c, 'ĐẶT LẠI XE');
     this.place(c, c.seg + 0.5, U.clamp(c.off, 1.5 - this.hwM, this.hwM - 1.5));
-    c.gear = 1; c.shiftT = 0; c.rpm = c.spec.idle;
+    c.gear = 1; c.shiftT = 0; c.shock = 0; c.rpm = c.spec.idle;
     if (c.isPlayer) this.msg('ĐẶT LẠI XE', '#9fe0ff', 1.2, 26);
   }
 
@@ -513,7 +750,8 @@ class DriftRace {
     let fast = A.fast;
     c.boost = 1; c.push = 0;
     if (chase) {
-      if (gap > 9) { fast *= 1 + Math.min(CHASE.fast, (gap - 9) / 100); c.boost = 1 + Math.min(CHASE.boost, (gap - 9) / 60); c.push = U.clamp((gap - 25) / 6, 0, CHASE.push); }
+      const ck = this.hard ? HARD_AI.chase : 1;   // (less of it on the narrow road)
+      if (gap > 9) { fast *= 1 + Math.min(CHASE.fast, (gap - 9) / 100) * ck; c.boost = 1 + Math.min(CHASE.boost, (gap - 9) / 60); c.push = U.clamp((gap - 25) / 6, 0, CHASE.push) * ck; }
       else if (gap < -25) fast *= Math.max(0.8, 1 + (gap + 25) / 150);
     }
     if (c.fin) { vt = 8; lane = this.hwM - 2.2; }   // finished: pull over to the right and roll to a stop
@@ -527,7 +765,7 @@ class DriftRace {
     const la = 7 + spd * 0.55;
     let tandem = false, follow = false;
     if (chase && gap > 20) c.nitro = Math.min(1, c.nitro + dt * 0.12);
-    if (chase && gap > 1.5 && gap < TANDEM.follow && Math.hypot(P.vx, P.vz) > 8) {   // (the player crawling: go past instead)
+    if (chase && gap > 1.5 && gap < (this.hard ? HARD_AI.follow : TANDEM.follow) && Math.hypot(P.vx, P.vz) > 8) {   // (the player crawling: go past instead)
       follow = true;
       const ln = this.trailAt(mm + la), here = this.trailAt(mm + 3);
       if (ln && gap > TANDEM.gap - 0.5) lane = U.clamp(ln.off, 1.6 - this.hwM, this.hwM - 1.6);   // (alongside: keep out of its way)
@@ -608,8 +846,8 @@ class DriftRace {
     const S = c.spec, sn = Math.sin(c.psi), cs = Math.cos(c.psi);
     const u = c.vx * sn + c.vz * cs, v = c.vx * cs - c.vz * sn, spd = Math.hypot(c.vx, c.vz);
     c.u = u; c.v = v;
-    // gearbox: automatic by default; E / Q shift (and switch to manual), T toggles automatic
-    if (inp.mode) { c.auto = !c.auto; if (c.isPlayer) this.msg(c.auto ? 'SỐ TỰ ĐỘNG' : 'SỐ TAY (E lên số, Q xuống số)', '#9fe0ff', 1.6, 24); }
+    // gearbox: automatic by default; B / V (or E / Q) shift (and switch to manual), T toggles automatic
+    if (inp.mode) { c.auto = !c.auto; if (c.isPlayer) this.msg(c.auto ? 'SỐ TỰ ĐỘNG' : 'SỐ TAY (B lên số, V xuống số)', '#9fe0ff', 1.6, 24); }
     if ((inp.up || inp.dn) && c.auto) { c.auto = false; if (c.isPlayer) this.msg('SỐ TAY (T: về số tự động)', '#9fe0ff', 1.4, 24); }
     const ratio = g => g > 0 ? S.gears[g - 1] : g < 0 ? -3.4 : 0;
     const kRpm = g => Math.abs(ratio(g)) * S.final / S.R * 60 / (2 * Math.PI);   // engine rpm per m/s at the rear tyres
@@ -617,7 +855,22 @@ class DriftRace {
       if (g === c.gear || c.shiftT > 0 || g > S.gears.length || g < 1) return;
       c.nextGear = g; c.shiftT = 0.09; if (c.isPlayer && Sound.shift) Sound.shift();
     };
-    if (c.shiftT > 0) { c.shiftT -= dt; if (c.shiftT <= 0) { c.gear = c.nextGear; c.shiftT = 0; } }
+    if (c.shiftT > 0) {
+      c.shiftT -= dt;
+      if (c.shiftT <= 0) {
+        const from = c.gear;
+        c.gear = c.nextGear; c.shiftT = 0;
+        // down a gear at speed: the wheels spin the engine up to the lower gear's revs - the car is held back with a jolt
+        if (from >= 1 && c.gear < from && u > 2) {
+          const jump = (u * kRpm(c.gear) - c.rpm) / S.redline - EBRAKE.slack;
+          if (jump > 0) {
+            c.shock = Math.max(c.shock, Math.min(EBRAKE.max, jump));
+            if (c.shock > 0.2) { c.backfire = 0.22; if (c.isPlayer && Sound.pop) Sound.pop(); }
+          }
+        }
+      }
+    }
+    c.shock = Math.max(0, c.shock - c.shock * Math.min(1, dt * EBRAKE.fade) - dt * 0.05);
     if (!c.auto && c.gear >= 1) { if (inp.up) shift(c.gear + 1); if (inp.dn) shift(c.gear - 1); }
     // forward gears: up = throttle, down = brake (held while stopped: reverse); in reverse it is the other way round
     let gas = 0, brk = 0;
@@ -667,7 +920,13 @@ class DriftRace {
     if (!free && !c.limiter && gas) {
       const tq = S.torque * torqueCurve(Math.min(c.rpm, S.redline) / S.redline, S.pk) * (c.nitroOn ? 1.5 : 1) * (1 + 1.5 * c.kick);
       drive = tq * ratio(c.gear) * S.final * 0.88 / S.R;
-    } else if (!free && c.gear >= 1 && !gas) drive = -Math.sign(u) * S.mass * 9.81 * 0.05 * (c.rpm / S.redline);   // engine braking
+    } else if (!free && c.gear >= 1 && (!gas || rpmRoad > S.redline * 1.03)) {
+      // engine braking: gentle at low revs, hard near the redline (and past it, after a downshift too far, throttle or
+      // not); less of it through a drift, where the rear tyres are already sliding
+      const x = Math.min(1.15, Math.max(c.rpm, rpmRoad) / S.redline);
+      drive = -Math.sign(u) * S.mass * 9.81 * (0.05 * Math.min(1, c.rpm / S.redline) + EBRAKE.hi * smoothK(EBRAKE.from, 1, x) * x * (1 - 0.6 * c.dk));
+    }
+    if (!free && c.shock > 0 && c.gear >= 1) drive -= Math.sign(u) * S.mass * c.shock * EBRAKE.jolt;   // the jolt of a downshift
     c.drive = drive; c.gas = gas; c.brk = brk; c.hand = !!inp.hand;
     // steering: gripping, the keys turn the wheels (less lock at speed). Drifting, they steer relative to where the
     // front wheels are rolling, so letting go counter-steers by itself (like a real wheel spinning back through the
@@ -678,7 +937,10 @@ class DriftRace {
     const d0 = u > 1 ? Math.atan2(v + c.w * S.a, Math.max(u, 2)) : 0;
     const din = S.steerIn / (1 + spd / STEER.fade);
     const target = U.clamp(d0 * c.dk * 0.95 + c.sIn * (din * (1 - c.dk) + STEER.drift * c.dk), -S.lock, S.lock);
-    c.steer += U.clamp(target - c.steer, -dt * STEER.rate, dt * STEER.rate);
+    // (the alignment: gripping, toe and the caster's weight set how fast the keys turn the wheels; drifting, the caster's
+    // self-centring sets how fast the wheel spins back into counter-steer)
+    const rate = STEER.rate * (c.fx.steer * (1 - c.dk) + c.fx.self * c.dk);
+    c.steer += U.clamp(target - c.steer, -dt * rate, dt * rate);
     c.beta = beta;
     // the drift angle the assist aims for: throttle holds it, the keys trim it, lifting off straightens the car
     const toward = Math.max(0, c.sIn * c.dside), away = Math.max(0, -c.sIn * c.dside);
@@ -692,7 +954,9 @@ class DriftRace {
     // the angle is held while the keys point into the bend (and for HOLD_T s after the last press, so tapping the
     // keys keeps it); steer out, or let go for longer, and the car straightens and the drift ends
     if (toward > 0.05) c.holdT = HOLD_T; else c.holdT = away > 0.3 ? 0 : Math.max(0, c.holdT - dt);
-    const hold = c.holdT > 0 ? (gas ? 0.42 + (c.nitroOn ? 0.1 : 0) : 0.22) + 0.34 * toward : gas ? 0.12 : 0.05;
+    // (the angle a drift can be held at grows with the front tyres' grip at full counter-steer - the wheel alignment's
+    // camber and caster: fronts that wash out at lock let the car straighten, fronts that bite carry more angle)
+    const hold = (c.holdT > 0 ? (gas ? 0.42 + (c.nitroOn ? 0.1 : 0) : 0.22) + 0.34 * toward : gas ? 0.12 : 0.05) * U.clamp(c.gFs ** 2, 0.7, 1.3);
     // holding the other way hard on the throttle (not a quick dab to straighten) swings the car across into a drift
     // the other way - linking an S-bend. A short counter-steer just straightens it
     c.awayT = away > 0.8 ? c.awayT + dt : 0;
@@ -711,16 +975,22 @@ class DriftRace {
     // axle loads with weight transfer (braking loads the front: easier to turn in; throttle loads the rear)
     const dF = U.clamp(m * c.ax * S.h / L, -0.3 * m * g, 0.3 * m * g);
     const Fzf = m * g * b / L - dF, Fzr = m * g * a / L + dF;
-    const GF = S.muF * c.surf * Fzf, GR = S.muR * c.surf * Fzr * (c.looseT > 0 ? 0.45 : 1);
-    // front tyres
-    const d = c.steer, cd = Math.cos(d), sd = Math.sin(d);
+    // wheel alignment: each axle's sideways grip from the camber its loaded tyre has right now (static camber + body
+    // roll + what the caster adds as the wheels steer), against the stock alignment in the same moment; rear toe-in
+    // steadies (toe-out loosens) the rear while gripping
+    const fx = c.fx;
+    c.gF = Align.axleK(c.align, true, c.ayA, c.steer, S.h); c.gR = Align.axleK(c.align, false, c.ayA, c.steer, S.h);
+    if (c.dk > 0.3) c.gFs += (c.gF - c.gFs) * Math.min(1, dt * 3);   // (the front's grip through the drift, smoothed)
+    const GF = S.muF * c.surf * Fzf * c.gF, GR = S.muR * c.surf * Fzr * (c.looseT > 0 ? 0.45 : 1) * c.gR * (1 + (fx.gripR - 1) * (1 - c.dk));
+    // front tyres (front toe: toe-out answers the wheel sooner - a smaller peak slip)
+    const d = c.steer, cd = Math.cos(d), sd = Math.sin(d), pkF = S.pkF * fx.pkF;
     const vf = v + w * a, lw = u * cd + vf * sd, tw = -u * sd + vf * cd;
     const af = Math.atan2(tw, Math.max(Math.abs(lw), 1.5));
-    let Fyf = -GF * tyreCurve(af / S.pkF), Fxf = 0;
-    if (c.brk > 0) Fxf = -Math.sign(lw) * Math.min(c.brk * S.brake * BRAKE_K * m * g * 0.62, m * Math.abs(lw) / dt * 0.3);
-    const rf = Math.hypot(Fxf / (GF * (c.drifting ? 1 : TRACTION)), Fyf / GF);
+    let Fyf = -GF * tyreCurve(af / pkF), Fxf = 0;
+    if (c.brk > 0) Fxf = -Math.sign(lw) * Math.min(c.brk * S.brake * BRAKE_K * m * g * 0.62 * fx.brake, m * Math.abs(lw) / dt * 0.3);
+    const rf = Math.hypot(Fxf / (GF * (c.drifting ? 1 : TRACTION) * fx.brake), Fyf / GF);
     if (rf > 1) { Fxf /= rf; Fyf /= rf; }
-    c.frontSlide = smoothK(1.4, 3, Math.abs(af) / S.pkF); c.fRatio = Math.abs(af) / S.pkF;
+    c.frontSlide = smoothK(1.4, 3, Math.abs(af) / pkF); c.fRatio = Math.abs(af) / pkF;
     // rear tyres: drive, brake and cornering share the grip; the handbrake locks them
     const vr = v - w * b;
     const ar = Math.atan2(vr, Math.max(Math.abs(u), 1.5));
@@ -731,8 +1001,9 @@ class DriftRace {
       Fxr = -Fk * u / sp; Fyr = -Fk * vr / sp;
       slide = 1; c.wheelSpin = 0;
     } else {
-      // friction ellipse: straight ahead the tyres take TRACTION x more than sideways (not while drifting)
-      const GRx = GR * (c.drifting ? 1 : TRACTION), r = Math.hypot(Fxr / GRx, Fyr / GR);
+      // friction ellipse: straight ahead the tyres take TRACTION x more than sideways (not while drifting); the rear
+      // camber and toe set how much of it the throttle can use (forward bite)
+      const GRx = GR * (c.drifting ? 1 : TRACTION) * fx.trac, r = Math.hypot(Fxr / GRx, Fyr / GR);
       if (r > 1) { const k = (1 - (1 - S.slide) * smoothK(1, 1.3, r)) / r; Fxr *= k; Fyr *= k; }
       slide = Math.max(smoothK(0.98, 1.25, r), smoothK(1.4, 3, Math.abs(ar) / S.pkR));
       c.wheelSpin = c.drive > 0 ? smoothK(0.9, 1.3, c.drive / GRx) : 0;
@@ -747,14 +1018,17 @@ class DriftRace {
     c.bPrev = beta;
     if (u > 2) {
       if (c.dk > 0.02) Mz += I * c.dk * (DASSIST.kp * (c.dside * c.dTarget + beta) + DASSIST.kd * U.clamp(dB, -8, 8));
-      const ex = Math.abs(beta) - S.maxAng - 0.3;
-      if (ex > 0) Mz += Math.sign(beta) * I * (ex * 14 + Math.max(0, -Math.sign(beta) * w) * 1.6);
+      // (past the car's angle the body is pulled straighter - later and more weakly with the tail toed out: it snaps round)
+      const snap = fx.snap, ex = Math.abs(beta) - S.maxAng - 0.3 * snap;
+      if (ex > 0) Mz += Math.sign(beta) * I * (ex * 14 + Math.max(0, -Math.sign(beta) * w) * 1.6) * snap;
     }
-    // world-space forces: tyres, drag, rolling resistance (much more off the tarmac), gravity along the slope
-    let FX = Fx * sn + Fy * cs, FZ = Fx * cs - Fy * sn;
     const spd = Math.hypot(c.vx, c.vz);
+    // gripping at speed: toe-in and caster calm the car's yaw (it runs straight), toe-out makes it darty
+    if (c.dk < 0.98 && fx.yawD) Mz -= I * fx.yawD * w * (1 - c.dk) * smoothK(12, 30, spd);
+    // world-space forces: tyres, drag, rolling resistance (much more off the tarmac; toe scrubs a little), gravity along the slope
+    let FX = Fx * sn + Fy * cs, FZ = Fx * cs - Fy * sn;
     if (spd > 0.01) {
-      const k = S.drag * spd + m * g * (0.013 + (c.surf < 1 ? 0.1 : 0)) / Math.max(spd, 0.5);
+      const k = S.drag * spd + m * g * (0.013 + fx.scrub + (c.surf < 1 ? 0.1 : 0)) / Math.max(spd, 0.5);
       FX -= c.vx * k; FZ -= c.vz * k;
     }
     const q = c.pq;
@@ -763,20 +1037,26 @@ class DriftRace {
     // sideways pull on the path is steered towards pathK x PATH.acc (more than the tyres alone could give)
     if (c.dk > 0.02 && spd > 3) {
       const lx = c.vz / spd, lz = -c.vx / spd, aNow = (FX * lx + FZ * lz) / m;   // left of the direction of travel
-      const acc = PATH.acc * c.boost;   // (more for a computer car catching up: it carries more speed round without running wide)
+      // (more for a computer car catching up: it carries more speed round without running wide; and as much more or
+      // less as the front tyres grip with the car's alignment - the front pulls a drift round the bend)
+      const acc = PATH.acc * c.boost * c.gF;
       const add = U.clamp(c.pathK * acc - aNow, -acc, acc) * c.dk * PATH.k;
       FX += lx * add * m; FZ += lz * add * m;
       // a car hung out sideways sheds speed, more so when it is held tight into the bend: a bend taken too fast
-      // tightens up instead of running into the rail
-      const scrub = c.dk * (PATH.scrubAng * Math.abs(Math.sin(c.beta)) + PATH.scrubTow * c.toward) * Math.min(1.6, (spd / 20) * (spd / 20)) / (c.boost * c.boost);   // (less for a computer car catching up)
+      // tightens up instead of running into the rail (less with front tyres that bite)
+      // (less for a computer car catching up; more with the rear wheels toed out: the outer one scrubs sideways)
+      const scrub = c.dk * ((PATH.scrubAng * Math.abs(Math.sin(c.beta)) + PATH.scrubTow * c.toward) * Math.min(1.6, (spd / 20) * (spd / 20)) / (c.boost * c.boost) + fx.drag);
       FX -= c.vx / spd * scrub * m; FZ -= c.vz / spd * scrub * m;
     }
     if (c.dk < 0.98 && spd > GRIP.v0 && Math.abs(c.sIn) > 0.05 && c.u > 0) {
-      const lx = c.vz / spd, lz = -c.vx / spd, aNow = (FX * lx + FZ * lz) / m, want = c.sIn * GRIP.acc * c.boost;
+      const lx = c.vz / spd, lz = -c.vx / spd, aNow = (FX * lx + FZ * lz) / m, want = c.sIn * GRIP.acc * c.boost * c.gF;
       const add = (want - aNow) * Math.abs(c.sIn) * GRIP.k * (1 - c.dk) * smoothK(GRIP.v0, GRIP.v1, spd) * smoothK(0.8, 1.5, c.fRatio);
       if (add * c.sIn > 0) { FX += lx * add * m; FZ += lz * add * m; }   // only ever helps the turn the keys ask for
     }
     if (c.push && c.gas && spd > 3) { FX += c.vx / spd * c.push * m; FZ += c.vz / spd * c.push * m; }   // (the rubber band)
+    // the body's whole sideways acceleration (the assists' pull included, as the body feels it), for the roll and load
+    // transfer of the wheel alignment
+    c.ayA += (U.clamp((FX * cs - FZ * sn) / m, -10, 10) - c.ayA) * Math.min(1, dt * 8);
     c.vx += FX / m * dt; c.vz += FZ / m * dt;
     c.w += Mz / I * dt; c.psi += c.w * dt;
     if (spd < 0.15 && !c.drive && Math.abs(c.w) < 0.1) { c.vx *= 0.8; c.vz *= 0.8; c.w *= 0.8; }
@@ -963,9 +1243,9 @@ class DriftRace {
     if (c.u > 2 && ang > DSCORE.spin && kmh > 12) { if (c.chain) this.loseChain(c, 'XOAY XE!'); return; }
     const on = kmh > DSCORE.minKmh && c.u > 1 && ang > DSCORE.minAng && c.surf === 1;
     if (on) {
-      if (!c.chain) c.chain = { pts: 0, mult: 1, t: 0, gap: 0, dir: Math.sign(c.beta), side: 0, trans: 0, near: 0, ang: 0, tan: 0 };
+      if (!c.chain) c.chain = { pts: 0, mult: 1, t: 0, d: 0, gap: 0, dir: Math.sign(c.beta), side: 0, trans: 0, near: 0, ang: 0, tan: 0 };
       const C = c.chain;
-      C.gap = 0; C.t += dt; C.ang = ang; C.side += dt;
+      C.gap = 0; C.t += dt; C.d += kmh / 3.6 * dt; C.ang = ang; C.side += dt;
       if (Math.sign(c.beta) !== C.dir) {   // a flick from one side to the other without straightening (a transition)
         if (C.side > 0.7) { C.trans++; const b = 250 * C.mult; C.pts += b; if (me) this.pop('ĐẢO LÁI +' + b, '#9fe0ff'); }
         C.dir = Math.sign(c.beta); C.side = 0;
@@ -979,7 +1259,7 @@ class DriftRace {
       if (tan) { if (C.tan <= 0 && me) this.pop('SONG HÀNH! x1.5', '#ff9aff'); C.tan = 0.5; } else C.tan = Math.max(0, C.tan - dt);
       const angK = U.clamp((ang - 10) / 30, 0, 1.8);
       C.pts += dt * angK * kmh * DSCORE.rate * (C.near > 0 ? 2 : 1) * (C.tan > 0 ? 1.5 : 1);
-      C.mult = Math.min(DSCORE.maxMult, 1 + Math.floor(C.t / DSCORE.multT) + C.trans);
+      C.mult = Math.min(DSCORE.maxMult, 1 + Math.floor(C.d / DSCORE.multD) + C.trans);
       c.best.angle = Math.max(c.best.angle, ang);
       c.nitro = Math.min(1, c.nitro + dt * angK * 0.05);
     } else if (c.chain) {
@@ -1007,7 +1287,8 @@ class DriftRace {
     const S = c.spec, spd = Math.hypot(c.vx, c.vz), me = c.isPlayer;
     if (me) {
       Sound.voice(S.voice);
-      Sound.engine(U.clamp((c.rpm - S.idle * 0.6) / S.redline, 0, 1.05), 0.09 + 0.08 * c.gas);
+      // (louder on the throttle - and for a moment as a downshift drags the revs up)
+      Sound.engine(U.clamp((c.rpm - S.idle * 0.6) / S.redline, 0, 1.05), 0.09 + 0.08 * Math.max(c.gas, Math.min(1, c.shock * 4)));
       const slip = spd > 3 ? Math.max(c.rearSlide * 0.9, c.frontSlide * 0.6) : c.wheelSpin * (c.gas ? 0.7 : 0);
       if (Sound.skid) Sound.skid(slip * Math.min(1, Math.max(spd, c.wheelSpin * 8) / 10), 0.85 + Math.min(0.35, spd / 90));
     }

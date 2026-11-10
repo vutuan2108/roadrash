@@ -152,7 +152,7 @@ Bộ phím theo các game drift trên PC như CarX Drift Racing và Forza Horizo
 | ← → / A D | Lái |
 | Space | Phanh tay: khóa bánh sau để bắt đầu trượt |
 | Shift | Côn. Giữ côn rồi vê ga, thả ra thì "đá côn" làm bánh sau mất bám |
-| E / Q | Lên / xuống số. Bấm vào là chuyển sang số tay |
+| B / V (hoặc E / Q) | Lên / xuống số. Bấm vào là chuyển sang số tay |
 | T | Đổi giữa số tự động và số tay |
 | N | Nitro. Bình nitro tự nạp lại khi drift |
 | C | Đổi camera: bám sau xe, sau xa, nắp capo |
@@ -172,7 +172,7 @@ Cách drift:
 ### Tính điểm
 
 - Điểm của mỗi chuỗi drift tăng theo góc trượt và tốc độ.
-- Hệ số nhân tăng dần tới x5: mỗi 3 giây trượt liên tục được thêm 1, mỗi lần đảo lái cũng được thêm 1.
+- Hệ số nhân tăng dần tới x5: mỗi 60 m trượt liên tục được thêm 1 (khoảng 3 giây ở 72 km/h; tính theo quãng đường để drift chậm không được lợi), mỗi lần đảo lái cũng được thêm 1.
 - Trượt sát rào (cách dưới 1 m) được nhân đôi điểm.
 - Song hành: drift trong vòng 7 m cạnh một xe khác cũng đang drift thì điểm x1,5.
 - Sau 1,6 giây không trượt, điểm của chuỗi được cộng vào tổng.
@@ -183,37 +183,62 @@ Cách drift:
 
 ### Bản đồ
 
-Hai cung đèo có mặt đường rộng 18 m, rào cách tim đường 10,75 m. Mỗi đèo có nhiều đoạn cua nối tiếp nhau không có đường thẳng xen giữa (zíc zắc, rắn lượn, cua tay áo liên hoàn), nên có thể giữ một chuỗi drift rất dài và đẩy hệ số lên x5. Một lượt chạy đèo mất khoảng 3,5 phút.
+Có sáu cung đèo và một sân drift. Đường đèo rộng 18 m, rào cách tim đường 10,75 m. Mỗi đèo có rất nhiều đoạn cua nối tiếp nhau không có đường thẳng xen giữa (zíc zắc, rắn lượn, cua tay áo liên hoàn), nên có thể giữ một chuỗi drift rất dài và đẩy hệ số lên x5. Một lượt chạy đèo dài 6,5–7,4 km, mất khoảng 4,5–5,5 phút.
 
-- **Đèo Mã Pí Lèng** (Hà Giang, khoảng 5,5 km đổ dốc): vách đá dựng đứng, vực sông Nho Quế, cua tay áo, ba đoạn zíc zắc, hai đoạn rắn lượn bốn khúc.
-- **Đèo Ô Quy Hồ** (Sa Pa, khoảng 5,3 km, lúc hoàng hôn): rừng thông, mười cua kẹp tóc, các khúc ngoặt nối tiếp.
+- **Đèo Mã Pí Lèng** (Hà Giang, 6,7 km đổ dốc): vách đá dựng đứng, vực sông Nho Quế, 8 cua tay áo, các đoạn zíc zắc và rắn lượn.
+- **Đèo Ô Quy Hồ** (Sa Pa, 6,5 km, lúc hoàng hôn): rừng thông, 10 cua kẹp tóc, các khúc ngoặt nối tiếp.
+- **Đèo Hải Vân** (Đà Nẵng – Huế, 7,3 km, giữa trưa): vách đá trên biển, 6 cua tay áo và các khúc ngoặt dồn dập.
+- **Đèo Khau Phạ** (Yên Bái, 6,9 km, chiều nắng vàng): đồi ruộng bậc thang mùa lúa chín hai bên đường, 74 khúc cua gấp.
+- **Đèo Pha Đin** (Điện Biên – Sơn La, 7,4 km, sương sớm): tầm nhìn ngắn, cua nối cua gần như không nghỉ, 79 khúc cua gấp.
+- **Đèo Khánh Lê** (Nha Trang – Đà Lạt, 7,1 km, chạng vạng): rừng thông dưới trời tím, 3 cua tay áo và các đoạn zíc zắc liền nhau.
 - **Sân drift đêm Bình Dương** (3 vòng, mỗi vòng khoảng 2,4 km, tổng khoảng 7,2 km): đường rộng 22 m, 27 khúc cua mỗi vòng, hầu hết đoạn thẳng được bẻ bằng cua chữ S, có đèn pha và khán đài. Một lượt khoảng 5 phút.
 
 ### Xe
 
-Mua xe trong **GARA Ô TÔ**. Danh sách cuộn được bằng ↑↓, dùng ← → để đổi màu sơn xe đã mua. Mỗi xe có một dòng "Ngoài đời" ghi máy, công suất xe zin và tốc độ tối đa thật, kèm các chỉ số trong game: công suất, mô-men, trọng lượng, vòng tua tối đa, tốc độ tối đa.
+Mua xe trong **GARA Ô TÔ**. Danh sách cuộn được bằng ↑↓, dùng ← → để đổi màu sơn xe đã mua, phím **C** để căn chỉnh góc đặt bánh (xem phần dưới). Mỗi xe có một dòng "Ngoài đời" ghi máy, công suất xe zin và tốc độ tối đa thật, kèm các chỉ số trong game: công suất, mô-men, trọng lượng, vòng tua tối đa, tốc độ tối đa.
 
 Các xe trong game đều là bản độ drift, mạnh hơn số liệu ngoài đời khoảng 45%. Tỉ số hộp số, cầu, vòng tua tối đa, trọng lượng, chiều dài cơ sở và phân bố tải trước/sau lấy theo xe thật.
 
 | Xe | Đặc điểm |
 |---|---|
-| Toyota AE86 Trueno | Có sẵn. Nhẹ, 190 mã lực, đèn pop-up, sơn trắng–đen kiểu "panda". Cần phanh tay hoặc đá côn để vào drift |
-| Nissan Silvia S15 | 360 mã lực turbo, cân bằng, dễ drift |
-| Mazda RX-7 FD3S | 405 mã lực, máy xoay 8000 vòng/phút, đèn pop-up |
-| Toyota Supra A80 | 465 mã lực, 680 Nm, cánh gió lớn, đèn hậu tròn |
-| Ford Mustang GT | V8 650 mã lực, 810 Nm, chỉ cần đạp ga là đuôi xe văng ra |
+| Datsun 280Z | **Có sẵn.** Xe cổ thân rộng, mâm lưới SSR vàng. Ngoài đời: máy L28E 2.8 L 6 xi-lanh, 170 mã lực ở 5600 vòng/phút, 221 Nm, 1270 kg, số sàn 5 cấp, 205 km/h. Trong game 250 mã lực, 0–100 km/h 4,8 giây. Cần phanh tay hoặc đá côn để vào drift |
+| Nissan 180SX | Bộ khí động học, cánh gió lớn, mâm SSR và Work. Ngoài đời (RPS13 Type X): SR20DET 2.0 L turbo, 205 mã lực ở 6000 vòng/phút, 275 Nm, khoảng 1220 kg, số sàn 5 cấp, cầu 4.083, khoảng 230 km/h. Trong game 295 mã lực, 400 Nm, 0–100 km/h 3,9 giây |
+| Ford Mustang 1965 | Mui cứng, xanh navy sọc trắng. Ngoài đời: V8 289 (4.7 L) chế hòa khí 4 họng, 225 mã lực ở 4800 vòng/phút, 414 Nm, khoảng 1300 kg, số sàn 4 cấp, khoảng 190 km/h. Trong game 326 mã lực, 600 Nm, hộp số 4 cấp nên tốc độ tối đa thấp (217 km/h) |
 | Toyota GR86 Pandem | Thân rộng Pandem V1.5, cánh gió lớn. Xe zin (đời 2022): máy boxer 2.4 L, 228 mã lực, 250 Nm, 1270 kg, hộp số 6 cấp và cầu 4.30 lấy theo xe thật. Bản độ turbo trong game: 330 mã lực, 360 Nm, 0–100 km/h 4,0 giây |
-| Nissan Silvia S15 Custom | Bản drift chuyên nghiệp: thân rộng, cánh GT, canard, lồng an toàn. SR20DET độ turbo lớn (khoảng 350 mã lực ngoài đời), bỏ bớt nội thất còn 1190 kg, góc lái lớn. Trong game 500 mã lực, 560 Nm, 0–200 km/h 8,7 giây |
-| Datsun 280Z | Xe cổ thân rộng, mâm lưới SSR vàng. Ngoài đời: máy L28E 2.8 L 6 xi-lanh, 170 mã lực ở 5600 vòng/phút, 221 Nm, 1270 kg, số sàn 5 cấp, 205 km/h. Trong game 250 mã lực, 0–100 km/h 4,8 giây. Xe rẻ nhất sau AE86 |
+| Ford Mustang Boss 302 | Đời 1970, xanh Grabber Blue, sọc đen Boss, lá chắn kính sau. Ngoài đời: V8 302 (5.0 L), 290 mã lực ở 5800 vòng/phút, 393 Nm, khoảng 1450 kg, số sàn 4 cấp tỉ số gần (2.32 / 1.69 / 1.29 / 1.00), cầu 3.50, 0–96 km/h 6,9 giây. Trong game 420 mã lực, 570 Nm |
+| Toyota Supra A80 | 465 mã lực, 680 Nm, cánh gió lớn, đèn hậu tròn |
 | Nissan Skyline GT-R R34 | Xanh Bayside, nắp capo carbon, cánh gió. Ngoài đời: RB26DETT 2.6 L 6 xi-lanh twin-turbo, 280 mã lực, 392 Nm, 1560 kg, hộp số Getrag 6 cấp, cầu 3.545. Xe thật dẫn động 4 bánh, trong game là bản drift dẫn động cầu sau: 400 mã lực, 570 Nm |
 | Mazda RX-7 VeilSide Fortune | Bộ thân VeilSide Fortune, cam phối đen. Máy xoay 13B-REW twin-turbo, xe zin 280 mã lực; bản độ VeilSide khoảng 400 mã lực. Trong game 580 mã lực, 0–200 km/h 8,0 giây |
-| Mazda RX-7 BN Sports | Bộ thân BN Sports BLS, cánh GT lớn, đèn pop-up. Máy xoay 13B độ lớn, khoảng 600 mã lực ngoài đời. Trong game 700 mã lực, quay tới 8500 vòng/phút |
+| Ford Mustang GT-R | Mustang GT 2018 (S550) gắn bộ thân đua kiểu GT-R: cản trước có lip đỏ, cánh gió lớn, ống xả giữa. Ngoài đời: Coyote 5.0 L V8, 460 mã lực ở 7000 vòng/phút, 569 Nm, khoảng 1680 kg, số sàn 6 cấp, 250 km/h (giới hạn điện tử). Trong game 650 mã lực, 810 Nm, chỉ cần đạp ga là đuôi xe văng ra |
+| Nissan Silvia S15 Custom | Bản drift chuyên nghiệp: thân rộng, cánh GT, canard, lồng an toàn. SR20DET độ turbo lớn (khoảng 350 mã lực ngoài đời), bỏ bớt nội thất còn 1190 kg, góc lái lớn. Trong game 500 mã lực, 560 Nm, 0–200 km/h 8,7 giây |
 | Porsche 911 GT2 (993) | Máy boxer 3.6 L twin-turbo đặt sau, dẫn động cầu sau. Ngoài đời: 430 mã lực, 540 Nm, 1295 kg, 0–100 km/h 4,4 giây, 295 km/h. Trong game 615 mã lực, 0–100 km/h 2,6 giây. Nặng đuôi nên đuôi xe dễ văng |
-| Ferrari F40 LB-Works | Bộ thân Liberty Walk. Ngoài đời: V8 2.9 L twin-turbo đặt giữa, 478 mã lực ở 7000 vòng/phút, 577 Nm, khoảng 1250 kg, 324 km/h. Trong game 685 mã lực, 835 Nm, 0–100 km/h 2,4 giây. Xe đắt nhất gara |
+| Mazda RX-7 BN Sports | Bộ thân BN Sports BLS, cánh GT lớn, đèn pop-up. Máy xoay 13B độ lớn, khoảng 600 mã lực ngoài đời. Trong game 700 mã lực, quay tới 8500 vòng/phút |
+| Nissan GT-R R35 LB-Silhouette | Bộ thân Liberty Walk LB-Silhouette WORKS GT 35GT-RR, cánh GT. Ngoài đời: VR38DETT 3.8 L V6 twin-turbo, 570 mã lực ở 6800 vòng/phút, 633 Nm, khoảng 1750 kg, hộp số ly hợp kép 6 cấp, 315 km/h. Xe thật dẫn động 4 bánh, trong game là bản drift dẫn động cầu sau: 800 mã lực, 900 Nm |
+| Ferrari F40 LB-Works | Bộ thân Liberty Walk. Ngoài đời: V8 2.9 L twin-turbo đặt giữa, 478 mã lực ở 7000 vòng/phút, 577 Nm, khoảng 1250 kg, 324 km/h. Trong game 685 mã lực, 835 Nm, 0–100 km/h 2,4 giây |
+| Nissan 180SX Wisteria D1 | Xe đua D1 Grand Prix 2018 số 66 của đội Toyo Tires Drift Wisteria (tay lái Hideyuki Fujino): 180SX thay máy 2JZ độ lên 3.4 L, khoảng 850 mã lực. Trong game giới hạn ở 780 mã lực, 900 Nm, 1200 kg, góc lái lớn nhất. Xe đắt nhất gara |
 
-Tỉ số hộp số của F40 và GT2 (993) là số ước lượng vì không tìm được nguồn đáng tin; các số còn lại lấy theo tài liệu của xe thật.
+Công suất, mô-men, trọng lượng và tốc độ ngoài đời lấy theo tài liệu của xe thật. Riêng tỉ số hộp số thì chưa kiểm chứng được qua nguồn đáng tin cho F40, GT2 (993), Mustang 1965, Boss 302, Mustang GT-R (chỉ số 1 là 3.66 có nguồn) và R35: các số này là số ước lượng hoặc số thường gặp của hộp số đó. Xe 180SX Wisteria D1 dùng hộp số 6 cấp kiểu Getrag vì đội đua không công bố. Công suất 850 mã lực của xe này là số của mùa 2017 (Speedhunters), chưa tìm được số riêng của mùa 2018.
 
-Các xe GR86 Pandem, S15 Custom, Supra A80, Datsun 280Z, R34, hai chiếc RX-7, GT2 và F40 dựng từ mẫu 3D trong thư mục `car/` (xem phần Ghi công), có mâm, lốp, đĩa phanh và heo phanh riêng của mẫu. Bánh xe quay đúng trục và đánh lái được. Mẫu của xe được tải dần trong nền sau khi mở game. Nếu vào đua khi mẫu chưa tải xong, game hiện "ĐANG TẢI XE..." trong giây lát. Cách chuyển mẫu xem `tools/glb/README.md`.
+Tất cả xe đều dựng từ mẫu 3D trong thư mục `car/` (xem phần Ghi công), có mâm, lốp, đĩa phanh và heo phanh riêng của mẫu. Bánh xe quay đúng trục và đánh lái được. Các xe dựng bằng khối hình học trước đây (AE86, Silvia S15, RX-7 FD3S, Mustang GT) đã bỏ. Save cũ có các xe này được hoàn lại tiền mua, và Datsun 280Z thay AE86 làm xe có sẵn. Mẫu của xe được tải dần trong nền sau khi mở game. Nếu vào đua khi mẫu chưa tải xong, game hiện "ĐANG TẢI XE..." trong giây lát. Cách chuyển mẫu xem `tools/glb/README.md`.
+
+### Căn chỉnh góc đặt bánh (camber, toe, caster)
+
+Trong gara, chọn một xe đã mua rồi nhấn **C**. Có 5 góc: camber trước, camber sau, toe trước, toe sau, caster. ↑↓ chọn, ← → chỉnh (giữ phím để chỉnh nhanh), ESC lưu và quay lại. Bộ góc lưu riêng cho từng xe và dùng cả khi đua online (người khác thấy bánh xe bạn nghiêng đúng như thế).
+
+- Khung 3D hiện xe ở góc nhìn hợp với góc đang chỉnh (trước/sau cho camber, trên xuống cho toe, bên hông cho caster), thân xe làm mờ để thấy bánh. Bánh xe nghiêng đúng số độ đã chỉnh, cả trong cuộc đua. Bánh trước đánh lái quanh trục nghiêng theo caster nên khi đánh lái, bánh tự ngả theo hướng lái như xe thật.
+- Ô sơ đồ góc trên bên phải vẽ đúng tỉ lệ. Riêng toe được vẽ phóng đại 5 lần vì 0,1–0,2° nhìn không thấy, kèm số mm tổng.
+- Thanh trượt: vạch xám là bộ góc gốc của xe, vạch xanh là bộ tối ưu cho drift của chính xe đó.
+- **TỐI ƯU CHO DRIFT** tự tính bộ góc tốt nhất cho xe đang chỉnh (theo chiều cao trọng tâm và phân bổ trọng lượng). Với đa số xe kết quả khoảng: camber trước -3,75°, camber sau -0,75°, toe trước 0,1° choãi ra, toe sau 0,2° chụm vào, caster 7,25–7,5°. Các số này nằm trong khoảng xe drift thật hay dùng.
+- Bảng bên dưới so từng mặt với bộ góc zin đường phố: bám đầu khi drift, bám đầu vào cua, bám đuôi, lực kéo, phanh, ăn lái, tự trả lái ngược, nhẹ lái, ổn định tốc độ cao, chống giật xoay, dễ vào drift, giữ tốc. Dòng cuối cho biết camber thật của bánh trước lúc drift và lúc vào cua (camber tĩnh + thân xe nghiêng + phần caster cộng thêm khi đánh lái).
+
+Cách các góc tác động trong game:
+
+- **Camber** đổi độ bám ngang của từng lốp theo góc lốp thật sự nghiêng so với mặt đường ở mỗi thời điểm, có tính tải dồn sang bánh ngoài. Khi drift, bánh trước chịu tải bị thân xe nghiêng và caster làm ngả dương, nên camber âm vừa đủ giúp đầu xe bám hơn: xe giữ được góc drift sâu hơn và kéo theo cua tốt hơn. Camber trước càng âm thì phanh và vào cua lúc chưa trượt càng kém. Camber sau càng xa 0 thì lực kéo càng giảm.
+- **Toe trước** choãi ra làm lái ăn nhanh hơn (tới khoảng 0,2°). Choãi nhiều hơn chỉ làm xe "bơi" ở tốc độ cao và cà lốp mất tốc. Chụm vào thì xe đầm hơn nhưng lái lì.
+- **Toe sau** chụm vào giúp xe ổn định và đạp ga có lực đẩy (tốt nhất khoảng 0,2°). Toe sau choãi ra làm đuôi dễ bẻ nhưng hay giật xoay khi quá góc, và bánh cà ngang làm mất tốc lúc drift.
+- **Caster** cao làm bánh tự trả về nhanh khi lái ngược (bắt đuôi kịp) và xe đầm ở tốc độ cao, đổi lại lái nặng hơn khi quá khoảng 8°.
+
+Bộ góc zin của xe đường phố cho cảm giác lái y như trước khi có tính năng này. Xe máy dùng bộ góc gốc của xe chúng (S15 Custom và 180SX Wisteria có sẵn bộ góc drift).
 
 ### Đua drift online
 
@@ -255,6 +280,24 @@ Cách đưa lên web để bạn bè chơi giống phần mô tô: chạy máy c
 - Mẫu 3D Datsun 280Z (`js/g3/z280.js`) dựa trên mẫu ["[FREE] Datsun 280Z"](https://sketchfab.com/3d-models/free-datsun-280z-0789ab2ece9442de94b3c41595e0ecbd) của tác giả [Martin Trafas](https://sketchfab.com/Bexxie).
   - Giấy phép: [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/).
   - Mẫu đã được chỉnh sửa: giảm số tam giác, tô lại màu từng phần.
+- Mẫu 3D Ford Mustang Boss 302 (`js/g3/boss.js`) dựa trên mẫu ["1970 Ford Mustang Boss 302"](https://sketchfab.com/3d-models/1970-ford-mustang-boss-302-eb06dfca70564466b1d98441976de3c6) của tác giả [Ddiaz Design](https://sketchfab.com/ddiaz-design).
+  - Giấy phép: [CC BY-NC-SA 4.0](http://creativecommons.org/licenses/by-nc-sa/4.0/) (**không dùng cho mục đích thương mại**, bản chỉnh sửa chia sẻ cùng giấy phép).
+  - Mẫu đã được chỉnh sửa: giảm số tam giác, bỏ nội thất và khoang máy, tô lại màu từng phần theo màu texture của mẫu (giữ sọc đen).
+- Mẫu 3D Nissan 180SX (`js/g3/n180.js`) dựa trên mẫu ["Nissan 180sx [FREE]"](https://sketchfab.com/3d-models/nissan-180sx-free-b37cea6e8a864a2aa602934ddb0e6ff0) của tác giả [autoNgraphic](https://sketchfab.com/autoNgraphic).
+  - Giấy phép: [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/).
+  - Mẫu đã được chỉnh sửa: giảm số tam giác, bỏ nội thất và lồng an toàn, tô lại màu từng phần.
+- Mẫu 3D Nissan 180SX Wisteria D1 (`js/g3/wis.js`) dựa trên mẫu ["D1GP 2018 Osaka 66 Nissan WISTERIA 180SX"](https://sketchfab.com/3d-models/d1gp-2018-osaka-66-nissan-wisteria-180sx-995bd0bc499a47869e146001f20f89fb) của tác giả [Nieve5677](https://sketchfab.com/niev).
+  - Giấy phép: [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/).
+  - Mẫu đã được chỉnh sửa: giảm số tam giác, bỏ lớp tem và người lái, tô lại màu từng phần.
+- Mẫu 3D Nissan GT-R R35 LB-Silhouette (`js/g3/r35.js`) dựa trên mẫu ["2022 LB-Silhouette WORKS GT NISSAN 35GT-RR (R35)"](https://sketchfab.com/3d-models/2022-lb-silhouette-works-gt-nissan-35gt-rr-r35-19287829a2564641b586b6e4d0e0d7e9) của tác giả [SIU Car Garage](https://sketchfab.com/Game_mode).
+  - Giấy phép: [CC BY-NC 4.0](http://creativecommons.org/licenses/by-nc/4.0/) (**không dùng cho mục đích thương mại**).
+  - Mẫu đã được chỉnh sửa: giảm số tam giác, bỏ lớp tem, tô lại màu từng phần.
+- Mẫu 3D Ford Mustang 1965 (`js/g3/m65.js`) dựa trên mẫu ["Ford Mustang 1965"](https://sketchfab.com/3d-models/ford-mustang-1965-5f4e3965f79540a9888b5d05acea5943) của tác giả [Pooya_dh](https://sketchfab.com/Pooya_dh).
+  - Giấy phép: [CC BY-NC 4.0](http://creativecommons.org/licenses/by-nc/4.0/) (**không dùng cho mục đích thương mại**).
+  - Mẫu đã được chỉnh sửa: giảm số tam giác, bỏ nội thất, tô lại màu từng phần.
+- Mẫu 3D Ford Mustang GT-R (`js/g3/gtr.js`) dựa trên mẫu ["Ford Mustang GT-R"](https://sketchfab.com/3d-models/ford-mustang-gt-r-09680acc97da4d8eba10a2aa62e08312) của tác giả [blakebella](https://sketchfab.com/blakebella).
+  - Giấy phép: [CC BY-SA 4.0](http://creativecommons.org/licenses/by-sa/4.0/) (bản chỉnh sửa chia sẻ cùng giấy phép).
+  - Mẫu đã được chỉnh sửa: giảm số tam giác, bỏ nội thất và khoang máy, tô lại màu từng phần.
 
 ## Cấu trúc
 

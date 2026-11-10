@@ -45,6 +45,23 @@ const World = (() => {
       sun: [0.62, 0.16, -0.77], sunCol: '#ffb070', sunI: 1.5, hemi: ['#ffd0b0', '#3a4a30', 0.72], exp: 1.05, clouds: 14,
       asphalt: '#55555a', centre: 'dash', shoulder: '#8e7c5c',
       rings: [{ r: 2700, h: 700, col: '#5a5680', f: 4, cut: 0.12, seed: 21 }, { r: 2200, h: 360, col: '#4a5048', f: 7, cut: 0.2, seed: 22 }] },
+    // a cliff road above the sea at noon, rice terraces in the afternoon, a misty morning, pines at dusk
+    dHaiVan: { roadMin: 120, base: -8, sea: '#1c62a8', sky: ['#1a5cc4', '#7fb8ee', '#d6ecf8'], fog: ['#d6ecf8', 260, 2100],
+      sun: [-0.35, 0.72, -0.6], sunCol: '#fff4dc', sunI: 1.4, hemi: ['#d8ecff', '#7a8a6a', 0.82], exp: 1.0, clouds: 22,
+      asphalt: '#5a5a5e', centre: 'double', shoulder: '#a49478',
+      rings: [{ r: 2700, h: 520, col: '#6a8aa8', f: 6, cut: 0.35, seed: 41 }, { r: 2150, h: 300, col: '#4f7a5e', f: 10, cut: 0.4, seed: 42 }] },
+    dKhauPha: { base: -25, ground: '#7a7a3a', sky: ['#3070c0', '#9cc6e6', '#f2e2b4'], fog: ['#ece0b8', 220, 1800],
+      sun: [0.55, 0.38, -0.74], sunCol: '#ffe2a8', sunI: 1.45, hemi: ['#ffe8c0', '#7a7040', 0.8], exp: 1.02, clouds: 12,
+      asphalt: '#5c5c60', centre: 'dash', shoulder: '#a08a5a',
+      rings: [{ r: 2700, h: 620, col: '#7088a0', f: 5, cut: 0.25, seed: 51 }, { r: 2200, h: 340, col: '#7a8448', f: 8, cut: 0.3, seed: 52 }] },
+    dPhaDin: { roadMin: 100, base: -8, sea: '#6a9488', sky: ['#9fb2c6', '#cfd8e0', '#e6eaee'], fog: ['#dfe4e8', 70, 760],
+      sun: [-0.5, 0.42, -0.75], sunCol: '#fff2e0', sunI: 1.05, hemi: ['#e8eef4', '#7a8070', 0.95], exp: 1.05, clouds: 0,
+      asphalt: '#606064', centre: 'double', shoulder: '#9a8e74',
+      rings: [{ r: 2700, h: 600, col: '#b4c0cc', f: 7, cut: 0.4, seed: 61 }, { r: 2150, h: 360, col: '#98a8a8', f: 11, cut: 0.42, seed: 62 }] },
+    dKhanhLe: { base: -25, ground: '#22382a', sky: ['#121838', '#3c3e78', '#d07c66'], fog: ['#6a5a78', 140, 1300],
+      sun: [-0.6, 0.14, -0.79], sunCol: '#ff9c78', sunI: 1.1, hemi: ['#b0a8e0', '#2a3a30', 0.7], exp: 1.12, clouds: 10,
+      asphalt: '#4e4e56', centre: 'dash', shoulder: '#7e705c',
+      rings: [{ r: 2700, h: 680, col: '#3e3a66', f: 4, cut: 0.15, seed: 71 }, { r: 2200, h: 380, col: '#2e3a3a', f: 7, cut: 0.2, seed: 72 }] },
     dArena: { base: -1, ground: '#141414', night: true, flood: true, sky: ['#04030e', '#100b28', '#2a2244'], fog: ['#1a1830', 180, 1500],
       sun: [0.3, 0.8, 0.52], sunCol: '#eef4ff', sunI: 1.2, hemi: ['#a8b0d8', '#2a3020', 0.95], exp: 1.15, clouds: 0,
       asphalt: '#3a3b40', runoff: '#34353a', rings: [] },
@@ -163,9 +180,19 @@ const World = (() => {
     const nw = W => W._nw || (W._nw = Object.create(W, { wallM: { value: Math.min(W.wallM, w0) } }));
     return { h: (o, ry, x, z, W) => T0.h(at(o, W), ry, x, z, nw(W)), c: (h, sl, o, x, z, i, W) => T0.c(h, sl, at(o, W), x, z, i, nw(W)) };
   };
+  // rice terraces: the gentler slopes beside the road banded gold and green by height, like the steps of the fields
+  const RICE = [C('#c8a63c'), C('#a8a83e'), C('#7e9636')];
+  const terraces = T0 => ({ h: T0.h, c(h, sl, o, x, z, i, W) {
+    const c = T0.c(h, sl, o, x, z, i, W), flat = 1 - smooth(0.32, 0.62, sl), off = smooth(9, 16, Math.abs(o));
+    const band = 0.5 + 0.5 * Math.sin(h * 2.4 + fbm(x / 40, z / 40) * 3), ripe = fbm(x / 120, z / 120);
+    const rice = G3.mix(G3.mix(RICE[2], RICE[1], band), RICE[0], smooth(0.35, 0.65, ripe) * band);
+    return G3.mix(c, rice, flat * off * 0.85);
+  } });
   TERRAIN.dMaPiLeng = widen(TERRAIN.pass, 7.25); TERRAIN.dOQuyHo = widen(TERRAIN.forest, 7.25); TERRAIN.dArena = widen(TERRAIN.dArena, 11.5);
+  TERRAIN.dHaiVan = widen(TERRAIN.pass, 7.25); TERRAIN.dPhaDin = widen(TERRAIN.pass, 7.25);
+  TERRAIN.dKhauPha = widen(terraces(TERRAIN.forest), 7.25); TERRAIN.dKhanhLe = widen(TERRAIN.forest, 7.25);
   // the drift stages borrow the scenery of the stage they look like
-  const DECOR_AS = { dMaPiLeng: 'pass', dOQuyHo: 'forest', dArena: 'gpNight' };
+  const DECOR_AS = { dMaPiLeng: 'pass', dOQuyHo: 'forest', dArena: 'gpNight', dHaiVan: 'pass', dKhauPha: 'pass', dPhaDin: 'pass', dKhanhLe: 'forest' };
   // ---------------------------------------------------------------- road centre line
   class Path {
     // lapN: the road is a closed circuit of lapN segments (the race segments repeat it lap after lap)
@@ -177,7 +204,7 @@ const World = (() => {
       for (let i = 0; i <= N; i++) { Y[i] = (i < N ? segs[i].p1.world.y : segs[N - 1].p2.world.y) * CFG.KY; mn = Math.min(mn, Y[i]); sum += Y[i]; }
       const off = look.roadMin !== undefined ? look.roadMin - mn : 0;
       for (let i = 0; i <= N; i++) Y[i] += off;
-      this.mean = sum / (N + 1) + off;
+      this.mean = sum / (N + 1) + off; this.min = mn + off;
       let x = 0, z = 0, h = 0;
       for (let i = 0; i < N; i++) {
         X[i] = x; Z[i] = z; Hd[i] = h;
@@ -375,7 +402,9 @@ const World = (() => {
       this.night = !!this.L.night; this.time = 0; this.owned = [];
       this.circuit = !!race.circuit; this.lapN = race.lapN || 0; this.wallM = (race.wall || 3.2) * KX;
       this.path = new Path(race.segs, this.L, this.lapN); this.mean = this.path.mean;
-      this.base = this.L.base + (this.L.roadMin !== undefined ? 0 : this.mean);
+      // the far ground: below the road's mean height - but a drift pass falls well over 100 m from start to finish, so
+      // there it lies below the lowest point of the road (else the lower part of the road ran under the ground plane)
+      this.base = this.L.base + (this.L.roadMin !== undefined ? 0 : race.drift && !this.circuit ? this.path.min : this.mean);
       const sc = this.scene = new T.Scene();
       this.cam = new T.PerspectiveCamera(62, 1.6, 0.25, 3400);
       sc.fog = new T.Fog(this.L.fog[0], this.L.fog[1], this.L.fog[2]);
@@ -1026,7 +1055,7 @@ const World = (() => {
       this.skids = new Skids(this.scene);
       // a model for every car on the stage (the player's first), each with its exhaust flames and smoke emitters
       this.dcs = race.racers.map(c => {
-        const o = Models.driftCar(c.spec.model, c.paint);
+        const o = Models.driftCar(c.spec.model, c.paint, c.align);
         this.scene.add(o.root);
         o.setNight(this.night);
         o.flames = []; o.emitAcc = [0, 0, 0, 0];
@@ -1056,12 +1085,11 @@ const World = (() => {
       R.rotation.set(-Math.atan(c.slope * Math.cos(c.psi - c.h)), c.psi, 0);
       const kk = Math.min(1, dt * 10);
       o.tilt.rotation.z += (U.clamp(c.ay * 0.0055, -0.075, 0.075) - o.tilt.rotation.z) * kk;   // body roll
-      o.tilt.rotation.x += (U.clamp(-c.ax * 0.005, -0.05, 0.05) - o.tilt.rotation.x) * kk;     // squat / dive
+      // squat / dive (and the nose nodding as a downshift bites)
+      o.tilt.rotation.x += (U.clamp(-c.ax * 0.005 + (c.shock || 0) * 0.06, -0.05, 0.065) - o.tilt.rotation.x) * kk;
       const rearV = c.hand ? 0 : c.u + (c.gas ? Math.max(c.wheelSpin, c.rearSlide) * 16 * (c.gear < 0 ? -1 : 1) : 0);
-      for (const w of o.wheels) {
-        if (w.front) w.pivot.rotation.y = c.steer;
-        w.spin.rotation.x += (w.front ? c.u : rearV) / S.wheel.R * dt;
-      }
+      o.steer(c.steer);   // (about the caster-tilted steering axis: the wheels lean as they turn)
+      for (const w of o.wheels) w.spin.rotation.x += (w.front ? c.u : rearV) / S.wheel.R * dt;
       o.setBrake(c.brk > 0);
       o.paint.envMap = this.env;
       if (!me && dist > 260) return;
@@ -1223,11 +1251,12 @@ const World = (() => {
     }
   }
   const PAL_GROUND = { coast: '#c8b083', forest: '#3a6a30', pass: '#6a7a4a', city: '#202024', gpIsland: '#a8b070', gpHills: '#3a6a30', gpNight: '#121a14',
-    dMaPiLeng: '#6a7a4a', dOQuyHo: '#3a5a30', dArena: '#121212' };
+    dMaPiLeng: '#6a7a4a', dOQuyHo: '#3a5a30', dArena: '#121212', dHaiVan: '#6a7a4a', dKhauPha: '#8a8a42', dPhaDin: '#6a7a5a', dKhanhLe: '#24382a' };
   let WIRE_MAT = null, POOL_MAT = null, POOLW_MAT = null, LAMP_GLOW = null, FLOOD_GLOW = null, G3_POOL_GEO = null;
 
   // ================================================================ showroom (shop preview)
   let show = null;
+  const GHOST = { mat: null, line: null, axis: null };   // (the alignment screen's materials, see techView)
   function buildShow() {
     const sc = new T.Scene(), cam = new T.PerspectiveCamera(30, 1.5, 0.1, 50);
     sc.add(new T.HemisphereLight('#dfe8ff', '#3a3040', 0.9));
@@ -1311,7 +1340,7 @@ const World = (() => {
       o.root.rotation.y = t * 0.6;
       R.getSize(size);
       const sx = size.x / W, sy = size.y / H, vx = x * sx, vw = w * sx, vh = h * sy, vy = size.y - (y + h) * sy;
-      show.cam.aspect = vw / vh; show.cam.updateProjectionMatrix();
+      show.cam.aspect = vw / vh; show.cam.fov = 30; show.cam.up.set(0, 1, 0); show.cam.updateProjectionMatrix();
       show.cam.position.set(0, 1.25, 3.7); show.cam.lookAt(0, 0.52, 0);
       for (const k of ['paint', 'chrome', 'glass', 'carPaint']) G3.mats[k].envMap = show.env;
       R.toneMappingExposure = 1.0;
@@ -1320,28 +1349,93 @@ const World = (() => {
       R.render(show.sc, show.cam);
       R.setScissorTest(false); R.setClearColor(0x000000, 1);
     },
-    // a turning drift car in the garage
-    carPreview(model, paint, x, y, w, h, t) {
-      if (!show) buildShow();
-      let o = show.cars[model];
-      if (o && !o.glb && Models.hasCar(model)) { show.sc.remove(o.root); o.dispose(); o = null; }   // (a stand-in until the model loaded)
-      if (!o) { o = show.cars[model] = Models.driftCar(model, paint); show.sc.add(o.root); }
-      for (const k in show.models) show.models[k].root.visible = false;
-      for (const k in show.cars) show.cars[k].root.visible = k === model;
-      o.setPaint(paint); o.paint.envMap = show.env;
-      for (const wl of o.wheels) if (wl.front) wl.pivot.rotation.y = Math.sin(t * 0.7) * 0.35;
+    // a turning drift car in the garage, its wheels set to its alignment al
+    carPreview(model, paint, x, y, w, h, t, al) {
+      const o = showCar(model, paint, al);
+      techView(o, null);
+      o.steer(Math.sin(t * 0.7) * 0.35);
       o.root.rotation.y = t * 0.45 + 0.6;
-      show.floor.scale.set(1.75, 1, 1.75);
-      R.getSize(size);
-      const sx = size.x / W, sy = size.y / H, vx = x * sx, vw = w * sx, vh = h * sy, vy = size.y - (y + h) * sy;
-      show.cam.aspect = vw / vh; show.cam.updateProjectionMatrix();
-      show.cam.position.set(0, 2.0, 7.1); show.cam.lookAt(0, 0.55, 0);
-      for (const k of ['paint', 'chrome', 'glass']) G3.mats[k].envMap = show.env;
-      R.toneMappingExposure = 1.0;
-      R.setScissorTest(true); R.setScissor(vx, vy, vw, vh); R.setViewport(vx, vy, vw, vh);
-      R.setClearColor('#14182a', 1); R.clear(true, true, false);
-      R.render(show.sc, show.cam);
-      R.setScissorTest(false); R.setClearColor(0x000000, 1);
+      showRender(x, y, w, h, [0, 2.0, 7.1], [0, 0.55, 0], 30);
+    },
+    // the wheel alignment screen: view 'front' / 'rear' (that axle seen from straight ahead / behind: camber, and the
+    // caster's lean as the wheels steer), 'top' (toe), 'side' (the front wheel and its caster axis) or '3q' (the car
+    // turning). The technical views fade the body away and draw reference lines: vertical through every hub (camber,
+    // white), along the car (toe, white) and the steering axis (caster, yellow). Returns the front / rear hub height and z
+    alignPreview(model, paint, al, view, steer, x, y, w, h, t) {
+      const o = showCar(model, paint, al), fw = o.wheels.find(q => q.front).pivot.position, rw = o.wheels.find(q => !q.front).pivot.position;
+      const hy = fw.y, fz = fw.z, rz = rw.z, mz = (fz + rz) / 2;
+      techView(o, view === '3q' ? null : view);
+      o.steer(steer);
+      o.root.rotation.y = view === '3q' ? t * 0.45 + 0.6 : 0;
+      // (a lighter backdrop than the garage's: the black tyres must stand out against it)
+      if (view === 'front') showRender(x, y, w, h, [0, hy + 0.04, fz + 9], [0, hy, fz], 15, false, '#3a4462');
+      else if (view === 'rear') showRender(x, y, w, h, [0, hy + 0.04, rz - 9], [0, hy, rz], 15, false, '#3a4462');
+      else if (view === 'top') showRender(x, y, w, h, [0, 12, mz + 0.001], [0, 0, mz], 27, true, '#3a4462');
+      else if (view === 'side') showRender(x, y, w, h, [8, hy + 0.1, fz], [0, hy + 0.1, fz], 13, false, '#3a4462');
+      else showRender(x, y, w, h, [0, 2.0, 7.1], [0, 0.55, 0], 30);
+      return { hy, fz, rz, track: Math.abs(fw.x) };
     },
   };
+  // the showroom's car for a model (rebuilt once its data file has loaded: a stand-in until then), the only one shown
+  function showCar(model, paint, al) {
+    if (!show) buildShow();
+    let o = show.cars[model];
+    if (o && !o.glb && Models.hasCar(model)) { show.sc.remove(o.root); o.dispose(); o = null; }   // (a stand-in until the model loaded)
+    if (!o) { o = show.cars[model] = Models.driftCar(model, paint); show.sc.add(o.root); }
+    for (const k in show.models) show.models[k].root.visible = false;
+    for (const k in show.cars) show.cars[k].root.visible = k === model;
+    o.setPaint(paint); o.paint.envMap = show.env;
+    if (al && (!o.align || !Align.same(o.align, al))) o.setAlign(al);
+    return o;
+  }
+  // the technical look of the alignment screen (view) or the plain car (null): the body faded to a glassy ghost, the
+  // wheels of the axle not looked at hidden, the reference lines of the view shown
+  function techView(o, view) {
+    if (!GHOST.mat) {
+      GHOST.mat = new T.MeshBasicMaterial({ color: '#8fa6d0', transparent: true, opacity: 0.1, depthWrite: false });
+      GHOST.line = new T.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.75, depthTest: false });
+      GHOST.axis = new T.LineBasicMaterial({ color: '#ffd23a', depthTest: false });
+    }
+    const on = !!view;
+    if (o.ghost !== on) {
+      o.ghost = on;
+      o.body.traverse(m => { if (!m.isMesh) return; if (on) { m.userData.mat0 = m.userData.mat0 || m.material; m.material = GHOST.mat; } else if (m.userData.mat0) m.material = m.userData.mat0; });
+    }
+    if (!o.refs) {   // reference lines, in the car's frame (root): per wheel a vertical one and one along the car; the steering axes
+      o.refs = new T.Group(); o.root.add(o.refs);
+      const line = (a, b, mat) => { const g = new T.BufferGeometry().setFromPoints([new T.Vector3(...a), new T.Vector3(...b)]); const l = new T.Line(g, mat); l.renderOrder = 9; o.refs.add(l); return l; };
+      o.refLines = o.wheels.map(w => {
+        const p = w.pivot.position, R = o.spec.wheel ? o.spec.wheel.R : 0.32;
+        return { w, v: line([p.x, p.y - R * 1.35, p.z], [p.x, p.y + R * 1.35, p.z], GHOST.line),
+          z: line([p.x, p.y + R + 0.03, p.z - R * 1.6], [p.x, p.y + R + 0.03, p.z + R * 1.6], GHOST.line),
+          k: w.front ? line([0, -R * 1.5, 0], [0, R * 1.5, 0], GHOST.axis) : null };
+      });
+    }
+    o.refs.visible = on;
+    for (const r of o.refLines) {
+      const p = r.w.pivot.position, shown = !on || view === 'top' || view === 'side' || (view === 'front') === r.w.front;
+      r.w.pivot.visible = shown;
+      r.v.visible = on && shown && (view === 'front' || view === 'rear' || view === 'side');
+      r.z.visible = on && view === 'top';
+      if (r.k) { r.k.visible = on && shown && (view === 'side' || view === 'front'); r.k.position.copy(p); r.k.quaternion.setFromUnitVectors(_v.set(0, 1, 0), o.casAxis); }
+    }
+  }
+  // render the showroom inside a rectangle of the 512x320 overlay, from cam looking at look (fov degrees; top: north
+  // up; bg: the backdrop colour)
+  function showRender(x, y, w, h, cam, look, fov, top, bg) {
+    R.getSize(size);
+    const sx = size.x / W, sy = size.y / H, vx = x * sx, vw = w * sx, vh = h * sy, vy = size.y - (y + h) * sy;
+    const C = show.cam;
+    C.aspect = vw / vh; C.fov = fov; C.updateProjectionMatrix();
+    C.up.set(0, top ? 0 : 1, top ? 1 : 0);
+    C.position.set(cam[0], cam[1], cam[2]); C.lookAt(look[0], look[1], look[2]);
+    show.floor.scale.set(1.75, 1, 1.75);
+    for (const k of ['paint', 'chrome', 'glass']) G3.mats[k].envMap = show.env;
+    R.toneMappingExposure = 1.0;
+    R.setScissorTest(true); R.setScissor(vx, vy, vw, vh); R.setViewport(vx, vy, vw, vh);
+    R.setClearColor(bg || '#14182a', 1); R.clear(true, true, false);
+    R.render(show.sc, C);
+    R.setScissorTest(false); R.setClearColor(0x000000, 1);
+    C.up.set(0, 1, 0);
+  }
 })();

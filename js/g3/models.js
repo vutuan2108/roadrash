@@ -2341,303 +2341,9 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
   const CAR_LIGHTS = { sedan: [-2.27, 0.87, 0.6], suv: [-2.37, 1.0, 0.72], van: [-2.9, 1.2, 0.93], truck: [-4.35, 0.86, 0.96] };
 
   // =====================================================================================
-  // Drift cars — the drift mode's coupes, lofted like the traffic but built once per model in full detail: the
-  // wheels are separate (they steer and spin), the brake lamps light up, pop-up headlamps rise at night.
-  // Real dimensions: AE86 Trueno 4.2 m (2.40 m wheelbase), Silvia S15 4.45 m (2.525), RX-7 FD3S 4.29 m (2.425),
-  // Supra A80 4.52 m (2.55), Mustang GT S550 4.79 m (2.72).
-  // =====================================================================================
-  const PANDA = lin('#121316');
-  // y of the upper surface of section function f at (x, z), or null where x is past the top of the section
-  function surfY(f, x, z) {
-    const s = f(z), yc = (s.yt + s.yb) / 2, ax = Math.abs(x);
-    if (sideX(s, yc + 0.001) < ax) return null;
-    let lo = yc, hi = s.yt;
-    for (let k = 0; k < 24; k++) { const md = (lo + hi) / 2; if (sideX(s, md) > ax) lo = md; else hi = md; }
-    return (lo + hi) / 2;
-  }
-  // a patch laid on the upper surface (hood, deck, roof): x from x0(z) to x1(z) (x0 < x1), z0..z1, `off` proud of it
-  function topPatch(m, f, x0, x1, z0, z1, off, col, key, nx = 5, nz = 6) {
-    const X0 = typeof x0 === 'function' ? x0 : () => x0, X1 = typeof x1 === 'function' ? x1 : () => x1, rows = [], pos = [];
-    for (let j = 0; j <= nz; j++) {
-      const z = z0 + (z1 - z0) * j / nz, row = [], sz = f(z), xm = sideX(sz, (sz.yt + sz.yb) / 2 + 0.002) * 0.975;
-      for (let i = 0; i <= nx; i++) {
-        const x = U.clamp(X0(z) + (X1(z) - X0(z)) * i / nx, -xm, xm), y = surfY(f, x, z);
-        row.push(y === null ? null : [x, y + off, z]);
-      }
-      rows.push(row);
-    }
-    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
-      const a = rows[j][i], b = rows[j][i + 1], c = rows[j + 1][i], d = rows[j + 1][i + 1];
-      if (a && b && c && d) pos.push(...a, ...c, ...b, ...b, ...c, ...d);
-    }
-    if (!pos.length) return;
-    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
-    m.add(soften(g, 40), M4(), col, key);
-  }
-  function capPatch(m, f, z, dir, x0, x1, y0, y1, col, key, nx = 8, ny = 4) {
-    const sz = f(z), pos = [], P = [];
-    for (let j = 0; j <= ny; j++) {
-      const y = U.clamp(y0 + (y1 - y0) * j / ny, sz.yb + 0.004, sz.yt - 0.004), xm = sideX(sz, y) * 0.96, row = [];
-      for (let i = 0; i <= nx; i++) row.push([U.clamp(x0 + (x1 - x0) * i / nx, -xm, xm), y, z + dir * 0.004]);
-      P.push(row);
-    }
-    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
-      const a = P[j][i], b = P[j][i + 1], c = P[j + 1][i], d = P[j + 1][i + 1];
-      if (dir > 0) pos.push(...a, ...b, ...c, ...b, ...d, ...c); else pos.push(...a, ...c, ...b, ...b, ...c, ...d);
-    }
-    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
-    m.add(g, M4(), col, key);
-  }
-  // glasshouse of a drift car: windscreen / rear glass in the top band, one slim painted rail each side (the pillars),
-  // side glass, painted C-pillar behind cz; quads buried in the body below are dropped (follows the body's real top)
-  const sportCab = (o, fb) => (a, x, y, z) => {
-    if (a < 0) return null;
-    const sy = surfY(fb, x, z);
-    if (sy !== null && y < sy - 0.03) return null;
-    if (y < o.hide) return null;
-    const sn = Math.sin(a);
-    if (sn > 0.8) return z > o.roof[0] && z < o.roof[1] ? 'paint' : 'glass';
-    if (sn > 0.66) return 'paint';
-    if (o.bp && o.bp.some(([b0, b1]) => z > b0 && z < b1)) return 'trim';
-    if (o.cz !== undefined && z < o.cz) return 'paint';
-    return 'glass';
-  };
-  // rear lamp: red lens round the corner of the tail and a lit strip that brightens under braking
-  function rearLamp(m, s, f, zr, y0, y1, xIn, wrap) {
-    surfPatch(m, s, f, zr, zr + wrap, y0, y1, xIn, 0.006, LENS_R, 'glass', 2, 5);
-    const yl = (y0 + y1) / 2;
-    surfPatch(m, s, f, zr, zr + wrap * 0.85, yl - (y1 - y0) * 0.22, yl + (y1 - y0) * 0.22, xIn + 0.02, 0.011, LED_R, 'brake', 1, 5);
-  }
-  const box = (m, x, y, z, w, h, d, col, key, rx = 0, ry = 0, rz = 0) => m.add(GEO.box, M4(x, y, z, rx, ry, rz, w, h, d), col, key);
-  // pop-up headlamp: a closed lid on the hood (with its seam), and the raised lamp unit shown at night
-  function popUp(m, pod, f, s, x0, x1, z0, z1, lens) {
-    const [a, b] = s > 0 ? [x0, x1] : [-x1, -x0];
-    topPatch(m, f, a - 0.012, b + 0.012, z0 - 0.012, z1 + 0.012, 0.0025, PANDA, 'paint', 3, 3);
-    topPatch(m, f, a, b, z0, z1, 0.005, W1, 'carPaint', 3, 3);
-    const xc = (a + b) / 2, w = b - a, y = surfY(f, xc, z1) || 0.7;
-    box(pod, xc, y + 0.075, z1 - 0.06, w, 0.15, 0.13, W1, 'carPaint');
-    box(pod, xc, y + 0.075, z1 + 0.008, w - 0.04, 0.11, 0.012, PANDA, 'paint');
-    if (lens === 'round') pod.add(GEO.cyl16, M4(xc, y + 0.075, z1 + 0.016, Math.PI / 2, 0, 0, 0.05, 0.006, 0.05), LED_W, 'light');
-    else box(pod, xc, y + 0.075, z1 + 0.016, w - 0.08, 0.075, 0.006, LED_W, 'light');
-  }
-  // the bits every car has: mirrors, door shut lines and handles, side skirts, a front lip, plates, exhausts
-  function sportCommon(m, S, fb, o) {
-    const zr = S.len[0], zf = S.len[1];
-    for (const s of [-1, 1]) {
-      mirror(m, s, o.mirror[0], o.mirror[1], o.mirror[2], o.mirrorCol || W1);
-      for (const z of o.doors) shutLine(m, s, z, fb, o.shutY[0], o.shutY[1]);
-      handle(m, s, o.handle[0], o.handle[1], fb);
-      const skX = sideX(fb((S.axles[0] + S.axles[1]) / 2), 0.26) + 0.012;
-      box(m, s * skX, 0.24, (S.axles[0] + S.axles[1]) / 2, 0.05, 0.07, S.axles[0] - S.axles[1] - S.rA * 2 - 0.08, PLAST, 'lam');   // side skirt
-    }
-    const fs = fb(zf - 0.3), rs = fb(zr + 0.3);
-    box(m, 0, fs.yb - 0.012, zf - 0.3, sideX(fs, fs.yb + 0.03) * 1.85, 0.022, 0.36, PLAST, 'lam');   // front lip / splitter
-    box(m, 0, rs.yb - 0.01, zr + 0.3, sideX(rs, rs.yb + 0.03) * 1.6, 0.03, 0.36, PLAST, 'lam');      // rear diffuser
-    plate(m, 0, o.plateR, zr - 0.004, 'plW1');
-    for (const [x, y, r] of o.exh) {
-      m.add(GEO.cyl16, M4(x, y, zr + 0.02, Math.PI / 2, 0, 0, r, 0.16, r), CHROME, 'chrome');
-      m.add(GEO.cyl16, M4(x, y, zr - 0.061, Math.PI / 2, 0, 0, r * 0.78, 0.004, r * 0.78), TRIM, 'lam');
-    }
-  }
-  const SPORT = {
-    // Toyota Sprinter Trueno AE86: wedge nose with pop-ups, three-door hatch, black lower body ("panda")
-    ae86: { len: [-2.03, 2.175], R: 0.29, axles: [1.225, -1.175], rA: 0.345,
-      wheel: { R: 0.29, w: 0.195, ri: 0.18, x: 0.69, rim: lin('#c4c8ce'), spokes: 8, cal: DARK },
-      body: { tuck: 0.04, shoulder: 0.055, p: [[-2.03, 7], [2.175, 7]],
-        top: [[-2.03, 0.72], [-2.0, 0.79], [-1.9, 0.82], [-1.7, 0.835], [0.6, 0.84], [0.78, 0.85], [1.5, 0.8], [2.0, 0.73], [2.12, 0.68], [2.175, 0.6]],
-        sill: [[-2.03, 0.33], [-1.95, 0.25], [-1.7, 0.2], [1.85, 0.2], [2.1, 0.24], [2.175, 0.3]],
-        w: [[-2.03, 0.76], [-1.95, 0.8], [-1.6, 0.81], [1.7, 0.81], [2.05, 0.79], [2.175, 0.74]] },
-      bodyCls: (a, x, y) => a >= 0 && Math.sin(a) < -0.8 ? 'under' : y < 0.49 ? 'trim2' : 'paint',
-      cabin: { yb: 0.74, p: 6, cuts: [-0.75, 0.02, -1.0, -0.12, -0.02],
-        top: [[-1.98, 0.84], [-1.75, 0.95], [-1.3, 1.12], [-0.85, 1.28], [-0.6, 1.325], [-0.2, 1.335], [0.05, 1.32], [0.3, 1.2], [0.55, 1.04], [0.8, 0.86], [0.88, 0.82]],
-        wb: [[-1.98, 0.72], [-1.6, 0.76], [0.6, 0.76], [0.88, 0.74]],
-        wt: [[-1.98, 0.6], [-1.3, 0.6], [0.2, 0.6], [0.88, 0.66]],
-        cls: { hide: 0.82, roof: [-0.75, 0.02], bp: [[-0.12, -0.02]], cz: -1.0 } },
-      head: [0.54, 0.78, 2.0], tail: [0.55, 0.65, -2.04], exh: [[-0.45, 0.24, 0.035]],
-      build(m, S, fb, fc, pod) {
-        const zr = S.len[0], zf = S.len[1];
-        for (const s of [-1, 1]) {
-          rearLamp(m, s, fb, zr, 0.55, 0.73, 0.14, 0.09);
-          popUp(m, pod, fb, s, 0.37, 0.71, 1.72, 2.0);
-          box(m, s * 0.56, 0.5, zf - 0.005, 0.3, 0.07, 0.02, AMBER, 'glass');                        // corner lamps in the bumper
-          box(m, s * 0.56, 0.5, zf + 0.004, 0.12, 0.05, 0.01, LENS_W, 'glass');
-          box(m, s * (sideX(fb(0), 0.49) + 0.004), 0.49, -0.1, 0.012, 0.02, 3.5, lin('#5a5c62'), 'lam');   // pinstripe on the panda line
-        }
-        capPatch(m, fb, zr, -1, -0.15, 0.15, 0.58, 0.7, PANDA, 'paint', 2, 2);                       // garnish between the lamps
-        capPatch(m, fb, zf, 1, -0.36, 0.36, 0.5, 0.56, lin('#050506'), 'lam', 4, 1);                   // grille slot
-        box(m, 0, 1.31, -0.82, 1.05, 0.03, 0.2, PANDA, 'paint', 0.22);                               // hatch spoiler
-        sportCommon(m, S, fb, { mirror: [0.78, 0.94, 0.66], mirrorCol: PANDA, doors: [0.72, -0.4], shutY: [0.3, 0.83], handle: [-0.3, 0.79], plateR: 0.45, exh: S.exh });
-      } },
-    // Nissan Silvia S15: slim angular lamps, frameless coupe, wrap-round tail lamps, the stock boot spoiler
-    s15: { len: [-2.2, 2.245], R: 0.315, axles: [1.3, -1.225], rA: 0.37,
-      wheel: { R: 0.315, w: 0.225, ri: 0.216, x: 0.71, rim: lin('#2a2c30'), spokes: 6, cal: lin('#c81e1e') },
-      body: { tuck: 0.05, shoulder: 0.06, p: [[-2.2, 5], [2.245, 5]],
-        top: [[-2.2, 0.8], [-2.16, 0.86], [-2.05, 0.9], [-1.6, 0.915], [-1.2, 0.9], [0.8, 0.86], [1.4, 0.81], [1.9, 0.74], [2.15, 0.66], [2.245, 0.56]],
-        sill: [[-2.2, 0.32], [-2.1, 0.24], [-1.8, 0.2], [1.95, 0.2], [2.2, 0.26], [2.245, 0.32]],
-        w: [[-2.2, 0.78], [-2.1, 0.83], [-1.7, 0.845], [1.8, 0.845], [2.1, 0.82], [2.245, 0.74]] },
-      cabin: { yb: 0.76, p: 6, cuts: [-0.7, 0.18, -0.75],
-        top: [[-1.5, 0.9], [-1.3, 1.0], [-1.0, 1.15], [-0.7, 1.255], [-0.45, 1.285], [0.0, 1.285], [0.2, 1.24], [0.45, 1.12], [0.7, 0.97], [0.9, 0.86]],
-        wb: [[-1.5, 0.76], [-1.2, 0.8], [0.7, 0.8], [0.9, 0.77]],
-        wt: [[-1.5, 0.64], [-1.0, 0.6], [-0.4, 0.6], [0.2, 0.61], [0.9, 0.68]],
-        cls: { hide: 0.87, roof: [-0.7, 0.18], cz: -0.75 } },
-      head: [0.6, 0.66, 2.1], tail: [0.62, 0.8, -2.2], exh: [[-0.5, 0.26, 0.045]],
-      build(m, S, fb) {
-        const zr = S.len[0], zf = S.len[1];
-        for (const s of [-1, 1]) {
-          rearLamp(m, s, fb, zr, 0.74, 0.86, 0.36, 0.3);
-          // headlamp: a slim wedge on the corner of the hood, inner end lower
-          // headlamp: a slim wedge swept back along the corner of the hood
-          const hx0 = z => 0.3 + (z - 1.95) * 0.9, hx1 = () => 0.9;
-          topPatch(m, fb, s > 0 ? hx0 : z => -hx1(z), s > 0 ? hx1 : z => -hx0(z), 1.95, 2.22, 0.009, LENS_H, 'glass', 14, 9);
-          topPatch(m, fb, s > 0 ? z => hx0(z) + 0.05 : z => -0.86, s > 0 ? 0.86 : z => -hx0(z) - 0.05, 2.06, 2.11, 0.014, LED_W, 'light', 12, 1);
-          capPatch(m, fb, zf, 1, s > 0 ? 0.5 : -0.64, s > 0 ? 0.64 : -0.5, 0.36, 0.41, LENS_W, 'glass', 2, 1);   // fog lamps
-          topPatch(m, fb, s > 0 ? 0.12 : -0.3, s > 0 ? 0.3 : -0.12, 1.1, 1.45, 0.003, PANDA, 'paint', 2, 3);   // hood vents
-        }
-        capPatch(m, fb, zf, 1, -0.42, 0.42, 0.34, 0.47, lin('#050506'), 'lam');                       // big bumper mouth
-        for (const s of [-1, 1]) box(m, s * 0.62, 1.0, -2.0, 0.04, 0.1, 0.12, W1, 'carPaint');      // boot spoiler on two stands
-        box(m, 0, 1.06, -2.02, 1.42, 0.03, 0.2, W1, 'carPaint', 0.1);
-        sportCommon(m, S, fb, { mirror: [0.82, 0.95, 0.7], doors: [0.78, -0.62], shutY: [0.3, 0.87], handle: [-0.5, 0.82], plateR: 0.55, exh: S.exh });
-      } },
-    // Mazda RX-7 FD3S: low pointy nose with pop-ups, double-bubble roof, curvy hips, three round tail lamps a side
-    fd: { len: [-2.1, 2.185], R: 0.32, axles: [1.215, -1.21], rA: 0.375,
-      wheel: { R: 0.32, w: 0.235, ri: 0.216, x: 0.735, rim: lin('#b8bcc4'), spokes: 5, cal: lin('#c81e1e') },
-      body: { tuck: 0.07, shoulder: 0.09, p: [[-2.1, 3.8], [2.185, 3.6]],
-        top: [[-2.1, 0.8], [-2.05, 0.88], [-1.9, 0.93], [-1.5, 0.92], [-1.1, 0.87], [0.4, 0.82], [0.85, 0.8], [1.3, 0.76], [1.8, 0.68], [2.05, 0.58], [2.185, 0.47]],
-        sill: [[-2.1, 0.34], [-2.0, 0.24], [-1.8, 0.19], [1.9, 0.19], [2.12, 0.24], [2.185, 0.3]],
-        w: [[-2.1, 0.74], [-1.95, 0.84], [-1.4, 0.88], [-0.3, 0.845], [0.9, 0.875], [1.9, 0.84], [2.1, 0.74], [2.185, 0.6]] },
-      cabin: { yb: 0.72, p: 4, cuts: [-0.65, 0.1, -0.9],
-        top: [[-1.6, 0.86], [-1.4, 0.96], [-1.05, 1.12], [-0.7, 1.21], [-0.35, 1.23], [0.0, 1.22], [0.25, 1.15], [0.55, 1.0], [0.8, 0.87], [0.92, 0.8]],
-        wb: [[-1.6, 0.72], [-1.2, 0.76], [0.6, 0.78], [0.92, 0.74]],
-        wt: [[-1.6, 0.56], [-1.0, 0.56], [-0.3, 0.57], [0.3, 0.58], [0.92, 0.64]],
-        cls: { hide: 0.82, roof: [-0.65, 0.1], cz: -0.9 } },
-      head: [0.55, 0.72, 1.85], tail: [0.62, 0.78, -2.1], exh: [[-0.34, 0.26, 0.05], [-0.48, 0.26, 0.05]],
-      build(m, S, fb, fc, pod) {
-        const zr = S.len[0], zf = S.len[1];
-        for (const s of [-1, 1]) {
-          surfPatch(m, s, fb, zr, zr + 0.06, 0.72, 0.84, 0.26, 0.006, SMOKE, 'glass', 2, 3);         // smoked tail band
-          for (const x of [0.36, 0.5, 0.64]) m.add(GEO.cyl16, M4(s * x, 0.78, zr - 0.012, Math.PI / 2, 0, 0, 0.045, 0.012, 0.045), LED_R, 'brake');
-          popUp(m, pod, fb, s, 0.42, 0.7, 1.6, 1.86, 'round');
-          capPatch(m, fb, zf, 1, s > 0 ? 0.36 : -0.56, s > 0 ? 0.56 : -0.36, 0.34, 0.39, AMBER, 'glass', 2, 1);   // corner lamps
-        }
-        capPatch(m, fb, zf, 1, -0.32, 0.32, 0.31, 0.41, lin('#050506'), 'lam');                       // the oval mouth
-        for (const s of [-1, 1]) box(m, s * 0.66, 0.99, -1.88, 0.05, 0.11, 0.08, W1, 'carPaint');  // hoop spoiler
-        box(m, 0, 1.05, -1.9, 1.38, 0.03, 0.16, W1, 'carPaint', 0.06);
-        sportCommon(m, S, fb, { mirror: [0.82, 0.9, 0.64], doors: [0.82, -0.62], shutY: [0.28, 0.82], handle: [-0.5, 0.77], plateR: 0.56, exh: S.exh });
-      } },
-    // Toyota Supra A80: long hood, rounded tail with four round lamps and the big hoop wing
-    supra: { len: [-2.23, 2.285], R: 0.33, axles: [1.285, -1.265], rA: 0.385,
-      wheel: { R: 0.33, w: 0.255, ri: 0.229, x: 0.755, rim: lin('#d8dce2'), spokes: 5, cal: lin('#c81e1e') },
-      body: { tuck: 0.06, shoulder: 0.085, p: [[-2.23, 4.2], [2.285, 4.2]],
-        top: [[-2.23, 0.82], [-2.18, 0.9], [-2.0, 0.95], [-1.5, 0.96], [-1.1, 0.93], [0.6, 0.86], [0.9, 0.85], [1.5, 0.79], [2.0, 0.7], [2.2, 0.6], [2.285, 0.48]],
-        sill: [[-2.23, 0.36], [-2.12, 0.26], [-1.9, 0.2], [2.0, 0.2], [2.22, 0.26], [2.285, 0.33]],
-        w: [[-2.23, 0.78], [-2.1, 0.88], [-1.5, 0.905], [1.9, 0.89], [2.15, 0.84], [2.285, 0.68]] },
-      cabin: { yb: 0.78, p: 5, cuts: [-0.7, 0.12, -0.85],
-        top: [[-1.55, 0.94], [-1.3, 1.06], [-0.95, 1.2], [-0.6, 1.27], [-0.3, 1.275], [0.05, 1.26], [0.35, 1.16], [0.65, 1.0], [0.9, 0.88], [0.98, 0.84]],
-        wb: [[-1.55, 0.78], [-1.2, 0.8], [0.7, 0.8], [0.98, 0.76]],
-        wt: [[-1.55, 0.6], [-1.0, 0.6], [-0.3, 0.6], [0.3, 0.61], [0.98, 0.67]],
-        cls: { hide: 0.86, roof: [-0.7, 0.12], cz: -0.85 } },
-      head: [0.6, 0.66, 2.15], tail: [0.62, 0.82, -2.24], exh: [[-0.52, 0.27, 0.055]],
-      build(m, S, fb) {
-        const zr = S.len[0], zf = S.len[1];
-        for (const s of [-1, 1]) {
-          surfPatch(m, s, fb, zr, zr + 0.05, 0.74, 0.9, 0.3, 0.006, PANDA, 'paint', 2, 3);          // black tail band
-          for (const x of [0.46, 0.68]) {
-            m.add(GEO.cyl16, M4(s * x, 0.82, zr - 0.012, Math.PI / 2, 0, 0, 0.068, 0.014, 0.068), LENS_R, 'glass');
-            m.add(GEO.cyl16, M4(s * x, 0.82, zr - 0.02, Math.PI / 2, 0, 0, 0.045, 0.01, 0.045), LED_R, 'brake');
-          }
-          // headlamp: an oval of three projectors on the corner of the nose
-          const hx0 = z => 0.32 + (z - 1.92) * 0.55;
-          topPatch(m, fb, s > 0 ? hx0 : -0.9, s > 0 ? 0.9 : z => -hx0(z), 1.92, 2.22, 0.009, SMOKE, 'glass', 14, 9);
-          for (const k of [0, 1, 2]) {
-            const x = s * (0.46 + k * 0.11), z = 2.0 + k * 0.04;
-            m.add(GEO.sph, M4(x, (surfY(fb, x, z) || 0.66) + 0.01, z, 0, 0, 0, 0.04, 0.018, 0.04), LED_W, 'light');
-          }
-        }
-        capPatch(m, fb, zf, 1, -0.34, 0.34, 0.34, 0.45, lin('#050506'), 'lam');                       // the mouth
-        for (const s of [-1, 1]) box(m, s * 0.74, 1.04, -2.02, 0.06, 0.2, 0.12, W1, 'carPaint', 0, 0, s * 0.12);   // hoop wing stands
-        box(m, 0, 1.15, -2.05, 1.52, 0.035, 0.24, W1, 'carPaint', 0.08);
-        sportCommon(m, S, fb, { mirror: [0.86, 0.96, 0.75], doors: [0.86, -0.66], shutY: [0.3, 0.86], handle: [-0.55, 0.82], plateR: 0.56, exh: S.exh });
-      } },
-    // Ford Mustang GT (S550): long hood with the shark nose and big grille, fastback, three vertical bars a side
-    mustang: { len: [-2.38, 2.41], R: 0.345, axles: [1.46, -1.26], rA: 0.405,
-      wheel: { R: 0.345, w: 0.255, ri: 0.241, x: 0.8, rim: lin('#1e1f24'), spokes: 10, cal: lin('#c81e1e') },
-      body: { tuck: 0.05, shoulder: 0.075, p: [[-2.38, 5], [2.41, 5]],
-        top: [[-2.38, 0.86], [-2.32, 0.95], [-2.1, 1.0], [-1.6, 0.99], [-1.2, 0.96], [0.6, 0.93], [0.95, 0.92], [1.6, 0.88], [2.1, 0.84], [2.3, 0.8], [2.41, 0.68]],
-        sill: [[-2.38, 0.38], [-2.25, 0.28], [-2.0, 0.22], [2.1, 0.22], [2.35, 0.28], [2.41, 0.36]],
-        w: [[-2.38, 0.86], [-2.25, 0.93], [-1.5, 0.955], [1.8, 0.95], [2.2, 0.92], [2.41, 0.84]] },
-      cabin: { yb: 0.86, p: 6, cuts: [-0.75, 0.12, -0.95],
-        top: [[-1.75, 0.98], [-1.45, 1.08], [-1.1, 1.2], [-0.7, 1.33], [-0.4, 1.375], [0.05, 1.37], [0.35, 1.28], [0.7, 1.1], [0.95, 0.96], [1.05, 0.91]],
-        wb: [[-1.75, 0.84], [-1.3, 0.86], [0.8, 0.86], [1.05, 0.83]],
-        wt: [[-1.75, 0.66], [-1.0, 0.64], [-0.3, 0.64], [0.3, 0.66], [1.05, 0.72]],
-        cls: { hide: 0.92, roof: [-0.75, 0.12], cz: -0.95 } },
-      head: [0.66, 0.76, 2.3], tail: [0.68, 0.86, -2.39], exh: [[-0.58, 0.3, 0.05], [-0.7, 0.3, 0.05], [0.58, 0.3, 0.05], [0.7, 0.3, 0.05]],
-      build(m, S, fb) {
-        const zr = S.len[0], zf = S.len[1];
-        for (const s of [-1, 1]) {
-          surfPatch(m, s, fb, zr, zr + 0.05, 0.78, 0.94, 0.3, 0.006, PANDA, 'paint', 2, 3);
-          for (const k of [0, 1, 2]) box(m, s * (0.46 + k * 0.13), 0.86, zr - 0.014, 0.05, 0.12, 0.01, LED_R, 'brake');   // tri-bar lamps
-          const hx0 = z => 0.4 + (z - 2.12) * 0.8;
-          topPatch(m, fb, s > 0 ? hx0 : -0.95, s > 0 ? 0.95 : z => -hx0(z), 2.12, 2.36, 0.009, SMOKE, 'glass', 14, 9);
-          topPatch(m, fb, s > 0 ? z => hx0(z) + 0.03 : -0.9, s > 0 ? 0.9 : z => -hx0(z) - 0.03, 2.2, 2.24, 0.014, LED_W, 'light', 12, 1);
-          topPatch(m, fb, s > 0 ? 0.2 : -0.32, s > 0 ? 0.32 : -0.2, 1.35, 1.75, 0.003, PANDA, 'paint', 2, 3);    // hood vents
-        }
-        capPatch(m, fb, zf, 1, -0.55, 0.55, 0.42, 0.64, lin('#050506'), 'lam', 10, 4);                // the big grille
-        box(m, 0, 1.015, -2.33, 1.5, 0.03, 0.1, PANDA, 'paint', -0.25);                              // ducktail lip
-        sportCommon(m, S, fb, { mirror: [0.9, 1.02, 0.85], doors: [0.95, -0.72], shutY: [0.32, 0.92], handle: [-0.6, 0.88], plateR: 0.62, exh: S.exh });
-      } },
-  };
-  const sportCache = {};
-  function sportGeo(model) {
-    if (sportCache[model]) return sportCache[model];
-    const S = SPORT[model], m = new Mesher(17), pod = new Mesher(18);
-    const n = 26, step = 0.055, ext = [], [z0, z1] = S.len;
-    for (const za of S.axles) { for (let k = 0; k <= 12; k++) ext.push(za + S.rA * Math.cos(k / 12 * Math.PI)); ext.push(za - S.rA - 0.012, za + S.rA + 0.012); }
-    for (const K of [S.body.top, S.body.sill, S.body.w]) for (const [z] of K) ext.push(z);
-    const fb = bodyFn(S.body, S.axles, S.R, S.rA), fc = cabinFn(S.cabin), Ct = S.cabin.top;
-    const MAT = { paint: [W1, 'carPaint'], under: [UNDER, 'lam'], glass: [TINT, 'glass'], trim: [TRIM, 'glass'], clad: [PLAST, 'lam'], trim2: [PANDA, 'paint'] };
-    const add = parts => { for (const k in parts) m.add(parts[k], M4(), MAT[k][0], MAT[k][1]); };
-    add(loftParts(zSamples(z0, z1, step, ext), fb, n, S.bodyCls || (a => a >= 0 && Math.sin(a) < -0.8 ? 'under' : 'paint')));
-    add(loftParts(zSamples(Ct[0][0], Ct[Ct.length - 1][0], step * 0.7, Ct.map(k => k[0]).concat(S.cabin.cuts || [])), fc, 32,
-      sportCab(Object.assign({}, S.cabin.cls, { hide: S.cabin.yb + 0.02 }), fb)));
-    // chassis between the wheels and dark wheel wells (seen through the arches)
-    m.add(GEO.box, M4(0, S.R + 0.02, (S.axles[0] + S.axles[1]) / 2, 0, 0, 0, (S.wheel.x - S.wheel.w / 2) * 2 - 0.06, S.R * 0.8, S.axles[0] - S.axles[1] + S.rA), UNDER, 'lam');
-    for (const za of S.axles) m.add(GEO.cyl16, M4(0, S.R + 0.01, za, 0, 0, Math.PI / 2, S.rA - 0.012, (S.wheel.x + 0.005) * 2, S.rA - 0.012), UNDER, 'lam');
-    S.build(m, S, fb, fc, pod);
-    // the wheels, hub at the origin: one for the left side, one for the right
-    const wheels = [1, -1].map(side => { const w = new Mesher(19); carWheel(w, side, 0, S.wheel, true, 0); const gs = w.geos(); for (const k in gs) gs[k].translate(0, -S.wheel.R, 0); return gs; });
-    return (sportCache[model] = { body: m.geos(), pods: pod.geos(), wheels });
-  }
-  // a drift car: root (place / yaw / slope) > tilt (body roll and pitch about a point 0.5 m up) > body; four wheel
-  // pivots (steer about y) carrying the spinning wheels
-  function sportsCar(model, col) {
-    const S = SPORT[model], G = sportGeo(model), root = new T.Group(), tilt = new T.Group(), body = new T.Group();
-    root.rotation.order = 'YXZ'; tilt.position.y = 0.5; body.position.y = -0.5; tilt.add(body); root.add(tilt);
-    const paint = G3.mats.carPaint.clone(); paint.color.set(col);
-    const brake = new T.MeshBasicMaterial({ vertexColors: true });
-    const mat = k => k === 'carPaint' ? paint : k === 'brake' ? brake : G3.mats[k];
-    for (const k in G.body) { const ms = new T.Mesh(G.body[k], mat(k)); ms.castShadow = k !== 'light' && k !== 'brake'; body.add(ms); }
-    const pods = new T.Group();
-    for (const k in G.pods) { const ms = new T.Mesh(G.pods[k], mat(k)); ms.castShadow = true; pods.add(ms); }
-    pods.visible = false; body.add(pods);
-    const wheels = [];
-    for (const [za, front] of [[S.axles[0], true], [S.axles[1], false]]) for (const side of [1, -1]) {
-      const pivot = new T.Group(), spin = new T.Group(), gs = G.wheels[side > 0 ? 0 : 1];
-      pivot.position.set(side * S.wheel.x, S.wheel.R, za);
-      for (const k in gs) { const ms = new T.Mesh(gs[k], mat(k)); ms.castShadow = k === 'lam'; spin.add(ms); }
-      pivot.add(spin); root.add(pivot); wheels.push({ pivot, spin, front, side });
-    }
-    const o = { root, tilt, body, wheels, paint, brake, pods, spec: S,
-      setPaint(c) { paint.color.set(c); },
-      setBrake(on) { brake.color.setScalar(on ? 1 : 0.3); },
-      setNight(on) { pods.visible = !!on; },
-      dispose() { paint.dispose(); brake.dispose(); } };
-    o.setBrake(false);
-    return o;
-  }
-
-  // =====================================================================================
   // Drift cars from authored .glb models (tools/glb/build_car.js -> HB_GLB.<model>): the body in colour categories
-  // (near and far detail), the model's own wheels, the same interface as sportsCar
+  // (near and far detail), the model's own wheels. Car object: root (place / yaw / slope) > tilt (body roll and pitch
+  // about a point 0.5 m up) > body; four wheel pivots (steer about y) carrying the spinning wheels
   // =====================================================================================
   // category -> [material key, colour]: 'carPaint' takes the car's paint, 'brake' is the tail lamps (lit by the brakes)
   const CAR_CAT = {
@@ -2649,11 +2355,9 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
     disc: ['chrome', '#8a8e96'], caliper: ['paint', '#c89a1c'], calDark: ['paint', '#1e1f22'],
     rimDark: ['paint', '#18191c'], rimAccent: ['paint', '#b01818'],
   };
-  // drawn instead while a model's data file is still loading (or missing)
-  const CAR_FALLBACK = { gr86: 'ae86', s15c: 's15', z280: 'ae86', r34: 's15', rx7vs: 'fd', rx7bn: 'fd', gt2: 'supra', f40: 'mustang' };
-  // the cars with a data file js/g3/<model>.js: loaded on demand (a few hundred KB each), all of them in the background
-  // after start-up (preloadCars), and before a race that needs them (loadCar resolves once the file is in)
-  const CAR_FILES = ['gr86', 's15c', 'supra', 'z280', 'r34', 'rx7vs', 'rx7bn', 'gt2', 'f40'];
+  // every drift car has a data file js/g3/<model>.js: loaded on demand (a few hundred KB each), all of them in the
+  // background after start-up (preloadCars), and before a race that needs them (loadCar resolves once the file is in)
+  const CAR_FILES = ['z280', 'n180', 'm65', 'gr86', 'boss', 'supra', 'r34', 'rx7vs', 'gtr', 's15c', 'gt2', 'rx7bn', 'r35', 'f40', 'wis'];
   const carLoads = {};
   const hasCar = model => typeof HB_GLB !== 'undefined' && !!HB_GLB[model];
   function loadCar(model) {
@@ -2718,30 +2422,76 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
     if (lo) lo.visible = false;
     const wheels = [];
     for (const [hub, q, [spinG, calG], front] of [[S.hub.f, S.hub.qf, G.wf, true], [S.hub.r, S.hub.qr, G.wr, false]]) for (const side of [1, -1]) {
-      // pivot (steers) > mirror (the right side is the left wheel mirrored) > lean (the model's camber and toe, fixed)
-      // > spin (rolls about the wheel's own axle) + the calipers (do not)
+      // pivot (steers, about the caster-tilted axis) > mirror (the right side is the left wheel mirrored) > lean (camber
+      // and toe: the model's own camber until the car's wheel alignment is set) > spin (rolls about the wheel's own
+      // axle) + the calipers (do not)
       const pivot = new T.Group(), mir = new T.Group(), lean = new T.Group(), spin = new T.Group();
       pivot.position.set(side * hub[0], hub[1], hub[2]); mir.scale.x = side;
       if (q) lean.quaternion.set(q[0], q[1], q[2], q[3]);
       for (const k in spinG) { const ms = new T.Mesh(spinG[k], mat(k)); ms.castShadow = k === 'lam'; spin.add(ms); }
       for (const k in calG) lean.add(new T.Mesh(calG[k], mat(k)));
-      lean.add(spin); mir.add(lean); pivot.add(mir); root.add(pivot); wheels.push({ pivot, spin, front, side });
+      lean.add(spin); mir.add(lean); pivot.add(mir); root.add(pivot); wheels.push({ pivot, spin, lean, front, side });
     }
-    const o = { root, tilt, body, wheels, paint, brake, pods: null, spec: S, glb: true,
+    const o = alignable({ root, tilt, body, wheels, paint, brake, pods: null, spec: S, glb: true,
       setPaint(c) { paint.color.set(c); },
       setBrake(on) { brake.color.setScalar(on ? 1 : 0.3); },
       setNight() {},
       setDetail(near) { if (lo) { hi.visible = near; lo.visible = !near; } },
-      dispose() { paint.dispose(); brake.dispose(); } };
+      dispose() { paint.dispose(); brake.dispose(); } });
     o.setBrake(false);
     return o;
   }
-  // a drift car by model name: the authored model when its data is loaded, else a procedural one
-  function driftCar(model, col) {
-    const o = glbCar(model, col);
-    if (o) return o;
-    loadCar(model);
-    return sportsCar(SPORT[model] ? model : CAR_FALLBACK[model] || 's15', col);
+  // wheel alignment on a car's wheels (al: see ALIGN in drift.js, degrees): setAlign tilts each wheel by its camber
+  // (- = the top leans in) and turns it by its toe (+ = the front points in) - the left wheel; the right one is its
+  // mirror image. steer(d) turns the front wheels by d rad (+ = left) about the steering axis, which leans back at the
+  // top by the caster: steered, both front wheels lean the way they turn (the outside one gains negative camber)
+  const _qa = new T.Quaternion(), _qb = new T.Quaternion(), AX_Y = new T.Vector3(0, 1, 0), AX_Z = new T.Vector3(0, 0, 1);
+  function alignable(o) {
+    o.casAxis = new T.Vector3(0, 1, 0);
+    o.setAlign = al => {
+      o.align = al;
+      const D = Math.PI / 180;
+      for (const w of o.wheels) {
+        const cam = (w.front ? al.camF : al.camR) * D, toe = (w.front ? al.toeF : al.toeR) * D;
+        _qa.setFromAxisAngle(AX_Y, -toe); _qb.setFromAxisAngle(AX_Z, -cam);
+        w.lean.quaternion.copy(_qa).multiply(_qb);
+      }
+      o.casAxis.set(0, Math.cos(al.cas * D), -Math.sin(al.cas * D));
+      o.steer(o.steerA || 0);
+    };
+    o.steer = d => { o.steerA = d; for (const w of o.wheels) if (w.front) w.pivot.quaternion.setFromAxisAngle(o.casAxis, d); };
+    return o;
+  }
+  // a plain stand-in (a body block, a cabin, four wheels) while a model's data file is still loading, or if it fails to
+  const STAND_IN = { len: [-2.25, 2.2], hw: 0.9, top: 1.3, axles: [1.25, -1.3], wheel: { R: 0.32, w: 0.24, x: 0.78, xr: 0.78 },
+    head: [0.6, 0.65, 2.1], tail: [0.62, 0.8, -2.2], exh: [[0.45, 0.28, 0.04, -2.25]], R: 0.32 };
+  function standInCar(col) {
+    const S = STAND_IN, root = new T.Group(), tilt = new T.Group(), body = new T.Group();
+    root.rotation.order = 'YXZ'; tilt.position.y = 0.5; body.position.y = -0.5; tilt.add(body); root.add(tilt);
+    const paint = G3.mats.carPaint.clone(); paint.color.set(col);
+    const brake = new T.MeshBasicMaterial({ color: '#ff2a18' }), geos = [];
+    const box = (mt, w, h, d, y, z) => { const g = new T.BoxGeometry(w, h, d); geos.push(g); const m = new T.Mesh(g, mt); m.position.set(0, y, z); m.castShadow = true; body.add(m); };
+    box(paint, 1.76, 0.5, 4.4, 0.62, -0.02); box(G3.mats.glass, 1.4, 0.42, 2.0, 1.06, -0.25); box(brake, 1.5, 0.08, 0.04, 0.8, -2.23);
+    const wg = new T.CylinderGeometry(S.wheel.R, S.wheel.R, S.wheel.w, 14); wg.rotateZ(Math.PI / 2); geos.push(wg);
+    const wheels = [];
+    for (const [za, front] of [[S.axles[0], true], [S.axles[1], false]]) for (const side of [1, -1]) {
+      const pivot = new T.Group(), mir = new T.Group(), lean = new T.Group(), spin = new T.Group();
+      pivot.position.set(side * S.wheel.x, S.wheel.R, za); mir.scale.x = side; spin.add(new T.Mesh(wg, G3.mats.lam));
+      lean.add(spin); mir.add(lean); pivot.add(mir); root.add(pivot); wheels.push({ pivot, spin, lean, front, side });
+    }
+    return alignable({ root, tilt, body, wheels, paint, brake, pods: null, spec: S,
+      setPaint(c) { paint.color.set(c); },
+      setBrake(on) { brake.color.set('#ff2a18').multiplyScalar(on ? 1 : 0.3); },
+      setNight() {},
+      dispose() { paint.dispose(); brake.dispose(); for (const g of geos) g.dispose(); } });
+  }
+  // a drift car by model name: the authored model when its data is loaded, else the stand-in (and the file is fetched);
+  // al: its wheel alignment (else the model's own camber stays)
+  function driftCar(model, col, al) {
+    let o = glbCar(model, col);
+    if (!o) { loadCar(model); o = standInCar(col); }
+    if (al) o.setAlign(al);
+    return o;
   }
 
   // =====================================================================================
@@ -3010,6 +2760,6 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
   const FACING = { house: 'road', building: 'road', lamp: 'road', hut: 'road', pole: 'along', fence: 'along', billboard: 'traffic',
     sign: 'traffic', kmpost: 'traffic', post: 'traffic', gate: 'traffic',
     stand: 'road', pits: 'road', marshal: 'road', flood: 'road', brk: 'traffic', gantry: 'traffic', bridge: 'traffic' };
-  return { rider, car, prebuildCars, setCarEnv, sportsCar, driftCar, loadCar, hasCar, preloadCars, SPORT, proto, M4, v3, link, GEO, FACING, CAR_LIGHTS, posture, kickRoll };
+  return { rider, car, prebuildCars, setCarEnv, driftCar, loadCar, hasCar, preloadCars, proto, M4, v3, link, GEO, FACING, CAR_LIGHTS, posture, kickRoll };
 })();
 1

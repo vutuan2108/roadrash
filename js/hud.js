@@ -44,7 +44,9 @@ const Render = {
   },
   // rotating 3D bike inside a window of the overlay (shop)
   preview(bikeIdx, x, y, w, h, t) { this.g.clearRect(x, y, w, h); World.preview(bikeIdx, x, y, w, h, t); },
-  carPreview(model, paint, x, y, w, h, t) { this.g.clearRect(x, y, w, h); World.carPreview(model, paint, x, y, w, h, t); },
+  carPreview(model, paint, x, y, w, h, t, al) { this.g.clearRect(x, y, w, h); World.carPreview(model, paint, x, y, w, h, t, al); },
+  // the wheel alignment screen's 3D view (see World.alignPreview)
+  alignPreview(model, paint, al, view, steer, x, y, w, h, t) { this.g.clearRect(x, y, w, h); return World.alignPreview(model, paint, al, view, steer, x, y, w, h, t); },
 
   // ================= drift mode HUD (full-screen 3D, no dashboard strip) =================
   driftHud(race) {
@@ -78,7 +80,7 @@ const Render = {
       if (C.ang > 0) this.text(Math.round(C.ang) + '°', W / 2 + 44, 14, 16, C.ang > 45 ? '#ff9a5a' : '#9fe0ff', 'left');
       const f = U.clamp(C.gap / DSCORE.gap, 0, 1);
       g.fillStyle = 'rgba(0,0,0,0.5)'; g.fillRect(W / 2 - 60, 40, 120, 3);
-      g.fillStyle = f > 0 ? '#ff8a5a' : '#7fff7f'; g.fillRect(W / 2 - 60, 40, 120 * (f > 0 ? 1 - f : Math.min(1, (C.t % DSCORE.multT) / DSCORE.multT)), 3);
+      g.fillStyle = f > 0 ? '#ff8a5a' : '#7fff7f'; g.fillRect(W / 2 - 60, 40, 120 * (f > 0 ? 1 - f : Math.min(1, (C.d % DSCORE.multD) / DSCORE.multD)), 3);
     }
     // little pop-up messages under it (+points, close to the rail, transitions, lost chains)
     race.pops.forEach((p, i) => {

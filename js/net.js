@@ -51,7 +51,8 @@ const Net = {
     let name = this.$('ol-name').value.trim();
     if (!name) { name = 'Tay đua ' + (10 + Math.floor(Math.random() * 90)); this.$('ol-name').value = name; }
     try { localStorage.setItem('hb_name', name); } catch (e) { /* ignore */ }
-    return { name, bike: s.bike, bikeHp: Math.max(1, Math.round(Game.bikeHp())), level: s.level, dcar: s.dcar, dpaint: Game.carPaint(s.dcar) };
+    return { name, bike: s.bike, bikeHp: Math.max(1, Math.round(Game.bikeHp())), level: s.level, dcar: Game.dIdx(), dpaint: Game.carPaint(Game.dIdx()),
+      dal: Game.carAlign(Game.dIdx()) };   // (the drift car's wheel alignment: the others see its wheels set the same)
   },
   join(code) {
     code = String(code || '').trim().toUpperCase();
@@ -77,6 +78,8 @@ const Net = {
     };
     $('ol-prev').onclick = () => stage(-1);
     $('ol-next').onclick = () => stage(1);
+    $('ol-easy').onclick = () => this.send({ t: 'dhard', v: false });
+    $('ol-hard').onclick = () => this.send({ t: 'dhard', v: true });
     $('ol-mbike').onclick = () => this.send({ t: 'mode', v: 'bike' });
     $('ol-mdrift').onclick = () => this.send({ t: 'mode', v: 'drift' });
     $('ol-copy').onclick = () => {
@@ -100,7 +103,7 @@ const Net = {
       for (const r of this.list) {
         const row = document.createElement('div'); row.className = 'ol-item';
         const info = document.createElement('span');
-        const stage = r.mode === 'drift' ? 'Drift · ' + (DRIFT_MAPS[r.dmap] || DRIFT_MAPS[0]).name : THEMES[r.theme].name;
+        const stage = r.mode === 'drift' ? 'Drift · ' + (DRIFT_MAPS[r.dmap] || DRIFT_MAPS[0]).name + (r.dhard ? ' (khó)' : '') : THEMES[r.theme].name;
         info.textContent = r.code + ' · ' + r.host + ' · ' + r.n + '/' + r.max + ' người · ' + stage + (r.state === 'race' ? ' · đang đua' : '');
         const b = document.createElement('button'); b.textContent = 'VÀO'; b.disabled = r.state !== 'wait' || r.n >= r.max;
         b.onclick = () => this.join(r.code);
@@ -114,6 +117,10 @@ const Net = {
     $('ol-theme').textContent = drift ? (DRIFT_MAPS[R.dmap] || DRIFT_MAPS[0]).name : THEMES[R.theme].name;
     $('ol-prev').disabled = $('ol-next').disabled = !host;
     $('ol-mbike').disabled = $('ol-mdrift').disabled = !host;
+    // drift difficulty (the host picks): easy = the road as it is, hard = half as wide
+    $('ol-diff').hidden = !drift;
+    $('ol-easy').disabled = $('ol-hard').disabled = !host;
+    $('ol-easy').className = R.dhard ? '' : 'on'; $('ol-hard').className = R.dhard ? 'on' : '';
     $('ol-mbike').className = drift ? '' : 'on'; $('ol-mdrift').className = drift ? 'on' : '';
     $('ol-note').textContent = drift
       ? 'Tối đa 8 người, mỗi người một chiếc ô tô drift đang chọn trong gara. Xếp hạng theo điểm drift; drift sát xe người khác được điểm x1,5.'
@@ -382,7 +389,8 @@ const Net = {
   // ================= online drift =================
   onDriftStart(m) {
     const me = m.cars.find(c => c.id === this.id) || m.cars[0];
-    const r = new DriftRace({ mapIdx: U.clamp(m.map | 0, 0, DRIFT_MAPS.length - 1), carIdx: U.clamp(me.car | 0, 0, DRIFT_CARS.length - 1), paint: me.paint,
+    const ci = U.clamp(me.car | 0, 0, DRIFT_CARS.length - 1);
+    const r = new DriftRace({ mapIdx: U.clamp(m.map | 0, 0, DRIFT_MAPS.length - 1), carIdx: ci, paint: me.paint, al: me.al || Game.carAlign(ci), hard: !!m.hard,
       net: { me: this.id, cars: m.cars } });
     r.ready = false;   // the 3D models of all the cars first
     Promise.all(r.racers.map(c => Models.loadCar(c.spec.model))).then(() => { r.ready = true; }, () => { r.ready = true; });

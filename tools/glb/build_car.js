@@ -9,13 +9,37 @@
 // - a wheel part that spans several wheels (all four tyres in one mesh) is cut into one per wheel first; 'wheel' = a
 //   tyre and rim modelled as one mesh: found like a tyre, then cut by radius (beyond rimK x the tyre radius = tyre)
 // - cfg.colors: colours of this model's categories (rims, calipers...) over the game's defaults
+// - cfg.byName(part): a category by part (name, material, bounds) before the material table, for models that share
+//   one material across very different parts
 const fs = require('fs'), path = require('path');
 const { load } = require('./glbfull');
 const { MeshoptSimplifier } = require(process.env.MESHOPT || 'F:/hb_tmp/nodetools/node_modules/meshoptimizer');
 const C = require(path.resolve(process.argv[2]));
 (async () => {
   await MeshoptSimplifier.ready;
-  const loaded = load(C.glb, 1, (x, y, z) => [x, y, z]).parts;
+  // (cfg.frame: glTF -> game frame for models that do not face +z, e.g. (x, y, z) => [-x, y, -z] for one facing -z)
+  const loaded0 = load(C.glb, 1, C.frame || ((x, y, z) => [x, y, z])).parts;
+  // (cfg.split(part): a function of a triangle's centre [x, y, z] (game frame, raw units) -> its category, for a part
+  // that holds several things, e.g. one mesh with the roof and the lamps)
+  // (cfg.triColors: a JSON file of the texture colour of each triangle of some parts, from tex.html ?dump=; the split
+  // function then gets that colour as its second argument - stripes and chrome painted in the texture)
+  const TC = C.triColors ? JSON.parse(fs.readFileSync(C.triColors, 'utf8')) : {};
+  const loaded = [];
+  for (const p of loaded0) {
+    const f = C.split && C.split(p);
+    if (!f) { loaded.push(p); continue; }
+    const by = {}, tc = TC[p.id];
+    for (let t = 0; t < p.I.length; t += 3) {
+      const a = p.I[t] * 3, b = p.I[t + 1] * 3, d = p.I[t + 2] * 3;
+      const k = f([0, 1, 2].map(j => (p.P[a + j] + p.P[b + j] + p.P[d + j]) / 3), tc ? [tc[t], tc[t + 1], tc[t + 2]] : null) || 'trim';
+      (by[k] || (by[k] = [])).push(p.I[t], p.I[t + 1], p.I[t + 2]);
+    }
+    for (const k in by) {
+      const I = Uint32Array.from(by[k]), lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
+      for (const i of I) for (let j = 0; j < 3; j++) { lo[j] = Math.min(lo[j], p.P[i * 3 + j]); hi[j] = Math.max(hi[j], p.P[i * 3 + j]); }
+      loaded.push(Object.assign({}, p, { I, lo, hi, tris: I.length / 3, cat: k }));
+    }
+  }
   const catOfMat = new Map(); for (const [k, ids] of Object.entries(C.mats)) for (const id of ids) catOfMat.set(id, k);
   const catOf = p => p.cat || (C.byName && C.byName(p)) || catOfMat.get(p.mat) || 'trim';
   const WHEEL = new Set(C.wheel);

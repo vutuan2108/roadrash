@@ -20,7 +20,7 @@ vm.createContext(sandbox);
 for (const f of ['js/core.js', 'js/track.js', 'js/race.js', 'js/drift.js']) {
   vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox, { filename: f });
 }
-const G = vm.runInContext('({ Race, THEMES, BIKES, CAR_COLS, CAR_TYPES, decodeInput, DRIFT_CARS, DRIFT_MAPS })', sandbox);
+const G = vm.runInContext('({ Race, THEMES, BIKES, CAR_COLS, CAR_TYPES, decodeInput, DRIFT_CARS, DRIFT_MAPS, Align })', sandbox);
 const WEAPON = { club: 1, chain: 2 };
 
 // ---------- static files ----------
@@ -60,12 +60,12 @@ function newCode() {
   for (;;) { let c = ''; for (let i = 0; i < 4; i++) c += A[Math.floor(Math.random() * A.length)]; if (!rooms.has(c)) return c; }
 }
 function roomInfo(room) {
-  return { t: 'room', code: room.code, host: room.host, theme: room.theme, level: room.level, state: room.state, mode: room.mode, dmap: room.dmap,
+  return { t: 'room', code: room.code, host: room.host, theme: room.theme, level: room.level, state: room.state, mode: room.mode, dmap: room.dmap, dhard: !!room.dhard,
     players: [...room.players.values()].map(p => ({ id: p.id, name: p.name, bike: p.bike, dcar: p.dcar, dpaint: p.dpaint, ready: p.ready })) };
 }
 function roomList() {
   return { t: 'list', rooms: [...rooms.values()].map(r => ({ code: r.code, host: r.players.get(r.host).name, n: r.players.size,
-    max: MAX_HUMANS, theme: r.theme, state: r.state, mode: r.mode, dmap: r.dmap })) };
+    max: MAX_HUMANS, theme: r.theme, state: r.state, mode: r.mode, dmap: r.dmap, dhard: !!r.dhard })) };
 }
 function pushList() { const m = JSON.stringify(roomList()); for (const p of lobby) send(p, m); }
 function pushRoom(room) { const m = JSON.stringify(roomInfo(room)); for (const p of room.players.values()) send(p, m); pushList(); }
@@ -77,6 +77,7 @@ function setProfile(p, m) {
   p.level = clampInt(m.level, 1, 5, 1);
   p.dcar = clampInt(m.dcar, 0, G.DRIFT_CARS.length - 1, 0);
   p.dpaint = /^#[0-9a-fA-F]{6}$/.test(String(m.dpaint)) ? String(m.dpaint) : G.DRIFT_CARS[p.dcar].color;
+  p.dal = G.Align.clean(m.dal && typeof m.dal === 'object' ? m.dal : G.Align.def(G.DRIFT_CARS[p.dcar]));   // (wheel alignment, numbers in range)
 }
 function joinRoom(p, room) {
   if (room.players.size >= MAX_HUMANS) return send(p, { t: 'err', msg: 'Phòng đã đủ ' + MAX_HUMANS + ' người.' });
@@ -117,12 +118,12 @@ function startRace(room) {
 function startDrift(room) {
   const ps = [...room.players.values()];
   if (ps.some(p => p.id !== room.host && !p.ready)) return;
-  const cars = ps.map(p => ({ id: p.id, name: p.name, car: p.dcar, paint: p.dpaint }));
+  const cars = ps.map(p => ({ id: p.id, name: p.name, car: p.dcar, paint: p.dpaint, al: p.dal }));
   room.drift = { map: room.dmap, cars, fin: new Map(), t: 0, endAt: null };
   room.state = 'race'; room.running = false; room.tickN = 0; room.loadT = 0;
   room.waitLoad = new Set(ps.map(p => p.id));
   for (const p of ps) p.dst = null;
-  const m = JSON.stringify({ t: 'dstart', map: room.dmap, cars });
+  const m = JSON.stringify({ t: 'dstart', map: room.dmap, hard: !!room.dhard, cars });
   for (const p of ps) send(p, m);
   pushList();
 }
@@ -244,7 +245,7 @@ function handle(p, m) {
       if (room) leaveRoom(p);
       setProfile(p, m);
       const r = { code: newCode(), host: p.id, players: new Map(), theme: 0, level: p.level, state: 'wait', race: null, drift: null,
-        mode: m.mode === 'drift' ? 'drift' : 'bike', dmap: 0 };
+        mode: m.mode === 'drift' ? 'drift' : 'bike', dmap: 0, dhard: false };
       rooms.set(r.code, r); joinRoom(p, r);
       break;
     }
@@ -267,6 +268,9 @@ function handle(p, m) {
       break;
     case 'dmap':
       if (room && room.host === p.id && room.state === 'wait') { room.dmap = clampInt(m.v, 0, G.DRIFT_MAPS.length - 1, 0); pushRoom(room); }
+      break;
+    case 'dhard':   // drift difficulty: hard = the road half as wide
+      if (room && room.host === p.id && room.state === 'wait') { room.dhard = !!m.v; pushRoom(room); }
       break;
     case 'start': if (room && room.host === p.id && room.state === 'wait') { if (room.mode === 'drift') startDrift(room); else startRace(room); } break;
     case 'loaded': if (room && (room.race || room.drift)) room.waitLoad.delete(p.id); break;

@@ -43,9 +43,11 @@ Mẫu tải từ Sketchfab gồm nhiều mảnh, hơn 1 triệu tam giác và v�
 
 Trong game, màu và vật liệu của từng nhóm nằm ở bảng `GLB_CAT` trong `models.js`.
 
-## Mẫu ô tô drift (GR86 Pandem, S15 Custom)
+## Mẫu ô tô drift
 
-Mẫu nằm trong thư mục `car/` ở gốc repo. Mỗi xe có một file cấu hình `cfg_<tên>.js` và cho ra `js/g3/<tên>.js`. Game vẽ chúng bằng `glbCar` trong `models.js`. Các file này không nằm trong `index.html`: `models.js` tải chúng khi cần (danh sách `CAR_FILES`). Thêm xe mới thì nhớ thêm tên vào `CAR_FILES`, và nếu muốn thì vào `CAR_FALLBACK` (xe dựng sẵn hiện tạm trong lúc chờ tải).
+Mẫu nằm trong thư mục `car/` ở gốc repo (thư mục này không đưa lên git). Mỗi xe có một file cấu hình `cfg_<tên>.js` và cho ra `js/g3/<tên>.js`. Game vẽ chúng bằng `glbCar` trong `models.js`. Các file này không nằm trong `index.html`: `models.js` tải chúng khi cần (danh sách `CAR_FILES`). Thêm xe mới thì nhớ thêm tên vào `CAR_FILES`. Trong lúc file đang tải, game vẽ tạm một khối xe đơn giản.
+
+Xem mẫu kèm texture thật bằng `pp.js "tex.html?f=file:///.../file.glb"`. Kết quả in ra màu trung bình của từng mảnh, đánh số giống `car_list.js`, để biết mảnh nào là đèn, lưới hay sợi carbon khi cả thân xe dùng chung một texture.
 
 1. `node car_list.js file.glb` liệt kê vật liệu: số mảnh, số tam giác và vị trí. Xem hình theo màu vật liệu bằng `pp.js "mats.html?s=100&f=file:///.../file.glb"` (`s` đổi đơn vị mẫu sang mét để camera nhìn thấy).
 2. Trong `cfg_xxx.js`:
@@ -57,6 +59,10 @@ Mẫu nằm trong thư mục `car/` ở gốc repo. Mỗi xe có một file cấ
    - Mẫu dựng lốp và mâm thành một khối thì gán vào nhóm `wheel`. Script tìm bánh như với lốp, rồi cắt theo bán kính: phần nằm ngoài `rimK` (mặc định 0,72) lần bán kính lốp là lốp, phần bên trong là mâm.
    - Mẫu dựng cả 4 lốp (hoặc cả 4 phanh) chung một khối thì script tự cắt khối đó theo 4 góc xe.
    - Mẫu dựng bánh trước đang đánh lái thì góc lái đó bị bỏ, chỉ giữ góc camber.
+   - `frame` xoay mẫu khi mẫu không quay đầu về +z, ví dụ `(x, y, z) => [-x, y, -z]` cho mẫu quay đầu về -z (180SX, Mustang GT-R).
+   - `byName(part)` gán nhóm theo từng mảnh (tên, số thứ tự `id`, vật liệu), dùng khi một vật liệu phủ nhiều thứ khác nhau.
+   - `split(part)` trả về một hàm chia một mảnh theo từng tam giác: hàm nhận tâm tam giác và trả về nhóm. Ví dụ mảnh mui xe của R35 chứa cả đèn hậu và đèn pha, nên cắt theo z.
+   - `triColors` là file JSON màu texture của từng tam giác, xuất bằng `tex.html?dump=<id mảnh>`. Khi có file này, hàm của `split` nhận màu làm tham số thứ hai. Boss 302 dùng cách này để giữ sọc đen vẽ trong texture và tách viền crôm khỏi phần nhựa đen.
    - Bánh xe trong mẫu thường nghiêng (camber). Script đo trục thật của bánh từ bề mặt lốp, có tính theo diện tích tam giác, rồi lưu bánh theo trục đó. Góc nghiêng được ghi thành một phép quay cố định (`qf`, `qr`) để bánh quay không bị đảo. Nếu lốp và mâm của mẫu lệch trục nhau thì đặt `axisCats: ['rim']` để lấy trục theo mâm.
 3. Chạy `node build_car.js cfg_xxx.js`. Script đo tâm bánh từ lốp, phóng theo `wb`, đặt bánh chạm đất, giản lược từng mảnh theo sai số (`err` cho bản gần, `errLo` cho bản xa, `errW` cho bánh xe) rồi ghi file vào `F:/hb_tmp/cars/`. Chép file đó vào `js/g3/`.
 4. Màu và vật liệu của từng nhóm nằm ở bảng `CAR_CAT` trong `models.js`. Thông số lái và va chạm nằm ở `DRIFT_CARS` và `DRIFT_BODY` trong `js/drift.js`.
