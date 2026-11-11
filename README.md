@@ -185,17 +185,19 @@ Cách drift:
 
 Có sáu cung đèo và một sân drift. Đường đèo rộng 18 m, rào cách tim đường 10,75 m. Mỗi đèo có rất nhiều đoạn cua nối tiếp nhau không có đường thẳng xen giữa (zíc zắc, rắn lượn, cua tay áo liên hoàn), nên có thể giữ một chuỗi drift rất dài và đẩy hệ số lên x5. Một lượt chạy đèo dài 6,5–7,4 km, mất khoảng 4,5–5,5 phút.
 
-- **Đèo Mã Pí Lèng** (Hà Giang, 6,7 km đổ dốc): vách đá dựng đứng, vực sông Nho Quế, 8 cua tay áo, các đoạn zíc zắc và rắn lượn.
-- **Đèo Ô Quy Hồ** (Sa Pa, 6,5 km, lúc hoàng hôn): rừng thông, 10 cua kẹp tóc, các khúc ngoặt nối tiếp.
-- **Đèo Hải Vân** (Đà Nẵng – Huế, 7,3 km, giữa trưa): vách đá trên biển, 6 cua tay áo và các khúc ngoặt dồn dập.
-- **Đèo Khau Phạ** (Yên Bái, 6,9 km, chiều nắng vàng): đồi ruộng bậc thang mùa lúa chín hai bên đường, 74 khúc cua gấp.
-- **Đèo Pha Đin** (Điện Biên – Sơn La, 7,4 km, sương sớm): tầm nhìn ngắn, cua nối cua gần như không nghỉ, 79 khúc cua gấp.
-- **Đèo Khánh Lê** (Nha Trang – Đà Lạt, 7,1 km, chạng vạng): rừng thông dưới trời tím, 3 cua tay áo và các đoạn zíc zắc liền nhau.
+Mỗi đèo có thêm 2 khúc số 8: hai vòng cua dài 225° ngược chiều nối liền nhau (bán kính 36–38 m), ôm trọn một cú drift đổi hướng như khi tập drift số 8.
+
+- **Đèo Mã Pí Lèng** (Hà Giang, 7,4 km đổ dốc): vách đá dựng đứng, vực sông Nho Quế, 8 cua tay áo, các đoạn zíc zắc và rắn lượn.
+- **Đèo Ô Quy Hồ** (Sa Pa, 7,3 km, lúc hoàng hôn): rừng thông, 10 cua kẹp tóc, các khúc ngoặt nối tiếp.
+- **Đèo Hải Vân** (Đà Nẵng – Huế, 8,0 km, giữa trưa): vách đá trên biển, 6 cua tay áo và các khúc ngoặt dồn dập.
+- **Đèo Khau Phạ** (Yên Bái, 7,7 km, chiều nắng vàng): đồi ruộng bậc thang mùa lúa chín hai bên đường, 78 khúc cua gấp.
+- **Đèo Pha Đin** (Điện Biên – Sơn La, 8,2 km, sương sớm): tầm nhìn ngắn, cua nối cua gần như không nghỉ, 83 khúc cua gấp.
+- **Đèo Khánh Lê** (Nha Trang – Đà Lạt, 7,9 km, chạng vạng): rừng thông dưới trời tím, 3 cua tay áo và các đoạn zíc zắc liền nhau.
 - **Sân drift đêm Bình Dương** (3 vòng, mỗi vòng khoảng 2,4 km, tổng khoảng 7,2 km): đường rộng 22 m, 27 khúc cua mỗi vòng, hầu hết đoạn thẳng được bẻ bằng cua chữ S, có đèn pha và khán đài. Một lượt khoảng 5 phút.
 
 ### Xe
 
-Mua xe trong **GARA Ô TÔ**. Danh sách cuộn được bằng ↑↓, dùng ← → để đổi màu sơn xe đã mua, phím **C** để căn chỉnh góc đặt bánh (xem phần dưới). Mỗi xe có một dòng "Ngoài đời" ghi máy, công suất xe zin và tốc độ tối đa thật, kèm các chỉ số trong game: công suất, mô-men, trọng lượng, vòng tua tối đa, tốc độ tối đa.
+Mua xe trong **GARA Ô TÔ**. Danh sách cuộn được bằng ↑↓, dùng ← → để đổi màu sơn xe đã mua, phím **T** để đổi kiểu tem (sọc đôi, sọc đơn viền, sọc lệch, sọc sườn, sọc đôi + sườn), phím **Y** để đổi màu tem, phím **C** để căn chỉnh góc đặt bánh (xem phần dưới). Người chơi online khác cũng thấy tem của bạn. Mỗi xe có một dòng "Ngoài đời" ghi máy, công suất xe zin và tốc độ tối đa thật, kèm các chỉ số trong game: công suất, mô-men, trọng lượng, vòng tua tối đa, tốc độ tối đa.
 
 Các xe trong game đều là bản độ drift, mạnh hơn số liệu ngoài đời khoảng 45%. Tỉ số hộp số, cầu, vòng tua tối đa, trọng lượng, chiều dài cơ sở và phân bố tải trước/sau lấy theo xe thật.
 

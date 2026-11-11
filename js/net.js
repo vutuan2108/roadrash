@@ -13,6 +13,15 @@ const Net = {
   INTERP: 0.1, TICK: 1 / 60,
   WEAPONS: [null, 'club', 'chain'],
 
+  // how many players are on line (the server counts the pages that ask): asked every 20 s while the page is in view
+  online: null, onlineId: Math.random().toString(36).slice(2, 12).padEnd(8, '0'),
+  pollOnline() {
+    if (!this.available() || typeof fetch !== 'function' || document.hidden) return;
+    fetch((this.server() || location.origin) + '/online?id=' + this.onlineId, { cache: 'no-store' }).then(r => r.ok ? r.json() : null)
+      .then(m => { this.online = m && typeof m.n === 'number' ? m : null; this.showOnline(); }).catch(() => { this.online = null; this.showOnline(); });
+  },
+  onlineText() { const o = this.online; return o ? o.n + ' người đang online' + (o.inRoom ? ' · ' + o.inRoom + ' trong phòng' : '') : ''; },
+  showOnline() { const e = document.getElementById('ol-count'); if (e) e.textContent = this.onlineText(); },
   // the game server: HB_SERVER (js/config.js) when the page is hosted elsewhere (e.g. Vercel), else this very site
   server() { return typeof HB_SERVER === 'string' ? HB_SERVER.trim().replace(/\/+$/, '') : ''; },
   wsUrl() {
@@ -51,7 +60,7 @@ const Net = {
     let name = this.$('ol-name').value.trim();
     if (!name) { name = 'Tay đua ' + (10 + Math.floor(Math.random() * 90)); this.$('ol-name').value = name; }
     try { localStorage.setItem('hb_name', name); } catch (e) { /* ignore */ }
-    return { name, bike: s.bike, bikeHp: Math.max(1, Math.round(Game.bikeHp())), level: s.level, dcar: Game.dIdx(), dpaint: Game.carPaint(Game.dIdx()),
+    return { name, bike: s.bike, bikeHp: Math.max(1, Math.round(Game.bikeHp())), level: s.level, dcar: Game.dIdx(), dpaint: Game.carPaint(Game.dIdx()), dliv: Game.carLiv(Game.dIdx()),
       dal: Game.carAlign(Game.dIdx()) };   // (the drift car's wheel alignment: the others see its wheels set the same)
   },
   join(code) {
@@ -390,7 +399,7 @@ const Net = {
   onDriftStart(m) {
     const me = m.cars.find(c => c.id === this.id) || m.cars[0];
     const ci = U.clamp(me.car | 0, 0, DRIFT_CARS.length - 1);
-    const r = new DriftRace({ mapIdx: U.clamp(m.map | 0, 0, DRIFT_MAPS.length - 1), carIdx: ci, paint: me.paint, al: me.al || Game.carAlign(ci), hard: !!m.hard,
+    const r = new DriftRace({ mapIdx: U.clamp(m.map | 0, 0, DRIFT_MAPS.length - 1), carIdx: ci, paint: me.paint, liv: me.liv, al: me.al || Game.carAlign(ci), hard: !!m.hard,
       net: { me: this.id, cars: m.cars } });
     r.ready = false;   // the 3D models of all the cars first
     Promise.all(r.racers.map(c => Models.loadCar(c.spec.model))).then(() => { r.ready = true; }, () => { r.ready = true; });
@@ -496,3 +505,5 @@ const Net = {
     this.render();
   },
 };
+
+if (typeof document !== 'undefined') { Net.pollOnline(); setInterval(() => Net.pollOnline(), 20000); document.addEventListener('visibilitychange', () => Net.pollOnline()); }

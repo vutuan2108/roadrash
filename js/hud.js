@@ -44,7 +44,7 @@ const Render = {
   },
   // rotating 3D bike inside a window of the overlay (shop)
   preview(bikeIdx, x, y, w, h, t) { this.g.clearRect(x, y, w, h); World.preview(bikeIdx, x, y, w, h, t); },
-  carPreview(model, paint, x, y, w, h, t, al) { this.g.clearRect(x, y, w, h); World.carPreview(model, paint, x, y, w, h, t, al); },
+  carPreview(model, paint, x, y, w, h, t, al, liv) { this.g.clearRect(x, y, w, h); World.carPreview(model, paint, x, y, w, h, t, al, liv); },
   // the wheel alignment screen's 3D view (see World.alignPreview)
   alignPreview(model, paint, al, view, steer, x, y, w, h, t) { this.g.clearRect(x, y, w, h); return World.alignPreview(model, paint, al, view, steer, x, y, w, h, t); },
 

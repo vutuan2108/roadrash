@@ -51,6 +51,7 @@
   .ol-theme { min-width: 9em; text-align: center; color: #ffd23a; }
   .ol-note { color: #a8b8d0; font-size: 0.8em; margin: 0.3em 0; }
   #ol-wait { color: #7fff7f; }
+  #ol-count { text-align: center; color: #7fff7f; min-height: 1.2em; }
   #ol-status { color: #9fe0ff; } #ol-status.bad { color: #ff8a8a; }
   #online button.on { background: #ffd23a; color: #1a1300; }
 </style>
@@ -62,6 +63,7 @@
   <div id="online" hidden>
     <div class="ol-panel">
       <div class="ol-title">CHƠI ONLINE</div>
+      <div id="ol-count"></div>
       <div id="ol-lobby">
         <div class="ol-row"><span style="flex:0">Tên của bạn</span><input id="ol-name" maxlength="14" autocomplete="off" spellcheck="false"></div>
         <div class="ol-row">

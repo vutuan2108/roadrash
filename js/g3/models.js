@@ -2350,7 +2350,7 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
     paint: ['carPaint', '#ffffff'], black: ['paint', '#111215'], trim: ['paint', '#1c1d21'], carbon: ['paint', '#16171a'],
     grille: ['lam', '#0b0b0d'], under: ['lam', '#0a0a0b'], glass: ['glass', '#0a0d11'], alu: ['chrome', '#b4b8c0'],
     white: ['paint', '#e6e6e2'], exhaust: ['chrome', '#8c7c6a'], strap: ['lam', '#2a4ad0'],
-    head: ['light', '#eef2ff'], tail: ['brake', '#ff2a18'], amber: ['light', '#ff8a18'],
+    head: ['light', '#eef2ff'], tail: ['brake', '#ff2a18'], tailLens: ['brake', '#b81a10'], amber: ['light', '#ff8a18'], bezel: ['chrome', '#4a4e56'],
     tyre: ['lam', '#161618'], rim: ['chrome', '#3a3d44'], rimLip: ['chrome', '#c4c8ce'], lug: ['chrome', '#9aa0a8'],
     disc: ['chrome', '#8a8e96'], caliper: ['paint', '#c89a1c'], calDark: ['paint', '#1e1f22'],
     rimDark: ['paint', '#18191c'], rimAccent: ['paint', '#b01818'],
@@ -2370,6 +2370,93 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
     }));
   }
   function preloadCars() { return CAR_FILES.reduce((p, m) => p.then(() => loadCar(m)), Promise.resolve()); }
+  // the paint of one drift car, with its livery: stripes over the paint, drawn in the shader from where a point sits
+  // on the body (the body's own frame: x across, y up) and which way its surface faces - centre stripes run over
+  // the bonnet, roof, boot and both ends, side stripes along the sills. setLivery('2#f2f2f0'): style + colour
+  function liveryPaint(col, sillY) {
+    const m = G3.mats.carPaint.clone(); m.color.set(col);
+    const U = { uLiv: { value: 0 }, uLivCol: { value: new T.Color('#ffffff') }, uLivY: { value: sillY } };
+    m.onBeforeCompile = s => {
+      Object.assign(s.uniforms, U);
+      s.vertexShader = 'varying vec3 vLivP;\nvarying vec3 vLivN;\n' + s.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvLivP = transformed; vLivN = objectNormal;');
+      s.fragmentShader = `uniform float uLiv; uniform float uLivY; uniform vec3 uLivCol;
+        varying vec3 vLivP; varying vec3 vLivN;
+        float livBand(float v, float a, float b) { float w = fwidth(v) + 0.002; return smoothstep(a - w, a + w, v) * (1.0 - smoothstep(b - w, b + w, v)); }
+        float livMask() {
+          if (uLiv < 0.5) return 0.0;
+          float nx = abs(normalize(vLivN).x), ax = abs(vLivP.x), top = 1.0 - smoothstep(0.55, 0.75, nx), side = smoothstep(0.45, 0.65, nx), m = 0.0;
+          if (uLiv < 1.5 || uLiv > 4.5) m = livBand(ax, 0.06, 0.26) * top;
+          else if (uLiv < 2.5) m = max(livBand(ax, -1.0, 0.2), livBand(ax, 0.25, 0.29)) * top;
+          else if (uLiv < 3.5) m = max(livBand(vLivP.x, 0.2, 0.46), livBand(vLivP.x, 0.5, 0.54)) * top;
+          if (uLiv > 3.5) m = max(m, max(livBand(vLivP.y, uLivY, uLivY + 0.09), livBand(vLivP.y, uLivY + 0.115, uLivY + 0.135)) * side);
+          return m;
+        }\n` + s.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, uLivCol, livMask());');
+    };
+    m.customProgramCacheKey = () => 'carLivery';
+    m.setLivery = v => { v = Livery.clean(v); U.uLiv.value = Livery.style(v); if (v) U.uLivCol.value.set(Livery.color(v)); };
+    return m;
+  }
+  // the running gear seen in the wheel wells (most of all behind a front wheel on full lock): per wheel an upright on
+  // the steering pivot, a lower wishbone, a coilover up to the strut tower, and a track rod, tension rod and anti-roll bar (front) or drive shaft
+  // (rear). The links run from a point that turns with the wheel to one fixed on the chassis: re-laid as it steers
+  let SUS = null;
+  function susKit() {
+    if (SUS) return SUS;
+    const L = T.MeshLambertMaterial, H = 0.22;
+    class Helix extends T.Curve { getPoint(t, o = new T.Vector3()) { const a = t * Math.PI * 2 * 6.5; return o.set(Math.cos(a) * 0.05, (t - 0.5) * H, Math.sin(a) * 0.05); } }
+    const hubG = new T.CylinderGeometry(0.075, 0.075, 0.1, 12); hubG.rotateZ(Math.PI / 2);
+    const backG = new T.CylinderGeometry(1, 1, 0.012, 20); backG.rotateZ(Math.PI / 2);                 // the brake's back plate (x: its radius)
+    return (SUS = { H, steel: new L({ color: '#4c5058' }), arm: new L({ color: '#8d929b' }), spring: new L({ color: '#9c2a22' }), bar: new L({ color: '#7d828b' }), dark: new L({ color: '#131417' }),
+      coil: new T.TubeGeometry(new Helix(), 96, 0.011, 5), hub: hubG, back: backG });
+  }
+  const _sa = new T.Vector3(), _sb = new T.Vector3(), _sc = new T.Vector3();
+  function susBuild(root, wheels, S) {
+    const K = susKit(), grp = new T.Group(), links = [], R = S.wheel.R, w2 = S.wheel.w / 2;
+    const add = (pivot, a, b, geo, mat, rx, rz, f0, f1, ys) => {
+      const mesh = new T.Mesh(geo, mat); mesh.matrixAutoUpdate = false; grp.add(mesh);
+      links.push({ pivot, a, b, mesh, rx, rz, f0, f1, ys });
+    };
+    for (const w of wheels) {
+      const P = w.pivot.position, sd = w.side, xin = Math.max(0.2, Math.abs(P.x) - w2 - 0.36);
+      const loc = (x, y, z) => new T.Vector3(sd * x, y, z), fix = (x, y, z) => new T.Vector3(sd * x, P.y + y, P.z + z);
+      // on the pivot, against the wheel's inner face: the brake's back plate, the upright, the hub carrier, the steering arm
+      const kn = new T.Group(); kn.scale.x = sd; w.pivot.add(kn);
+      const up = new T.Mesh(GEO.box, K.arm); up.position.set(-w2 - 0.05, -0.03 * R, 0); up.scale.set(0.06, R * 1.0, 0.1); kn.add(up);
+      const bp = new T.Mesh(K.back, K.steel); bp.position.set(-w2 - 0.008, 0, 0); bp.scale.set(1, R * 0.52, R * 0.52); kn.add(bp);
+      const hb = new T.Mesh(K.hub, K.steel); hb.position.set(-w2 - 0.05, 0, 0); kn.add(hb);
+      const lb = loc(-w2 - 0.05, -0.5 * R, 0), kt = loc(-w2 - 0.06, 0.2 * R, -0.01), top = fix(Math.abs(P.x) - w2 - 0.14, 0.82 * R, -0.04);   // (kept low: under every bonnet)
+      add(w.pivot, lb, fix(xin, -0.5 * R + 0.03, -0.17), GEO.box, K.arm, 0.045, 0.022);                                // wishbone
+      if (w.front) add(w.pivot, lb, fix(xin + 0.04, -0.5 * R + 0.06, 0.46), GEO.cyl, K.arm, 0.019, 0.019);             // its tension rod, forward
+      else add(w.pivot, lb, fix(xin, -0.5 * R + 0.03, 0.19), GEO.box, K.arm, 0.045, 0.022);
+      add(w.pivot, kt, top, GEO.cyl, K.steel, 0.027, 0.027);                                                           // damper
+      add(w.pivot, kt, top, K.coil, K.spring, 1, 1, 0.3, 0.96, 1 / K.H);                                                // spring
+      add(w.pivot, kt, top, GEO.cyl, K.dark, 0.074, 0.074, 0.55, 1.03);   // the strut tower round its top (and nothing bright shows through a bonnet vent)
+      if (w.front) {
+        const sa = loc(-w2 - 0.06, -0.22 * R, 0.15);
+        const arm = new T.Mesh(GEO.cyl, K.steel); arm.applyMatrix4(link(_sa.set(-w2 - 0.05, -0.22 * R, 0), _sb.set(-w2 - 0.06, -0.22 * R, 0.15), 0.018)); kn.add(arm);
+        add(w.pivot, sa, fix(xin + 0.05, -0.22 * R, 0.16), GEO.cyl, K.arm, 0.016, 0.016);                              // track rod
+        // (fixed) the anti-roll bar's arm back from the bar ahead of the axle, and its drop link to the wishbone
+        const b0 = fix(xin + 0.1, -0.34 * R, 0.34), b1 = fix(xin + 0.2, -0.36 * R, 0.07);
+        for (const [p, q, r] of [[b0, b1, 0.014], [b1, fix(xin + 0.2, -0.5 * R + 0.03, 0.03), 0.009]]) {
+          const ms = new T.Mesh(GEO.cyl, K.bar); ms.matrixAutoUpdate = false; ms.matrix.copy(link(p, q, r)); grp.add(ms);
+        }
+        if (sd > 0) { const ms = new T.Mesh(GEO.cyl, K.bar); ms.matrixAutoUpdate = false; ms.matrix.copy(link(b0, _sa.copy(b0).setX(-b0.x), 0.014)); grp.add(ms); }
+      } else add(w.pivot, loc(-w2 - 0.05, 0, 0), fix(0.14, 0.01, 0), GEO.cyl, K.steel, 0.024, 0.024);                         // drive shaft
+      (w.kn = kn);
+    }
+    root.add(grp);
+    const update = () => {
+      for (const k of links) {
+        _sa.copy(k.a).applyQuaternion(k.pivot.quaternion).add(k.pivot.position); _sb.copy(k.b);
+        if (k.f1) { _sc.copy(_sa); _sa.lerp(_sb, k.f0); _sb.lerpVectors(_sc, _sb, k.f1); }
+        link(_sa, _sb, k.rx, k.rz, k.mesh.matrix);
+        if (k.ys) k.mesh.matrix.scale(_sc.set(1, k.ys, 1));
+        k.mesh.matrixWorldNeedsUpdate = true;
+      }
+    };
+    update();
+    return { update, show(v) { grp.visible = v; for (const w of wheels) w.kn.visible = v; } };
+  }
   const glbCarCache = {};
   function glbCarGeo(model) {
     if (glbCarCache[model]) return glbCarCache[model];
@@ -2409,12 +2496,12 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
     return (glbCarCache[model] = { S: Object.assign({}, S, { R: S.wheel.R }), hi: build(D.groups), lo: D.lo ? build(D.lo) : null,
       wf: split(D.wheels.f), wr: split(D.wheels.r) });
   }
-  function glbCar(model, col) {
+  function glbCar(model, col, liv) {
     const G = glbCarGeo(model);
     if (!G) return null;
     const S = G.S, root = new T.Group(), tilt = new T.Group(), body = new T.Group();
     root.rotation.order = 'YXZ'; tilt.position.y = 0.5; body.position.y = -0.5; tilt.add(body); root.add(tilt);
-    const paint = G3.mats.carPaint.clone(); paint.color.set(col);
+    const paint = liveryPaint(col, S.hub.f[1] + 0.02); paint.setLivery(liv);
     const brake = new T.MeshBasicMaterial({ vertexColors: true });
     const mat = k => k === 'carPaint' ? paint : k === 'brake' ? brake : G3.mats[k];
     const level = geos => { const grp = new T.Group(); for (const k in geos) { const ms = new T.Mesh(geos[k], mat(k)); ms.castShadow = k !== 'light' && k !== 'brake'; ms.receiveShadow = true; grp.add(ms); } body.add(grp); return grp; };
@@ -2432,11 +2519,13 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
       for (const k in calG) lean.add(new T.Mesh(calG[k], mat(k)));
       lean.add(spin); mir.add(lean); pivot.add(mir); root.add(pivot); wheels.push({ pivot, spin, lean, front, side });
     }
-    const o = alignable({ root, tilt, body, wheels, paint, brake, pods: null, spec: S, glb: true,
+    const sus = susBuild(root, wheels, S);
+    const o = alignable({ root, tilt, body, wheels, paint, brake, pods: null, spec: S, glb: true, susUpdate: sus.update,
       setPaint(c) { paint.color.set(c); },
+      setLivery(v) { paint.setLivery(v); },
       setBrake(on) { brake.color.setScalar(on ? 1 : 0.3); },
       setNight() {},
-      setDetail(near) { if (lo) { hi.visible = near; lo.visible = !near; } },
+      setDetail(near) { if (lo) { hi.visible = near; lo.visible = !near; } sus.show(near); },
       dispose() { paint.dispose(); brake.dispose(); } });
     o.setBrake(false);
     return o;
@@ -2459,7 +2548,7 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
       o.casAxis.set(0, Math.cos(al.cas * D), -Math.sin(al.cas * D));
       o.steer(o.steerA || 0);
     };
-    o.steer = d => { o.steerA = d; for (const w of o.wheels) if (w.front) w.pivot.quaternion.setFromAxisAngle(o.casAxis, d); };
+    o.steer = d => { o.steerA = d; for (const w of o.wheels) if (w.front) w.pivot.quaternion.setFromAxisAngle(o.casAxis, d); if (o.susUpdate) o.susUpdate(); };
     return o;
   }
   // a plain stand-in (a body block, a cabin, four wheels) while a model's data file is still loading, or if it fails to
@@ -2481,14 +2570,15 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
     }
     return alignable({ root, tilt, body, wheels, paint, brake, pods: null, spec: S,
       setPaint(c) { paint.color.set(c); },
+      setLivery() {},
       setBrake(on) { brake.color.set('#ff2a18').multiplyScalar(on ? 1 : 0.3); },
       setNight() {},
       dispose() { paint.dispose(); brake.dispose(); for (const g of geos) g.dispose(); } });
   }
   // a drift car by model name: the authored model when its data is loaded, else the stand-in (and the file is fetched);
   // al: its wheel alignment (else the model's own camber stays)
-  function driftCar(model, col, al) {
-    let o = glbCar(model, col);
+  function driftCar(model, col, al, liv) {
+    let o = glbCar(model, col, liv);
     if (!o) { loadCar(model); o = standInCar(col); }
     if (al) o.setAlign(al);
     return o;

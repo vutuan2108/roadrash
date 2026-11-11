@@ -1055,7 +1055,7 @@ const World = (() => {
       this.skids = new Skids(this.scene);
       // a model for every car on the stage (the player's first), each with its exhaust flames and smoke emitters
       this.dcs = race.racers.map(c => {
-        const o = Models.driftCar(c.spec.model, c.paint, c.align);
+        const o = Models.driftCar(c.spec.model, c.paint, c.align, c.liv);
         this.scene.add(o.root);
         o.setNight(this.night);
         o.flames = []; o.emitAcc = [0, 0, 0, 0];
@@ -1350,8 +1350,8 @@ const World = (() => {
       R.setScissorTest(false); R.setClearColor(0x000000, 1);
     },
     // a turning drift car in the garage, its wheels set to its alignment al
-    carPreview(model, paint, x, y, w, h, t, al) {
-      const o = showCar(model, paint, al);
+    carPreview(model, paint, x, y, w, h, t, al, liv) {
+      const o = showCar(model, paint, al, liv || '');
       techView(o, null);
       o.steer(Math.sin(t * 0.7) * 0.35);
       o.root.rotation.y = t * 0.45 + 0.6;
@@ -1377,7 +1377,7 @@ const World = (() => {
     },
   };
   // the showroom's car for a model (rebuilt once its data file has loaded: a stand-in until then), the only one shown
-  function showCar(model, paint, al) {
+  function showCar(model, paint, al, liv) {
     if (!show) buildShow();
     let o = show.cars[model];
     if (o && !o.glb && Models.hasCar(model)) { show.sc.remove(o.root); o.dispose(); o = null; }   // (a stand-in until the model loaded)
@@ -1385,6 +1385,7 @@ const World = (() => {
     for (const k in show.models) show.models[k].root.visible = false;
     for (const k in show.cars) show.cars[k].root.visible = k === model;
     o.setPaint(paint); o.paint.envMap = show.env;
+    if (liv !== undefined) o.setLivery(liv);
     if (al && (!o.align || !Align.same(o.align, al))) o.setAlign(al);
     return o;
   }

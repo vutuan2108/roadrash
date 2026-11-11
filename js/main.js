@@ -25,7 +25,7 @@ const Game = {
     let s = null;
     try { s = JSON.parse(localStorage.getItem('hb_save') || 'null'); } catch (e) { s = null; }
     this.save = Object.assign({ money: 2500000, level: 1, owned: [0], bike: 0, hp: { 0: BIKES[0].dur }, passed: [],
-      dcars: [], dcar: '', dpaint: {}, dalign: {}, dbest: {}, dai: 3, dhard: false }, s || {});
+      dcars: [], dcar: '', dpaint: {}, dliv: {}, dalign: {}, dbest: {}, dai: 3, dhard: false }, s || {});
     // one-time gift so existing saves also get the 2.5M starting money
     if (!this.save.gift) { this.save.money = Math.max(this.save.money, 2500000); this.save.gift = 1; this.store(); }
     this.fixCars();
@@ -165,6 +165,7 @@ const Game = {
   driftKey(id, hard) { return id + (hard ? ':h' : ''); },
   driftBest(i) { return this.save.dbest[this.driftKey(DRIFT_MAPS[i].id, this.save.dhard)] || 0; },
   carPaint(i) { return this.save.dpaint[DRIFT_CARS[i].model] || DRIFT_CARS[i].color; },
+  carLiv(i) { return Livery.clean(this.save.dliv[DRIFT_CARS[i].model]); },   // (the car's stripes: style + colour, '' = none)
   // the car's wheel alignment (camber, toe, caster): the player's own, else what the car comes with
   carAlign(i) { const c = DRIFT_CARS[i]; return Align.clean(this.save.dalign[c.model] || Align.def(c)); },
   updDriftMenu() {
@@ -191,7 +192,7 @@ const Game = {
   },
   startDrift(i) {
     const s = this.save, ci = this.dIdx();
-    const r = this.drace = new DriftRace({ mapIdx: i, carIdx: ci, paint: this.carPaint(ci), al: this.carAlign(ci), ais: s.dai | 0, hard: !!s.dhard });
+    const r = this.drace = new DriftRace({ mapIdx: i, carIdx: ci, paint: this.carPaint(ci), liv: this.carLiv(ci), al: this.carAlign(ci), ais: s.dai | 0, hard: !!s.dhard });
     this.state = 'drift';
     Sound.music.stop();
     r.ready = false;   // until the 3D models of all its cars are in
@@ -223,6 +224,19 @@ const Game = {
       else {
         const k = DRIFT_PAINTS.indexOf(this.carPaint(i)), nk = ((k < 0 ? 0 : k) + dir + DRIFT_PAINTS.length) % DRIFT_PAINTS.length;
         s.dpaint[DRIFT_CARS[i].model] = DRIFT_PAINTS[nk]; this.store(); Sound.beep(700, 0.04);
+      }
+    }
+    // T: the next style of stripes, Y: their next colour (an owned car)
+    const tS = Input.pressed('livery'), tC = Input.pressed('liveryCol');
+    if ((tS || tC) && i < DRIFT_CARS.length) {
+      if (!this.ownsCar(i)) { this.gmsg = 'Mua xe trước rồi mới dán tem được'; Sound.beep(200, 0.1); }
+      else {
+        const cur = this.carLiv(i), st = Livery.style(cur), col = Livery.color(cur) || Livery.contrast(this.carPaint(i));
+        let v;
+        if (tS) { const ns = (st + 1) % DRIFT_LIVERIES.length; v = ns ? ns + col : ''; }
+        else if (!st) { this.gmsg = 'Bấm T chọn kiểu tem trước'; v = ''; }
+        else v = st + DRIFT_PAINTS[(DRIFT_PAINTS.indexOf(col) + 1) % DRIFT_PAINTS.length];
+        s.dliv[DRIFT_CARS[i].model] = v; this.store(); Sound.beep(700, 0.04);
       }
     }
     // C: the wheel alignment of an owned car
@@ -351,7 +365,7 @@ const Game = {
       opt: (this.dsel === iH ? '◄ ' : '') + (s.dhard ? 'KHÓ' : 'DỄ') + (this.dsel === iH ? ' ►' : '') });
     items.push({ a: 'ĐỐI THỦ MÁY', b: 'Số xe máy drift cùng đường (← → để đổi). Xếp hạng theo điểm drift, top 3 có thưởng.',
       opt: (this.dsel === iA ? '◄ ' : '') + (nai ? nai + ' XE' : 'TẮT') + (this.dsel === iA ? ' ►' : '') });
-    items.push({ a: 'CHƠI ONLINE', b: 'Đua drift với bạn bè qua mạng: tạo phòng, gửi link mời, xếp hạng theo điểm drift' });
+    items.push({ a: 'CHƠI ONLINE', b: (Net.onlineText() ? Net.onlineText().toUpperCase() + ' · ' : '') + 'Đua drift với bạn bè qua mạng: tạo phòng, gửi link mời, xếp hạng theo điểm drift' });
     items.push({ a: 'GARA Ô TÔ', b: 'Mua xe drift, chọn xe, đổi màu sơn, căn chỉnh góc bánh (camber, toe, caster)' }, { a: 'QUAY LẠI', b: '' });
     // (seven stages and five more rows: short rows, the keys in three columns below)
     const rh = 14, y0 = 61;
@@ -392,7 +406,8 @@ const Game = {
     const ci = this.gsel < DRIFT_CARS.length ? this.gsel : this.dIdx(), c = DRIFT_CARS[ci], paint = this.carPaint(ci);
     g.fillStyle = 'rgba(255,255,255,0.06)'; g.fillRect(272, 50, 214, 250);
     const al = this.carAlign(ci);
-    Render.carPreview(c.model, paint, 274, 52, 210, 110, this.t, al);
+    const liv = this.carLiv(ci);
+    Render.carPreview(c.model, paint, 274, 52, 210, 110, this.t, al, liv);
     Render.text(c.name, 379, 163, 17, '#ffd23a', 'center', 206);
     if (c.real) Render.text('Ngoài đời: ' + c.real, 379, 181, 11, '#a8b8d0', 'center', 208);
     const top = k => Math.max(...DRIFT_CARS.map(x => x[k])), sc = Align.stats(al, c).score;
@@ -411,9 +426,12 @@ const Game = {
       Render.rr(x, 269, 12, 10, 2, p, on ? '#ffd23a' : 'rgba(255,255,255,0.3)');
       if (on) { g.strokeStyle = '#ffd23a'; g.lineWidth = 1.2; g.strokeRect(x - 1.5, 267.5, 15, 13); }
     });
-    Render.text(this.ownsCar(ci) ? '← → đổi màu sơn' : 'Mua xe để đổi màu sơn', 379, 283, 12, '#a8b8d0', 'center', 200);
+    Render.text(this.ownsCar(ci) ? '← → đổi màu sơn' : 'Mua xe để đổi màu sơn', 379, 280, 11, '#a8b8d0', 'center', 200);
+    // the stripes: style and colour
+    Render.text('TEM (T): ' + DRIFT_LIVERIES[Livery.style(liv)], 280, 290, 11, '#ffffff', 'left', 130);
+    if (liv) { Render.text('MÀU (Y)', 452, 290, 11, '#ffffff', 'right', 46); Render.rr(457, 291, 22, 7, 2, Livery.color(liv), 'rgba(255,255,255,0.5)'); }
     if (this.gmsg) Render.text(this.gmsg, 140, 258, 15, '#7fff7f', 'center', 230);
-    Render.text('ENTER mua/chọn   C căn chỉnh góc bánh   ESC quay lại', 140, 282, 12, '#a8b8d0', 'center', 236);
+    Render.text('ENTER mua/chọn  C căn góc bánh  T/Y tem xe  ESC quay lại', 140, 282, 12, '#a8b8d0', 'center', 236);
   },
   // ---------------- wheel alignment (garage, C): camber, toe, caster of an owned car ----------------
   // per angle: its name, the 3D view that shows it, and what it does (the garage's explanation)
@@ -697,7 +715,7 @@ const Game = {
     const laps = Track.laps(s.level);
     const items = THEMES.map((t, i) => ({ a: t.name, b: t.desc + (t.circuit ? ' · ' + laps + ' vòng' : ''), ok: s.passed.includes(i), gp: t.circuit }));
     items.push({ a: 'ĐUA Ô TÔ DRIFT', b: 'Mới! Ô tô drift trên đèo cua tay áo - ghi điểm bằng góc trượt', ok: false, col: '#ff9a5a', tag: 'MỚI' });
-    items.push({ a: 'CHƠI ONLINE', b: 'Phòng chờ - đua cùng bạn bè qua mạng', ok: false, col: '#7fff7f' });
+    items.push({ a: 'CHƠI ONLINE', b: 'Phòng chờ - đua cùng bạn bè qua mạng' + (Net.onlineText() ? ' · ' + Net.onlineText() : ''), ok: false, col: '#7fff7f' });
     items.push({ a: 'CỬA HÀNG XE', b: 'Mua xe mới, sửa xe', ok: false });
     const g = Render.g, rh = 17;
     items.forEach((it, i) => {

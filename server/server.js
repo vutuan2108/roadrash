@@ -20,7 +20,7 @@ vm.createContext(sandbox);
 for (const f of ['js/core.js', 'js/track.js', 'js/race.js', 'js/drift.js']) {
   vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox, { filename: f });
 }
-const G = vm.runInContext('({ Race, THEMES, BIKES, CAR_COLS, CAR_TYPES, decodeInput, DRIFT_CARS, DRIFT_MAPS, Align })', sandbox);
+const G = vm.runInContext('({ Race, THEMES, BIKES, CAR_COLS, CAR_TYPES, decodeInput, DRIFT_CARS, DRIFT_MAPS, Align, Livery })', sandbox);
 const WEAPON = { club: 1, chain: 2 };
 
 // ---------- static files ----------
@@ -30,6 +30,11 @@ const server = http.createServer((req, res) => {
   let p;
   try { p = decodeURIComponent(new URL(req.url, 'http://x').pathname); } catch (e) { p = ''; }
   if (p === '/healthz') { res.writeHead(200, { 'Content-Type': 'text/plain' }); res.end('ok'); return; }
+  if (p === '/online') {   // who is on: the page asks every 20 s (also from another site: the game hosted elsewhere)
+    let id = ''; try { id = new URL(req.url, 'http://x').searchParams.get('id') || ''; } catch (e) {}
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify(onlineCount(id))); return;
+  }
   if (p === '/') p = '/index.html';
   const file = path.normalize(path.join(ROOT, p));
   const allowed = (p === '/index.html' || p.startsWith('/js/')) && file.startsWith(path.join(ROOT, path.sep));
@@ -43,6 +48,16 @@ const server = http.createServer((req, res) => {
 
 // ---------- players and rooms ----------
 const rooms = new Map();   // code -> room
+// players on line: every open game page says hello every 20 s with its own random id (GET /online?id=), whatever it is
+// doing (menus, a solo race, an online room); a page not heard from for 50 s is gone. inRoom: those in online rooms
+const seen = new Map(), SEEN_MS = 50000;   // id -> when last heard from
+function onlineCount(id) {
+  const now = Date.now();
+  if (/^[a-z0-9]{6,16}$/.test(id) && (seen.has(id) || seen.size < 20000)) seen.set(id, now);
+  for (const [k, t] of seen) if (now - t > SEEN_MS) seen.delete(k);
+  let inRoom = 0; for (const r of rooms.values()) inRoom += r.players.size;
+  return { n: Math.max(seen.size, wss.clients.size), inRoom, rooms: rooms.size };
+}
 const lobby = new Set();   // connected players not in a room (they get the room list)
 let nextId = 1;
 // HB_LAG=<ms>: testing only - simulates that much round-trip network delay (half each way)
@@ -77,6 +92,7 @@ function setProfile(p, m) {
   p.level = clampInt(m.level, 1, 5, 1);
   p.dcar = clampInt(m.dcar, 0, G.DRIFT_CARS.length - 1, 0);
   p.dpaint = /^#[0-9a-fA-F]{6}$/.test(String(m.dpaint)) ? String(m.dpaint) : G.DRIFT_CARS[p.dcar].color;
+  p.dliv = G.Livery.clean(m.dliv);   // (stripes over the paint)
   p.dal = G.Align.clean(m.dal && typeof m.dal === 'object' ? m.dal : G.Align.def(G.DRIFT_CARS[p.dcar]));   // (wheel alignment, numbers in range)
 }
 function joinRoom(p, room) {
@@ -118,7 +134,7 @@ function startRace(room) {
 function startDrift(room) {
   const ps = [...room.players.values()];
   if (ps.some(p => p.id !== room.host && !p.ready)) return;
-  const cars = ps.map(p => ({ id: p.id, name: p.name, car: p.dcar, paint: p.dpaint, al: p.dal }));
+  const cars = ps.map(p => ({ id: p.id, name: p.name, car: p.dcar, paint: p.dpaint, liv: p.dliv, al: p.dal }));
   room.drift = { map: room.dmap, cars, fin: new Map(), t: 0, endAt: null };
   room.state = 'race'; room.running = false; room.tickN = 0; room.loadT = 0;
   room.waitLoad = new Set(ps.map(p => p.id));
@@ -292,7 +308,7 @@ function handle(p, m) {
 const wss = new WebSocketServer({ server, maxPayload: 4096 });
 wss.on('connection', ws => {
   const p = { id: 'p' + (nextId++), ws, name: 'Tay đua', bike: 0, bikeHp: 100, level: 1, room: null, ready: false, q: [], ack: 0, lastK: 0, ev: [],
-    dcar: 0, dpaint: '#f2f2f0', dst: null };
+    dcar: 0, dpaint: '#f2f2f0', dliv: '', dst: null };
   lobby.add(p);
   ws.on('message', data => { let m; try { m = JSON.parse(data); } catch (e) { return; } if (m && typeof m === 'object') later(() => handle(p, m)); });
   ws.on('close', () => { lobby.delete(p); leaveRoom(p); });
