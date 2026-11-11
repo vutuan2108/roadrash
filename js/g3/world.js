@@ -1093,7 +1093,8 @@ const World = (() => {
       o.setBrake(c.brk > 0);
       o.paint.envMap = this.env;
       if (!me && dist > 260) return;
-      // tyres: smoke from the rear, rubber on the road from any tyre that slides
+      // tyres: rubber on the road from any tyre that slides, and a thin wisp of smoke off each rear tyre (small, faint,
+      // short-lived puffs that stay by the wheel: the car must always show through them)
       const sn = Math.sin(c.psi), cs = Math.cos(c.psi), spd = Math.hypot(c.vx, c.vz), q = this._dq || (this._dq = {});
       const marks = [c.frontSlide > 0.5 || (c.brk > 0 && spd > 8 && c.frontSlide > 0.3), c.rearSlide > 0.35 || c.wheelSpin > 0.4 || (c.hand && spd > 3)];
       for (let i = 0; i < 4; i++) {
@@ -1103,14 +1104,15 @@ const World = (() => {
         const on = marks[front ? 0 : 1] && (spd > 1.5 || c.wheelSpin > 0.4);
         if (on) this.skids.add(k * 4 + i, x, q.y + this.dy + 0.012, z, cs, -sn, S.wheel.w * 0.55, Math.min(0.75, 0.28 + (front ? c.frontSlide : Math.max(c.rearSlide, c.wheelSpin)) * 0.45));
         else this.skids.cut(k * 4 + i);
-        const sm = front ? Math.max(0, c.frontSlide - 0.6) * 0.5 : c.smoke;
-        if (sm > 0.12 && dt > 0) {
-          o.emitAcc[i] += sm * (front ? 25 : 60) * dt * (me ? 1 : 0.5);   // the others' smoke lighter: it must not blind the player
+        const sm = front ? 0 : Math.min(1, c.smoke);
+        if (sm > 0.2 && dt > 0) {
+          o.emitAcc[i] += sm * 70 * dt * (me ? 1 : 0.6);   // the others' smoke lighter: it must not blind the player
           while (o.emitAcc[i] >= 1) {
             o.emitAcc[i]--;
             const j = () => (Math.random() - 0.5);
-            this.smoke.emit(x + j() * 0.3, q.y + this.dy + 0.25, z + j() * 0.3, c.vx * 0.25 + j() * 1.6 + cs * side * 0.8, 0.5 + Math.random() * 0.6, c.vz * 0.25 + j() * 1.6 - sn * side * 0.8,
-              0.9, 3.2 + Math.random() * 1.6 + sm * 1.5, 1.4 + Math.random() * 1.2, (0.21 + 0.2 * sm) * (me ? 1 : 0.7));
+            // (born on the road under the tyre and going up more than out)
+            this.smoke.emit(x + j() * 0.12, q.y + this.dy + 0.03, z + j() * 0.12, c.vx * 0.08 + j() * 0.3 + cs * side * 0.15, 1.3 + Math.random() * 0.7, c.vz * 0.08 + j() * 0.3 - sn * side * 0.15,
+              0.3, 1.3 + Math.random() * 0.6 + sm * 0.5, 0.75 + Math.random() * 0.5, (0.08 + 0.065 * sm) * (me ? 1 : 0.7));
           }
         }
       }
