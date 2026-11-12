@@ -126,7 +126,7 @@ Các xe được dựng theo dáng và màu sơn gốc của xe thật:
 
 ## Đua ô tô drift
 
-Vào **ĐUA Ô TÔ DRIFT** ở menu chính. Chạy hết cung đường và ghi điểm bằng những pha trượt ngang, một mình hoặc cùng tối đa 5 xe máy.
+Sau màn hình tiêu đề, game hỏi chế độ chơi: **ĐUA XE MÁY** hoặc **ĐUA Ô TÔ DRIFT** (← → chọn, ENTER vào). Mỗi chế độ có menu riêng với bản đồ, chơi online và cửa hàng / gara của nó. Chọn **ĐUA Ô TÔ DRIFT**. Chạy hết cung đường và ghi điểm bằng những pha trượt ngang, một mình hoặc cùng tối đa 5 xe máy.
 
 ### Đối thủ máy
 
@@ -214,7 +214,10 @@ Các xe trong game đều là bản độ drift, mạnh hơn số liệu ngoài 
 | Ford Mustang GT-R | Mustang GT 2018 (S550) gắn bộ thân đua kiểu GT-R: cản trước có lip đỏ, cánh gió lớn, ống xả giữa. Ngoài đời: Coyote 5.0 L V8, 460 mã lực ở 7000 vòng/phút, 569 Nm, khoảng 1680 kg, số sàn 6 cấp, 250 km/h (giới hạn điện tử). Trong game 650 mã lực, 810 Nm, chỉ cần đạp ga là đuôi xe văng ra |
 | Nissan Silvia S15 Custom | Bản drift chuyên nghiệp: thân rộng, cánh GT, canard, lồng an toàn. SR20DET độ turbo lớn (khoảng 350 mã lực ngoài đời), bỏ bớt nội thất còn 1190 kg, góc lái lớn. Trong game 500 mã lực, 560 Nm, 0–200 km/h 8,7 giây |
 | Porsche 911 GT2 (993) | Máy boxer 3.6 L twin-turbo đặt sau, dẫn động cầu sau. Ngoài đời: 430 mã lực, 540 Nm, 1295 kg, 0–100 km/h 4,4 giây, 295 km/h. Trong game 615 mã lực, 0–100 km/h 2,6 giây. Nặng đuôi nên đuôi xe dễ văng |
+| Ford Mustang GT Drift Spec | Mustang GT 2018 bản drift: vè rộng để sơn lót đen, cánh lớn. Xe zin: V8 Coyote 5.0 L, 460 mã lực, 569 Nm, khoảng 1700 kg, hộp số 6 cấp lấy theo xe thật. Trong game: 720 mã lực, 900 Nm, 1560 kg |
+| Toyota GT86 Sugar Skull | Thân rộng, dán tem kín thân "Sugar Skull" lấy nguyên từ mẫu 3D (màu sơn nền đổi được, hình tem giữ nguyên), mâm trắng. Xe zin: máy boxer FA20 2.0 L, 200 mã lực, 205 Nm, khoảng 1240 kg, hộp số 6 cấp lấy theo xe thật. Bản drift trong game: 640 mã lực, 800 Nm, 1260 kg |
 | Mazda RX-7 BN Sports | Bộ thân BN Sports BLS, cánh GT lớn, đèn pop-up. Máy xoay 13B độ lớn, khoảng 600 mã lực ngoài đời. Trong game 700 mã lực, quay tới 8500 vòng/phút |
+| Nissan Silvia S15 LB-Super Silhouette | Bộ thân Liberty Walk LB-Super Silhouette, dán tem nhà tài trợ của mẫu 3D (đổi được màu sơn). Xe zin (Spec-R): SR20DET 2.0 L turbo, 250 mã lực, 275 Nm, khoảng 1240 kg, hộp số 6 cấp lấy theo xe thật. Trong game: 620 mã lực, 700 Nm, 1180 kg |
 | Nissan GT-R R35 LB-Silhouette | Bộ thân Liberty Walk LB-Silhouette WORKS GT 35GT-RR, cánh GT. Ngoài đời: VR38DETT 3.8 L V6 twin-turbo, 570 mã lực ở 6800 vòng/phút, 633 Nm, khoảng 1750 kg, hộp số ly hợp kép 6 cấp, 315 km/h. Xe thật dẫn động 4 bánh, trong game là bản drift dẫn động cầu sau: 800 mã lực, 900 Nm |
 | Ferrari F40 LB-Works | Bộ thân Liberty Walk. Ngoài đời: V8 2.9 L twin-turbo đặt giữa, 478 mã lực ở 7000 vòng/phút, 577 Nm, khoảng 1250 kg, 324 km/h. Trong game 685 mã lực, 835 Nm, 0–100 km/h 2,4 giây |
 | Nissan 180SX Wisteria D1 | Xe đua D1 Grand Prix 2018 số 66 của đội Toyo Tires Drift Wisteria (tay lái Hideyuki Fujino): 180SX thay máy 2JZ độ lên 3.4 L, khoảng 850 mã lực. Trong game giới hạn ở 780 mã lực, 900 Nm, 1200 kg, góc lái lớn nhất. Xe đắt nhất gara |
@@ -224,6 +227,10 @@ Công suất, mô-men, trọng lượng và tốc độ ngoài đời lấy theo
 Tất cả xe đều dựng từ mẫu 3D trong thư mục `car/` (xem phần Ghi công), có mâm, lốp, đĩa phanh và heo phanh riêng của mẫu. Bánh xe quay đúng trục và đánh lái được. Các xe dựng bằng khối hình học trước đây (AE86, Silvia S15, RX-7 FD3S, Mustang GT) đã bỏ. Save cũ có các xe này được hoàn lại tiền mua, và Datsun 280Z thay AE86 làm xe có sẵn. Mẫu của xe được tải dần trong nền sau khi mở game. Nếu vào đua khi mẫu chưa tải xong, game hiện "ĐANG TẢI XE..." trong giây lát. Cách chuyển mẫu xem `tools/glb/README.md`.
 
 ### Căn chỉnh góc đặt bánh (camber, toe, caster)
+
+Cũng trong màn này có hai dòng **MÂM XE** và **MÀU MÂM** (← → để đổi): lắp bộ mâm và lốp của bất kỳ mẫu xe nào trong game lên xe đang chọn, và đổi màu mặt mâm. Mâm được chỉnh cỡ cho vừa bánh của xe nên không ảnh hưởng tới cách xe chạy. Lựa chọn lưu riêng cho từng xe và dùng cả khi đua online.
+
+Xe có tem riêng (GT86 Sugar Skull, S15 LB-Super Silhouette, GT-R R35) vẫn đổi được màu sơn trong gara: màu sơn hiện ở phần nền, hình tem giữ nguyên. Các xe này không dán thêm tem sọc.
 
 Trong gara, chọn một xe đã mua rồi nhấn **C**. Có 5 góc: camber trước, camber sau, toe trước, toe sau, caster. ↑↓ chọn, ← → chỉnh (giữ phím để chỉnh nhanh), ESC lưu và quay lại. Bộ góc lưu riêng cho từng xe và dùng cả khi đua online (người khác thấy bánh xe bạn nghiêng đúng như thế).
 
@@ -271,11 +278,18 @@ Cách đưa lên web để bạn bè chơi giống phần mô tô: chạy máy c
   - Porsche 911 GT2 (`js/g3/gt2.js`): ["1995 Porsche 911 GT2 (993)"](https://sketchfab.com/3d-models/1995-porsche-911-gt2-993-2b3843db0f784ab0a8702f6361d16d2a).
   - Mazda RX-7 VeilSide Fortune (`js/g3/rx7vs.js`): ["1997 VeilSide Fortune Mazda RX-7 FD Tokyo Drift"](https://sketchfab.com/3d-models/1997-veilside-fortune-mazda-rx-7-fd-tokyo-drift-7db6bd58bb8f405abeb5ed02bcabc960).
   - Mazda RX-7 BN Sports (`js/g3/rx7bn.js`): ["2018 BN Sports BLS FD RX7"](https://sketchfab.com/3d-models/2018-bn-sports-bls-fd-rx7-5bc518f3c2664ae2ad7b0a0783759b09).
+  - Nissan Silvia S15 LB-Super Silhouette (`js/g3/s15lb.js`): ["2023 LB★SUPER SILHOUETTE S15 Silvia"](https://sketchfab.com/3d-models/2023-lbsuper-silhouette-s15-silvia-702d9937d68b4542929dfef59d1079cd). Texture decal được nén lại.
   - Nissan Skyline GT-R R34 (`js/g3/r34.js`): ["Eddie's Nissan Skyline R34 NFS Underground"](https://sketchfab.com/3d-models/eddies-nissan-skyline-r34-nfs-underground-9a6bc4ed690546a1bf02832764f1c888). Game không dùng lớp tem của mẫu.
   - Các mẫu đã được chỉnh sửa: giảm số tam giác, bỏ nội thất và khoang máy, tô lại màu từng phần.
 - Mẫu 3D Ferrari F40 LB-Works (`js/g3/f40.js`) dựa trên mẫu ["LB-Works Ferrari F40 | www.vecarz.com"](https://sketchfab.com/3d-models/lb-works-ferrari-f40-wwwvecarzcom-011cad3526e945799d6e98dde6390182) của tác giả [vecarz](https://sketchfab.com/heynic).
   - Giấy phép: [CC BY-NC-SA 4.0](http://creativecommons.org/licenses/by-nc-sa/4.0/) (không dùng cho mục đích thương mại, bản chỉnh sửa chia sẻ cùng giấy phép).
   - Mẫu đã được chỉnh sửa: giảm số tam giác, bỏ nội thất, tô lại màu từng phần.
+- Mẫu 3D Ford Mustang GT Drift Spec (`js/g3/gtd.js`) dựa trên mẫu ["Ford Mustang GT Drift Spec"](https://sketchfab.com/3d-models/ford-mustang-gt-drift-spec-0312ea7877eb444e9849f523e700d1cc) của tác giả [blakebella](https://sketchfab.com/blakebella).
+  - Giấy phép: [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/).
+  - Mẫu đã được chỉnh sửa: giảm số tam giác, bỏ nội thất và khoang máy, tô lại màu từng phần.
+- Mẫu 3D Toyota GT86 Sugar Skull (`js/g3/gt86ss.js`) dựa trên mẫu ["Toyota GT86 Sugar Skull"](https://sketchfab.com/3d-models/toyota-gt86-sugar-skull-33cb91ba4074499789394274e4d7eded) của tác giả [VTDAT23](https://sketchfab.com/VTDAT23).
+  - Giấy phép: [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/).
+  - Mẫu đã được chỉnh sửa: giảm số tam giác, bỏ nội thất và khoang máy, tô lại màu từng phần. Tem thân xe giữ nguyên từ texture của mẫu (nén lại, phần nền nhận màu sơn của xe).
 - Mẫu 3D Toyota Supra A80 (`js/g3/supra.js`) dựa trên mẫu ["Toyota Supra"](https://sketchfab.com/3d-models/toyota-supra-16ab211659114ad1bf45095a67c0d325) của tác giả [Mateusz Woliński](https://sketchfab.com/jeandiz).
   - Giấy phép: [CC BY-NC 4.0](http://creativecommons.org/licenses/by-nc/4.0/) (không dùng cho mục đích thương mại).
   - Mẫu đã được chỉnh sửa: giảm số tam giác, bỏ nội thất, tô lại màu từng phần.
@@ -293,7 +307,7 @@ Cách đưa lên web để bạn bè chơi giống phần mô tô: chạy máy c
   - Mẫu đã được chỉnh sửa: giảm số tam giác, bỏ lớp tem và người lái, tô lại màu từng phần.
 - Mẫu 3D Nissan GT-R R35 LB-Silhouette (`js/g3/r35.js`) dựa trên mẫu ["2022 LB-Silhouette WORKS GT NISSAN 35GT-RR (R35)"](https://sketchfab.com/3d-models/2022-lb-silhouette-works-gt-nissan-35gt-rr-r35-19287829a2564641b586b6e4d0e0d7e9) của tác giả [SIU Car Garage](https://sketchfab.com/Game_mode).
   - Giấy phép: [CC BY-NC 4.0](http://creativecommons.org/licenses/by-nc/4.0/) (**không dùng cho mục đích thương mại**).
-  - Mẫu đã được chỉnh sửa: giảm số tam giác, bỏ lớp tem, tô lại màu từng phần.
+  - Mẫu đã được chỉnh sửa: giảm số tam giác, tô lại màu từng phần, nén lại texture thân xe (phần nền trắng nhận màu sơn).
 - Mẫu 3D Ford Mustang 1965 (`js/g3/m65.js`) dựa trên mẫu ["Ford Mustang 1965"](https://sketchfab.com/3d-models/ford-mustang-1965-5f4e3965f79540a9888b5d05acea5943) của tác giả [Pooya_dh](https://sketchfab.com/Pooya_dh).
   - Giấy phép: [CC BY-NC 4.0](http://creativecommons.org/licenses/by-nc/4.0/) (**không dùng cho mục đích thương mại**).
   - Mẫu đã được chỉnh sửa: giảm số tam giác, bỏ nội thất, tô lại màu từng phần.

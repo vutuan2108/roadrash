@@ -9,6 +9,9 @@
 // - a wheel part that spans several wheels (all four tyres in one mesh) is cut into one per wheel first; 'wheel' = a
 //   tyre and rim modelled as one mesh: found like a tyre, then cut by radius (beyond rimK x the tyre radius = tyre)
 // - cfg.colors: colours of this model's categories (rims, calipers...) over the game's defaults
+// - cfg.tex: { category: file } - categories that keep the model's texture coordinates (a body wearing a painted
+//   livery, a layer of decals): their groups get a 'uv' array, and each file (an image as a data URI, see tex_img.js)
+//   rides along in data.tex[category]. cfg.errTex: their simplification error (decals lie close over the body)
 // - cfg.byName(part): a category by part (name, material, bounds) before the material table, for models that share
 //   one material across very different parts
 const fs = require('fs'), path = require('path');
@@ -17,6 +20,7 @@ const { MeshoptSimplifier } = require(process.env.MESHOPT || 'F:/hb_tmp/nodetool
 const C = require(path.resolve(process.argv[2]));
 (async () => {
   await MeshoptSimplifier.ready;
+  MeshoptSimplifier.useExperimentalFeatures = true;   // (simplifyWithAttributes, for parts that keep their texture coordinates)
   // (cfg.frame: glTF -> game frame for models that do not face +z, e.g. (x, y, z) => [-x, y, -z] for one facing -z)
   const loaded0 = load(C.glb, 1, C.frame || ((x, y, z) => [x, y, z])).parts;
   // (cfg.split(part): a function of a triangle's centre [x, y, z] (game frame, raw units) -> its category, for a part
@@ -42,7 +46,7 @@ const C = require(path.resolve(process.argv[2]));
   }
   const catOfMat = new Map(); for (const [k, ids] of Object.entries(C.mats)) for (const id of ids) catOfMat.set(id, k);
   const catOf = p => p.cat || (C.byName && C.byName(p)) || catOfMat.get(p.mat) || 'trim';
-  const WHEEL = new Set(C.wheel);
+  const WHEEL = new Set(C.wheel), TEXC = new Set(Object.keys(C.tex || {}));
   // ---- wheel parts spanning several wheels: cut by quarter of the car (round the middle of all the tyres)
   const box = list => { const lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9]; for (const p of list) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], p.lo[k]); hi[k] = Math.max(hi[k], p.hi[k]); } return { lo, hi }; };
   const tb = box(loaded.filter(p => ['tyre', 'wheel'].includes(catOf(p)))), mx = (tb.lo[0] + tb.hi[0]) / 2, mz = (tb.lo[2] + tb.hi[2]) / 2;
@@ -103,7 +107,7 @@ const C = require(path.resolve(process.argv[2]));
       if (It.length) body.push({ cat: 'tail', P, I: Uint32Array.from(It), tris: It.length / 3 });
       continue;
     }
-    body.push({ cat, P, I: p.I, tris: p.tris });
+    body.push({ cat, P, I: p.I, tris: p.tris, UV: TEXC.has(cat) ? p.UV : null });
   }
   // ---- each kept wheel turned onto its own axle: modelled wheels lean in (camber) and may toe, so spinning them about
   // the car's x axis would wobble. The tyre's axis is the direction its vertices spread least; the wheel is stored
@@ -160,28 +164,40 @@ const C = require(path.resolve(process.argv[2]));
     console.log(' wheel', k, 'axle', ax.map(v => v.toFixed(3)).join(' '), 'camber', (Math.asin(ax[1]) * 57.3).toFixed(1), 'deg, toe left out', (Math.atan2(ax[2], ax[0]) * 57.3).toFixed(1), 'deg, hub', hub.map(v => v.toFixed(3)).join(' '), 'R', ((hi[1] - lo[1]) / 2).toFixed(3));
   }
   // ---- weld + simplify + pack
-  const Q = 8000, b64 = a => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64');
-  const pack = (list, ERR) => {
+  const Q = 8000, QUV = 8192, b64 = a => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64');
+  const pack = (list, ERR0) => {
     const groups = {}; let before = 0, after = 0;
     for (const p of list) {
-      const map = new Map(), V = [], remap = new Uint32Array(p.P.length / 3);
+      let ERR = ERR0;
+      const map = new Map(), V = [], TV = [], remap = new Uint32Array(p.P.length / 3);
       for (let i = 0; i < remap.length; i++) {
-        const k = Math.round(p.P[i * 3] * 20000) + ',' + Math.round(p.P[i * 3 + 1] * 20000) + ',' + Math.round(p.P[i * 3 + 2] * 20000);
-        let j = map.get(k); if (j === undefined) { j = V.length / 3; map.set(k, j); V.push(p.P[i * 3], p.P[i * 3 + 1], p.P[i * 3 + 2]); } remap[i] = j;
+        // (textured parts: welded only where the texture coordinates agree too, so the seams of the texture stay)
+        const k = Math.round(p.P[i * 3] * 20000) + ',' + Math.round(p.P[i * 3 + 1] * 20000) + ',' + Math.round(p.P[i * 3 + 2] * 20000) +
+          (p.UV ? ',' + Math.round(p.UV[i * 2] * 8192) + ',' + Math.round(p.UV[i * 2 + 1] * 8192) : '');
+        let j = map.get(k); if (j === undefined) { j = V.length / 3; map.set(k, j); V.push(p.P[i * 3], p.P[i * 3 + 1], p.P[i * 3 + 2]); if (p.UV) TV.push(p.UV[i * 2], p.UV[i * 2 + 1]); } remap[i] = j;
       }
       const I = [];
       for (let t = 0; t < p.I.length; t += 3) { const a = remap[p.I[t]], b = remap[p.I[t + 1]], c = remap[p.I[t + 2]]; if (a !== b && b !== c && a !== c) I.push(a, b, c); }
       const Vf = new Float32Array(V);
       let out = Uint32Array.from(I);
-      if (I.length > 120) [out] = MeshoptSimplifier.simplify(out, Vf, 3, Math.max(24, Math.floor(I.length * 0.01 / 3) * 3), ERR, ['ErrorAbsolute']);
+      if (p.UV && C.errTex) ERR = Math.min(ERR, C.errTex);
+      const target = Math.max(24, Math.floor(I.length * 0.01 / 3) * 3);
+      if (I.length > 120) [out] = p.UV ? MeshoptSimplifier.simplifyWithAttributes(out, Vf, 3, new Float32Array(TV), 2, [1, 1], null, target, ERR, ['ErrorAbsolute'])
+        : MeshoptSimplifier.simplify(out, Vf, 3, target, ERR, ['ErrorAbsolute']);
       before += p.tris; after += out.length / 3;
-      const g = groups[p.cat] || (groups[p.cat] = { P: [], I: [] }), base = g.P.length / 3, used = new Map();
-      for (const i of out) { let j = used.get(i); if (j === undefined) { j = base + used.size; used.set(i, j); g.P.push(Vf[i * 3], Vf[i * 3 + 1], Vf[i * 3 + 2]); } g.I.push(j); }
+      const g = groups[p.cat] || (groups[p.cat] = { P: [], I: [], UV: p.UV ? [] : null }), base = g.P.length / 3, used = new Map();
+      for (const i of out) { let j = used.get(i); if (j === undefined) { j = base + used.size; used.set(i, j); g.P.push(Vf[i * 3], Vf[i * 3 + 1], Vf[i * 3 + 2]); if (g.UV) g.UV.push(TV[i * 2], TV[i * 2 + 1]); } g.I.push(j); }
     }
     const res = [];
     for (const [cat, g] of Object.entries(groups)) {
       const nv = g.P.length / 3;
       res.push({ cat, n32: nv >= 65536 ? 1 : 0, pos: b64(Int16Array.from(g.P, v => Math.round(v * Q))), idx: b64(nv < 65536 ? Uint16Array.from(g.I) : Uint32Array.from(g.I)) });
+      if (g.UV) {
+        // (16 bit fixed point - or floats (uvf) for a part whose texture repeats far from the unit square)
+        const far = g.UV.some(v => Math.abs(v) > 3.99), r = res[res.length - 1];
+        r.uv = b64(far ? Float32Array.from(g.UV) : Int16Array.from(g.UV, v => Math.round(v * QUV)));
+        if (far) r.uvf = 1;
+      }
       if (process.env.VERBOSE) console.log('   ', cat.padEnd(10), 'tris', g.I.length / 3);
     }
     return { res, before, after };
@@ -201,6 +217,7 @@ const C = require(path.resolve(process.argv[2]));
     hub: { f: orient.LF.hub.map(r3), r: orient.LB.hub.map(r3), qf: orient.LF.q.map(v => +v.toFixed(5)), qr: orient.LB.q.map(v => +v.toFixed(5)) }, head: C.head || lampAt('head'), tail: C.tail || lampAt('tail'), exh: C.exh || [] };
   console.log('spec', JSON.stringify(spec));
   const data = { q: Q, spec, groups: hiB.res, lo: loB.res, wheels: { f: wf.res, r: wr.res } };
+  if (C.tex) { data.quv = QUV; data.tex = {}; for (const k in C.tex) data.tex[k] = fs.readFileSync(C.tex[k], 'utf8').trim(); }
   fs.writeFileSync(C.out, (C.header || '') + 'window.HB_GLB = window.HB_GLB || {};\nHB_GLB.' + C.name + ' = ' + JSON.stringify(data) + ';\n');
   console.log('wrote', C.out, (fs.statSync(C.out).size / 1024).toFixed(0), 'KB');
 })().catch(e => { console.error(e); process.exit(1); });

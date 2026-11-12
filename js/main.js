@@ -3,6 +3,7 @@
 const Game = {
   state: 'title', t: 0, sel: 0, shopSel: 0, shopMsg: '', race: null, demo: null, res: null,
   dsel: 0, gsel: 0, gmsg: '', drace: null, dres: null,
+  msel: 0, mode: 'bike',   // the first screen's choice: 'bike' (motorbike racing) or 'drift' (drift cars) - each has its own menu
   last: 0, acc: 0, save: null, raceTheme: 0,
   PRIZES: [1500, 1000, 750, 500, 400, 300, 200, 150, 100, 50, 0, 0],
 
@@ -25,7 +26,7 @@ const Game = {
     let s = null;
     try { s = JSON.parse(localStorage.getItem('hb_save') || 'null'); } catch (e) { s = null; }
     this.save = Object.assign({ money: 2500000, level: 1, owned: [0], bike: 0, hp: { 0: BIKES[0].dur }, passed: [],
-      dcars: [], dcar: '', dpaint: {}, dliv: {}, dalign: {}, dbest: {}, dai: 3, dhard: false }, s || {});
+      dcars: [], dcar: '', dpaint: {}, dliv: {}, drim: {}, dalign: {}, dbest: {}, dai: 3, dhard: false }, s || {});
     // one-time gift so existing saves also get the 2.5M starting money
     if (!this.save.gift) { this.save.money = Math.max(this.save.money, 2500000); this.save.gift = 1; this.store(); }
     this.fixCars();
@@ -60,12 +61,28 @@ const Game = {
   store() { try { localStorage.setItem('hb_save', JSON.stringify(this.save)); } catch (e) { /* ignore */ } },
   bikeHp() { const s = this.save; return s.hp[s.bike] !== undefined ? s.hp[s.bike] : BIKES[s.bike].dur; },
 
+  // the race behind the title screen and the menus: drift cars with computer drivers on one of the mountain passes
+  // (the camera rides behind one of them). It starts once the models of its cars are in
   newDemo() {
-    this.demo = new Race({ themeIdx: U.randInt(0, THEMES.length - 1), level: 1, bikeIdx: U.randInt(0, 3), demo: true, seed: U.randInt(1, 99999) });
+    const maps = DRIFT_MAPS.map((m, i) => i).filter(i => !DRIFT_MAPS[i].circuit);
+    const ci = U.randInt(0, DRIFT_CARS.length - 1), car = DRIFT_CARS[ci];
+    const r = this.demo = new DriftRace({ mapIdx: maps[U.randInt(0, maps.length - 1)], carIdx: ci, paint: car.ownLiv ? car.color : DRIFT_PAINTS[U.randInt(0, DRIFT_PAINTS.length - 1)],
+      ais: 3, demo: true });
+    r.ready = false;
+    Promise.all(r.racers.map(c => Models.loadCar(c.spec.model))).then(() => { r.ready = true; }, () => { r.ready = true; });
   },
   updDemo(dt) {
-    if (!this.demo || this.demo.player.z > this.demo.finishZ - 4000) this.newDemo();
-    this.demo.update(dt);
+    const r = this.demo;
+    if (!r || r.over || r.car.fin || r.progress() > 0.92) { this.newDemo(); return; }
+    if (r.ready !== false) r.update(dt, {});
+  },
+  // the demo as the backdrop of a screen (a dark sky while its cars are still loading)
+  drawDemo() {
+    if (this.demo && this.demo.ready !== false) { Render.frame(this.demo); return; }
+    Render.begin();
+    const g = Render.g, gr = g.createLinearGradient(0, 0, 0, H);
+    gr.addColorStop(0, '#060814'); gr.addColorStop(1, '#1a2040');
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
   },
   startRace(ti) {
     const s = this.save;
@@ -109,8 +126,10 @@ const Game = {
     switch (this.state) {
       case 'title':
         this.updDemo(dt);
-        if (Input.pressed('ok')) { this.state = 'menu'; this.sel = 0; Sound.beep(660, 0.08); Sound.music.start(); }
+        if (Input.pressed('ok')) { this.state = 'mode'; Sound.beep(660, 0.08); Sound.music.start(); }
         break;
+      case 'mode': this.updDemo(dt); this.updMode(); break;
+      case 'help': this.updDemo(dt); this.updHelp(); break;
       case 'menu': this.updDemo(dt); this.updMenu(); break;
       case 'shop': this.updDemo(dt); this.updShop(); break;
       case 'race':
@@ -165,6 +184,7 @@ const Game = {
   driftKey(id, hard) { return id + (hard ? ':h' : ''); },
   driftBest(i) { return this.save.dbest[this.driftKey(DRIFT_MAPS[i].id, this.save.dhard)] || 0; },
   carPaint(i) { return this.save.dpaint[DRIFT_CARS[i].model] || DRIFT_CARS[i].color; },
+  carRim(i) { return Rim.clean(this.save.drim[DRIFT_CARS[i].model]); },       // (the car's wheels: model + colour, '' = its own)
   carLiv(i) { return Livery.clean(this.save.dliv[DRIFT_CARS[i].model]); },   // (the car's stripes: style + colour, '' = none)
   // the car's wheel alignment (camber, toe, caster): the player's own, else what the car comes with
   carAlign(i) { const c = DRIFT_CARS[i]; return Align.clean(this.save.dalign[c.model] || Align.def(c)); },
@@ -172,7 +192,8 @@ const Game = {
     const n = DRIFT_MAPS.length + 5, HARD = DRIFT_MAPS.length, AI = HARD + 1, s = this.save;
     if (Input.pressed('up')) { this.dsel = (this.dsel + n - 1) % n; Sound.beep(520, 0.05); }
     if (Input.pressed('down')) { this.dsel = (this.dsel + 1) % n; Sound.beep(520, 0.05); }
-    if (Input.pressed('back')) { this.state = 'menu'; return; }
+    if (Input.pressed('back')) { this.state = 'mode'; return; }
+    if (Input.pressed('horn')) { this.state = 'help'; this.helpBack = true; return; }   // (H: how to play)
     // the number of computer drivers: left / right (or ENTER to step through)
     const dir = (Input.pressed('right') ? 1 : 0) - (Input.pressed('left') ? 1 : 0) || ((this.dsel === AI || this.dsel === HARD) && Input.pressed('ok') ? 1 : 0);
     if (this.dsel === HARD) {   // easy (the road as it is) / hard (half as wide)
@@ -188,15 +209,15 @@ const Game = {
     if (this.dsel < DRIFT_MAPS.length) this.startDrift(this.dsel);
     else if (this.dsel === AI + 1) Net.open(null, 'drift');   // online: rooms created from here race drift
     else if (this.dsel === AI + 2) { this.state = 'garage'; this.gsel = this.dIdx(); this.gmsg = ''; }
-    else this.state = 'menu';
+    else this.state = 'mode';
   },
   startDrift(i) {
     const s = this.save, ci = this.dIdx();
-    const r = this.drace = new DriftRace({ mapIdx: i, carIdx: ci, paint: this.carPaint(ci), liv: this.carLiv(ci), al: this.carAlign(ci), ais: s.dai | 0, hard: !!s.dhard });
+    const r = this.drace = new DriftRace({ mapIdx: i, carIdx: ci, paint: this.carPaint(ci), liv: this.carLiv(ci), rim: this.carRim(ci), al: this.carAlign(ci), ais: s.dai | 0, hard: !!s.dhard });
     this.state = 'drift';
     Sound.music.stop();
     r.ready = false;   // until the 3D models of all its cars are in
-    Promise.all(r.racers.map(c => Models.loadCar(c.spec.model))).then(() => { r.ready = true; }, () => { r.ready = true; });
+    Promise.all(r.racers.flatMap(c => [c.spec.model, Rim.model(c.rim)]).filter(Boolean).map(m => Models.loadCar(m))).then(() => { r.ready = true; }, () => { r.ready = true; });
   },
   finishDrift(reason) {
     const r = this.drace, s = this.save, id = this.driftKey(r.def.id, r.hard), quit = reason === 'quit', score = r.score;
@@ -229,7 +250,8 @@ const Game = {
     // T: the next style of stripes, Y: their next colour (an owned car)
     const tS = Input.pressed('livery'), tC = Input.pressed('liveryCol');
     if ((tS || tC) && i < DRIFT_CARS.length) {
-      if (!this.ownsCar(i)) { this.gmsg = 'Mua xe trước rồi mới dán tem được'; Sound.beep(200, 0.1); }
+      if (DRIFT_CARS[i].ownLiv) { this.gmsg = 'Xe này đã có tem riêng (vẫn đổi được màu sơn)'; Sound.beep(200, 0.1); }
+      else if (!this.ownsCar(i)) { this.gmsg = 'Mua xe trước rồi mới dán tem được'; Sound.beep(200, 0.1); }
       else {
         const cur = this.carLiv(i), st = Livery.style(cur), col = Livery.color(cur) || Livery.contrast(this.carPaint(i));
         let v;
@@ -242,7 +264,7 @@ const Game = {
     // C: the wheel alignment of an owned car
     if (Input.pressed('cam') && i < DRIFT_CARS.length) {
       if (!this.ownsCar(i)) { this.gmsg = 'Mua xe trước rồi mới căn chỉnh được'; Sound.beep(200, 0.1); }
-      else { this.state = 'dalign'; this.acar = i; this.asel = 0; this.aedit = this.carAlign(i); this.amsg = ''; this.arep = 0; this.arepAcc = 0; Sound.beep(880, 0.08); return; }
+      else { this.state = 'dalign'; this.acar = i; this.asel = 0; this.aedit = this.carAlign(i); this.arim = this.carRim(i); this.amsg = ''; this.arep = 0; this.arepAcc = 0; Sound.beep(880, 0.08); return; }
     }
     if (!Input.pressed('ok')) return;
     if (i === DRIFT_CARS.length) { this.state = 'dmenu'; return; }
@@ -252,16 +274,60 @@ const Game = {
     else { this.gmsg = 'Không đủ tiền!'; Sound.beep(200, 0.2); }
     this.store();
   },
+  // the first screen after the title: motorbike racing or drift cars (left / right or up / down, ENTER)
+  updMode() {
+    if (Input.pressed('left') || Input.pressed('right') || Input.pressed('up') || Input.pressed('down')) { this.msel = 1 - this.msel; Sound.beep(520, 0.05); }
+    if (Input.pressed('back')) { this.state = 'title'; return; }
+    if (!Input.pressed('ok')) return;
+    Sound.beep(880, 0.1);
+    if (this.msel === 0) { this.mode = 'bike'; this.sel = 0; }
+    else { this.mode = 'drift'; this.dsel = 0; }
+    this.state = 'help';
+  },
+  // how to play the chosen mode: shown on the way into its menu (ENTER: on to the menu), and again from the menu with H
+  HELP: {
+    bike: { title: 'ĐUA XE MÁY · CÁCH CHƠI', col: '#ffd23a', keys: [
+      ['↑ / W', 'Tăng ga'], ['↓ / S', 'Phanh (giữ càng lâu phanh càng gấp)'], ['← → / A D', 'Lái'],
+      ['Z / J', 'Đánh / đạp đối thủ bên trái'], ['X / K', 'Đánh / đạp đối thủ bên phải'],
+      ['SPACE / SHIFT', 'Giữ cùng tăng ga: bốc đầu'], ['ESC / P', 'Tạm dừng'], ['M', 'Bật / tắt âm thanh']],
+      tips: ['Về TOP 3 ở các chặng để lên cấp, kiếm tiền mua xe mới ở cửa hàng.', 'Giữ SPACE lúc đếm ngược để xuất phát bốc đầu, tăng tốc nhanh hơn.',
+        'Tay không thì đạp - đang bốc đầu mà trúng đòn là té!'] },
+    drift: { title: 'ĐUA Ô TÔ DRIFT · CÁCH CHƠI', col: '#ff9a5a', keys: [
+      ['↑ / W', 'Ga'], ['↓ / S', 'Phanh (xe đứng yên: lùi)'], ['← → / A D', 'Lái'], ['SPACE', 'Phanh tay: khóa bánh sau để vào drift'],
+      ['SHIFT', 'Côn: giữ rồi vê ga, thả ra để "đá côn"'], ['B / V (E / Q)', 'Lên / xuống số'], ['T', 'Số tự động / số tay'],
+      ['N', 'Nitro (tự nạp lại khi drift)'], ['C', 'Đổi camera'], ['R', 'Đặt lại xe lên đường'], ['ESC / P', 'Tạm dừng']],
+      tips: ['Vào cua: kéo phanh tay hoặc đá côn, rồi giữ ga để xe trượt ngang.', 'Điểm tính theo góc trượt, tốc độ và độ sát rào. Chạm rào là mất chuỗi điểm.',
+        'Gara: mua xe, đổi màu sơn, tem, mâm và căn góc bánh (phím C).'] },
+  },
+  updHelp() {
+    const menu = this.mode === 'drift' ? 'dmenu' : 'menu';
+    if (Input.pressed('back')) { this.state = this.helpBack ? menu : 'mode'; this.helpBack = false; return; }
+    if (Input.pressed('ok')) { this.state = menu; this.helpBack = false; Sound.beep(880, 0.1); }
+  },
+  drawHelp() {
+    const h = this.HELP[this.mode], g = Render.g, n = h.keys.length, rh = Math.min(17, 176 / n);
+    this.dim(0.45); this.panel(40, 14, 432, 292);
+    Render.text(h.title, W / 2, 20, 24, h.col, 'center', 410);
+    h.keys.forEach(([k, d], i) => {
+      const y = 54 + i * rh;
+      g.fillStyle = 'rgba(255,255,255,0.1)'; g.fillRect(62, y, 116, rh - 3);
+      Render.text(k, 120, y, Math.min(14, rh - 3), '#ffd23a', 'center', 110);
+      Render.text(d, 188, y, Math.min(14, rh - 3), '#ffffff', 'left', 268);
+    });
+    g.fillStyle = 'rgba(255,255,255,0.15)'; g.fillRect(56, 236, 400, 1);
+    h.tips.forEach((t, i) => Render.text('• ' + t, 62, 241 + i * 13, 11, '#9fe0ff', 'left', 392));
+    if (Math.floor(this.t * 2) % 2 === 0) Render.text(this.helpBack ? 'ENTER / ESC: quay lại menu' : 'ENTER: tiếp tục      ESC: quay lại', W / 2, 284, 15, '#ffd23a', 'center');
+  },
   updMenu() {
-    const n = THEMES.length + 3;
+    const n = THEMES.length + 2;
     if (Input.pressed('up')) { this.sel = (this.sel + n - 1) % n; Sound.beep(520, 0.05); }
     if (Input.pressed('down')) { this.sel = (this.sel + 1) % n; Sound.beep(520, 0.05); }
-    if (Input.pressed('back')) { this.state = 'title'; return; }
+    if (Input.pressed('back')) { this.state = 'mode'; return; }
+    if (Input.pressed('horn')) { this.state = 'help'; this.helpBack = true; return; }   // (H: how to play)
     if (Input.pressed('ok')) {
       Sound.beep(880, 0.1);
       if (this.sel < THEMES.length) this.startRace(this.sel);
-      else if (this.sel === THEMES.length) { this.state = 'dmenu'; this.dsel = 0; }
-      else if (this.sel === THEMES.length + 1) Net.open();
+      else if (this.sel === THEMES.length) Net.open(null, 'bike');   // online: rooms created from here race motorbikes
       else { this.state = 'shop'; this.shopSel = this.save.bike; this.shopMsg = ''; }
     }
   },
@@ -296,9 +362,11 @@ const Game = {
   // ---------------- drawing ----------------
   draw() {
     switch (this.state) {
-      case 'title': Render.frame(this.demo); this.drawTitle(); break;
-      case 'menu': Render.frame(this.demo); this.drawMenu(); break;
-      case 'shop': Render.frame(this.demo); this.drawShop(); break;
+      case 'title': this.drawDemo(); this.drawTitle(); break;
+      case 'mode': this.drawDemo(); this.drawMode(); break;
+      case 'help': this.drawDemo(); this.drawHelp(); break;
+      case 'menu': this.drawDemo(); this.drawMenu(); break;
+      case 'shop': this.drawDemo(); this.drawShop(); break;
       case 'race':
         if (!this.race.shown) {   // one frame of "loading" while the 3D world for this track is built
           this.race.shown = true; Render.begin(); this.dim(0.6);
@@ -309,14 +377,14 @@ const Game = {
         if (this.race.over && this.race.over.t > 3) this.dim(Math.min(1, (this.race.over.t - 3)));
         break;
       case 'pause': Render.frame(this.race, true); Render.hud(this.race); this.drawPause(); break;
-      case 'results': case 'netres': Render.frame(this.demo); this.drawResults(); break;
-      case 'online': Render.frame(this.demo); this.dim(0.35); break;
+      case 'results': case 'netres': this.drawDemo(); this.drawResults(); break;
+      case 'online': this.drawDemo(); this.dim(0.35); break;
       case 'netrace': Net.draw(); break;
       case 'netdrift': Net.drawDrift(); break;
-      case 'netdres': Render.frame(this.demo); this.drawDriftResults(); break;
-      case 'dmenu': Render.frame(this.demo); this.drawDriftMenu(); break;
-      case 'garage': Render.frame(this.demo); this.drawGarage(); break;
-      case 'dalign': Render.frame(this.demo); this.drawAlign(); break;
+      case 'netdres': this.drawDemo(); this.drawDriftResults(); break;
+      case 'dmenu': this.drawDemo(); this.drawDriftMenu(); break;
+      case 'garage': this.drawDemo(); this.drawGarage(); break;
+      case 'dalign': this.drawDemo(); this.drawAlign(); break;
       case 'drift':
         if (this.drace.ready === false || !this.drace.shown) {   // the car models loading, then one frame while the stage is built
           if (this.drace.ready !== false) this.drace.shown = true;
@@ -328,7 +396,7 @@ const Game = {
         if (this.drace.over && this.drace.over.t > 3) this.dim(Math.min(1, this.drace.over.t - 3));
         break;
       case 'dpause': Render.frame(this.drace, false); Render.driftHud(this.drace); this.drawDriftPause(); break;
-      case 'dres': Render.frame(this.demo); this.drawDriftResults(); break;
+      case 'dres': this.drawDemo(); this.drawDriftResults(); break;
     }
   },
   // the keys of the drift mode (like most PC drift games: CarX, Forza, Assetto Corsa)
@@ -382,7 +450,7 @@ const Game = {
     Render.text(items[this.dsel].b, W / 2, yd, 13, '#a8b8d0', 'center', 420);
     g.fillStyle = 'rgba(255,255,255,0.15)'; g.fillRect(48, yd + 17, 416, 1);
     this.drawKeysS(48, yd + 20, 10);
-    Render.text('↑↓ chọn   ENTER bắt đầu   ESC quay lại', W / 2, 299, 12, '#a8b8d0', 'center');
+    Render.text('↑↓ chọn   ENTER bắt đầu   H hướng dẫn   ESC quay lại', W / 2, 299, 12, '#a8b8d0', 'center');
   },
   drawGarage() {
     const s = this.save, g = Render.g;
@@ -407,7 +475,7 @@ const Game = {
     g.fillStyle = 'rgba(255,255,255,0.06)'; g.fillRect(272, 50, 214, 250);
     const al = this.carAlign(ci);
     const liv = this.carLiv(ci);
-    Render.carPreview(c.model, paint, 274, 52, 210, 110, this.t, al, liv);
+    Render.carPreview(c.model, paint, 274, 52, 210, 110, this.t, al, liv, this.carRim(ci));
     Render.text(c.name, 379, 163, 17, '#ffd23a', 'center', 206);
     if (c.real) Render.text('Ngoài đời: ' + c.real, 379, 181, 11, '#a8b8d0', 'center', 208);
     const top = k => Math.max(...DRIFT_CARS.map(x => x[k])), sc = Align.stats(al, c).score;
@@ -427,11 +495,11 @@ const Game = {
       if (on) { g.strokeStyle = '#ffd23a'; g.lineWidth = 1.2; g.strokeRect(x - 1.5, 267.5, 15, 13); }
     });
     Render.text(this.ownsCar(ci) ? '← → đổi màu sơn' : 'Mua xe để đổi màu sơn', 379, 280, 11, '#a8b8d0', 'center', 200);
-    // the stripes: style and colour
-    Render.text('TEM (T): ' + DRIFT_LIVERIES[Livery.style(liv)], 280, 290, 11, '#ffffff', 'left', 130);
-    if (liv) { Render.text('MÀU (Y)', 452, 290, 11, '#ffffff', 'right', 46); Render.rr(457, 291, 22, 7, 2, Livery.color(liv), 'rgba(255,255,255,0.5)'); }
+    // the stripes: style and colour (a car with its own livery keeps that)
+    Render.text(c.ownLiv ? 'TEM: NGUYÊN BẢN CỦA XE' : 'TEM (T): ' + DRIFT_LIVERIES[Livery.style(liv)], 280, 290, 11, c.ownLiv ? '#9fe0ff' : '#ffffff', 'left', 190);
+    if (liv && !c.ownLiv) { Render.text('MÀU (Y)', 452, 290, 11, '#ffffff', 'right', 46); Render.rr(457, 291, 22, 7, 2, Livery.color(liv), 'rgba(255,255,255,0.5)'); }
     if (this.gmsg) Render.text(this.gmsg, 140, 258, 15, '#7fff7f', 'center', 230);
-    Render.text('ENTER mua/chọn  C căn góc bánh  T/Y tem xe  ESC quay lại', 140, 282, 12, '#a8b8d0', 'center', 236);
+    Render.text('ENTER mua/chọn  C căn bánh & mâm  T/Y tem xe  ESC quay lại', 140, 282, 12, '#a8b8d0', 'center', 236);
   },
   // ---------------- wheel alignment (garage, C): camber, toe, caster of an owned car ----------------
   // per angle: its name, the 3D view that shows it, and what it does (the garage's explanation)
@@ -446,7 +514,7 @@ const Game = {
     ['VỀ THÔNG SỐ GỐC', 'Bộ góc có sẵn khi mua xe. Xe đường phố: camber nhỏ, caster khoảng 5,5°, toe chụm nhẹ - đầm, dễ lái, nhưng đầu xe kém bám khi lái ngược lúc drift.'],
     ['LƯU & QUAY LẠI', 'Lưu bộ góc cho xe này (dùng cả khi chơi online) và quay về gara.']],
   updAlign(dt) {
-    const K = ALIGN.keys, n = K.length + this.ALIGN_ACTS.length, i = this.asel, c = DRIFT_CARS[this.acar];
+    const K = ALIGN.keys, NR = 2, n = K.length + NR + this.ALIGN_ACTS.length, i = this.asel, c = DRIFT_CARS[this.acar];
     if (Input.pressed('up')) { this.asel = (i + n - 1) % n; Sound.beep(520, 0.05); }
     if (Input.pressed('down')) { this.asel = (i + 1) % n; Sound.beep(520, 0.05); }
     if (Input.pressed('back')) { this.saveAlign(); this.state = 'garage'; return; }
@@ -465,13 +533,26 @@ const Game = {
       }
       return;
     }
+    // the wheels: left / right through every car's rims (the car's own first), and through their colours
+    if (i < K.length + NR) {
+      const dir = (Input.pressed('right') ? 1 : 0) - (Input.pressed('left') ? 1 : 0);
+      if (!dir) return;
+      const own = c.model, cur = Rim.model(this.arim) || own, col = Rim.color(this.arim);
+      if (i === K.length) {
+        const L = [own].concat(DRIFT_CARS.map(q => q.model).filter(m => m !== own)), m = L[(L.indexOf(cur) + dir + L.length) % L.length];
+        this.arim = Rim.make(m === own ? '' : m, col);
+        Models.loadCar(m);
+      } else this.arim = Rim.make(cur === own ? '' : cur, RIM_COLS[(Math.max(0, RIM_COLS.indexOf(col)) + dir + RIM_COLS.length) % RIM_COLS.length]);
+      this.amsg = ''; Sound.beep(700, 0.04);
+      return;
+    }
     if (!Input.pressed('ok')) return;
-    const j = i - K.length;
+    const j = i - K.length - NR;
     if (j === 0) { this.aedit = Align.clean(Align.best(c).a); this.amsg = 'Đã áp dụng bộ góc drift tối ưu cho xe này'; Sound.beep(1100, 0.15); }
     else if (j === 1) { this.aedit = Align.def(c); this.amsg = 'Đã trả về bộ góc gốc của xe'; Sound.beep(700, 0.1); }
     else { this.saveAlign(); this.state = 'garage'; this.gmsg = 'Đã lưu căn chỉnh ' + c.name; Sound.beep(880, 0.08); }
   },
-  saveAlign() { this.save.dalign[DRIFT_CARS[this.acar].model] = Align.clean(this.aedit); this.store(); },
+  saveAlign() { const m = DRIFT_CARS[this.acar].model; this.save.dalign[m] = Align.clean(this.aedit); this.save.drim[m] = Rim.clean(this.arim); this.store(); },
   // an angle as the garage writes it: camber / caster with their sign, toe as in (vào) / out (ra) per wheel
   fmtAlign(k, v) {
     const f = x => Math.abs(x).toFixed(2).replace('.', ',');
@@ -491,38 +572,52 @@ const Game = {
   },
   drawAlign() {
     const g = Render.g, c = DRIFT_CARS[this.acar], a = this.aedit, K = ALIGN.keys, sel = this.asel, D = Math.PI / 180;
-    const best = Align.best(c).a, st = Align.stats(a, c), info = sel < K.length ? this.ALIGN_INFO[K[sel]] : null;
+    const best = Align.best(c).a, st = Align.stats(a, c), info = sel < K.length ? this.ALIGN_INFO[K[sel]] : null, NR = 2;
     this.dim(0.5); this.panel(8, 6, 496, 308);
-    Render.text('CĂN CHỈNH GÓC ĐẶT BÁNH XE', 18, 10, 19, '#ff9a5a', 'left', 260);
+    Render.text('CĂN CHỈNH BÁNH XE & MÂM', 18, 10, 19, '#ff9a5a', 'left', 260);
     Render.text(c.name, 494, 14, 13, '#9fe0ff', 'right', 220);
     // ---- left: the five angles (a slider each: grey tick = the car's own setup, green = the best for drift), the actions
     K.forEach((k, r) => {
-      const y = 36 + r * 22, on = sel === r, [lo, hi] = ALIGN.rng[k], X = v => 24 + 206 * (v - lo) / (hi - lo);
-      if (on) { g.fillStyle = 'rgba(255,154,90,0.2)'; g.fillRect(16, y - 2, 222, 21); g.fillStyle = '#ff9a5a'; g.fillRect(16, y - 2, 3, 21); }
+      const y = 34 + r * 19, on = sel === r,   // (rows 19 apart: the two wheel rows fit under them)
+        [lo, hi] = ALIGN.rng[k], X = v => 24 + 206 * (v - lo) / (hi - lo);
+      if (on) { g.fillStyle = 'rgba(255,154,90,0.2)'; g.fillRect(16, y - 2, 222, 19); g.fillStyle = '#ff9a5a'; g.fillRect(16, y - 2, 3, 19); }
       Render.text((on ? '> ' : '  ') + this.ALIGN_INFO[k].name, 22, y - 1, 12, on ? '#ffd23a' : '#ffffff', 'left', 120);
       Render.text(this.fmtAlign(k, a[k]), 232, y - 1, 12, on ? '#ffd23a' : '#9fe0ff', 'right', 90);
-      g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(24, y + 14, 206, 2);
-      if (lo < 0 && hi > 0) { g.fillStyle = 'rgba(255,255,255,0.45)'; g.fillRect(X(0) - 0.4, y + 12, 0.8, 6); }   // zero
+      g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(24, y + 12, 206, 2);
+      if (lo < 0 && hi > 0) { g.fillStyle = 'rgba(255,255,255,0.45)'; g.fillRect(X(0) - 0.4, y + 10, 0.8, 6); }   // zero
       const def = Align.def(c);
-      g.fillStyle = '#8e949c'; g.fillRect(X(def[k]) - 1, y + 11, 2, 8);
-      g.fillStyle = '#4ad86a'; g.fillRect(X(best[k]) - 1, y + 11, 2, 8);
-      g.beginPath(); g.arc(X(a[k]), y + 15, on ? 3.4 : 2.6, 0, Math.PI * 2); g.fillStyle = on ? '#ffd23a' : '#e8e8e8'; g.fill();
+      g.fillStyle = '#8e949c'; g.fillRect(X(def[k]) - 1, y + 9, 2, 7);
+      g.fillStyle = '#4ad86a'; g.fillRect(X(best[k]) - 1, y + 9, 2, 7);
+      g.beginPath(); g.arc(X(a[k]), y + 13, on ? 3.2 : 2.5, 0, Math.PI * 2); g.fillStyle = on ? '#ffd23a' : '#e8e8e8'; g.fill();
+    });
+    // the wheels: whose rims, and their colour
+    const rm = Rim.model(this.arim), rc = Rim.color(this.arim), rcar = rm && DRIFT_CARS.find(q => q.model === rm);
+    [['MÂM XE', rcar ? rcar.name : 'Mâm gốc của xe'], ['MÀU MÂM', rc ? '' : 'Màu gốc']].forEach(([name, val], j) => {
+      const y = 131 + j * 14, on = sel === K.length + j;
+      if (on) { g.fillStyle = 'rgba(255,154,90,0.2)'; g.fillRect(16, y - 1, 222, 14); g.fillStyle = '#ff9a5a'; g.fillRect(16, y - 1, 3, 14); }
+      Render.text((on ? '> ' : '  ') + name, 22, y - 1, 12, on ? '#ffd23a' : '#ffffff', 'left', 70);
+      if (j === 1 && rc) {   // a swatch of the colour between the arrows
+        Render.rr(198, y + 2, 24, 8, 2, rc, 'rgba(255,255,255,0.5)');
+        if (on) { Render.text('◀', 195, y - 1, 11, '#ffd23a', 'right'); Render.text('▶', 233, y - 1, 11, '#ffd23a', 'right'); }
+      } else Render.text((on ? '◀ ' : '') + val + (on ? ' ▶' : ''), 232, y - 1, 11, on ? '#ffd23a' : '#9fe0ff', 'right', 150);
     });
     this.ALIGN_ACTS.forEach(([name], j) => {
-      const y = 148 + j * 15, on = sel === K.length + j;
-      if (on) { g.fillStyle = 'rgba(255,154,90,0.2)'; g.fillRect(16, y - 1, 222, 14); g.fillStyle = '#ff9a5a'; g.fillRect(16, y - 1, 3, 14); }
+      const y = 161 + j * 13, on = sel === K.length + NR + j;
+      if (on) { g.fillStyle = 'rgba(255,154,90,0.2)'; g.fillRect(16, y - 1, 222, 13); g.fillStyle = '#ff9a5a'; g.fillRect(16, y - 1, 3, 13); }
       Render.text((on ? '> ' : '  ') + name, 22, y - 1, 13, on ? '#ffd23a' : j === 0 ? '#7fff7f' : '#ffffff', 'left', 210);
     });
-    Render.text('▮ gốc', 150, 196, 9, '#8e949c', 'left'); Render.text('▮ tối ưu drift', 182, 196, 9, '#4ad86a', 'left');
+    Render.text('▮ gốc', 150, 199, 8, '#8e949c', 'left'); Render.text('▮ tối ưu drift', 182, 199, 8, '#4ad86a', 'left');
     // the selected row's explanation
     g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(16, 207, 222, 1);
-    const yEnd = this.wrapText(info ? info.text : this.ALIGN_ACTS[sel - K.length][1], 18, 211, 218, 9.5, '#c8d4e4', 10.5);
+    const RIM_TEXT = ['Chọn bộ mâm và lốp của bất kỳ mẫu xe nào trong game (← →). Mâm được chỉnh cỡ cho vừa bánh của xe này nên không ảnh hưởng tới cách xe chạy. Dùng cả khi chơi online.',
+      'Màu mặt mâm (← →). "Màu gốc" là màu có sẵn của bộ mâm đang chọn. Viền mâm, ốc và heo phanh giữ nguyên màu.'];
+    const yEnd = this.wrapText(info ? info.text : sel < K.length + NR ? RIM_TEXT[sel - K.length] : this.ALIGN_ACTS[sel - K.length - NR][1], 18, 211, 218, 9.5, '#c8d4e4', 10.5);
     if (this.amsg && yEnd < 284) Render.text(this.amsg, 127, 285, 11, '#7fff7f', 'center', 220);
     // ---- right: the 3D view (the angle as set, on the car) with a true-scale diagram of it
     const vx = 244, vy = 32, vw = 252, vh = 122, view = info ? info.view : '3q';
     // steering: still for camber and toe (the angle reads as set); swinging for caster and the whole car
     const steer = view === 'side' || view === '3q' ? Math.sin(this.t * 0.9) * 0.5 : 0;
-    const P = Render.alignPreview(c.model, this.carPaint(this.acar), a, view, steer, vx, vy, vw, vh, this.t);
+    const P = Render.alignPreview(c.model, this.carPaint(this.acar), a, view, steer, vx, vy, vw, vh, this.t, this.arim);
     g.strokeStyle = 'rgba(255,255,255,0.2)'; g.lineWidth = 0.75; g.strokeRect(vx, vy, vw, vh);
     const VIEW = { front: 'NHÌN TỪ PHÍA TRƯỚC', rear: 'NHÌN TỪ PHÍA SAU', top: 'NHÌN TỪ TRÊN XUỐNG (ĐẦU XE HƯỚNG LÊN)', side: 'NHÌN TỪ BÊN HÔNG (ĐẦU XE BÊN TRÁI)', '3q': 'TOÀN XE' };
     Render.text(VIEW[view], vx + 4, vy + 2, 9, '#a8b8d0', 'left', 170);
@@ -693,28 +788,43 @@ const Game = {
     const gr = g.createLinearGradient(0, 0, 0, 140);
     gr.addColorStop(0, 'rgba(0,0,0,0.75)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
     g.fillStyle = gr; g.fillRect(0, 0, W, 140);
-    this.bigText('HIGHWAY BRAWL', 18, 72);
-    Render.text('ĐUA XE  ·  ĐẤM NHAU  ·  VỀ NHẤT', W / 2, 84, 20, '#ffffff', 'center');
-    Render.text('MỚI: ĐUA Ô TÔ DRIFT TRÊN ĐÈO!', W / 2, 106, 18, '#ff9a5a', 'center');
-    if (Math.floor(this.t * 2) % 2 === 0) Render.text('NHẤN ENTER ĐỂ BẮT ĐẦU', W / 2, 192, 26, '#ffd23a', 'center');
-    Render.box(60, 228, 392, 88, 0.7);
-    Render.text('↑ / W: tăng ga    ↓ / S: phanh    ← → / A D: lái', W / 2, 232, 16, '#e8e8e8', 'center', 380);
-    Render.text('Z / J: đạp/đánh bên trái    X / K: đạp/đánh bên phải', W / 2, 249, 16, '#e8e8e8', 'center', 380);
-    Render.text('SPACE / SHIFT + tăng ga: bốc đầu  ·  giữ lúc xuất phát: tăng tốc', W / 2, 266, 16, '#ffd23a', 'center', 380);
-    Render.text('ESC / P: tạm dừng    M: bật/tắt âm thanh', W / 2, 283, 16, '#e8e8e8', 'center', 380);
-    Render.text('Tay không thì đạp - đang bốc đầu mà trúng đòn là té!', W / 2, 299, 14, '#7fff7f', 'center', 380);
+    this.bigText('RC Drift', 18, 72);
+    Render.text('ĐUA XE MÁY ĐẤM NHAU  ·  Ô TÔ DRIFT TRÊN ĐÈO', W / 2, 84, 20, '#ffffff', 'center', 440);
+    Render.text(BIKES.length + ' MẪU XE MÁY  ·  ' + DRIFT_CARS.length + ' Ô TÔ DRIFT  ·  CHƠI ONLINE', W / 2, 106, 16, '#ff9a5a', 'center', 440);
+    if (Math.floor(this.t * 2) % 2 === 0) Render.text('NHẤN ENTER ĐỂ BẮT ĐẦU', W / 2, 262, 26, '#ffd23a', 'center');
+  },
+  // the two game modes side by side, each with its vehicle turning in a window
+  drawMode() {
+    const g = Render.g, s = this.save, ci = this.dIdx(), car = DRIFT_CARS[ci];
+    this.dim(0.45); this.panel(24, 20, 464, 280);
+    Render.text('CHỌN CHẾ ĐỘ CHƠI', W / 2, 26, 28, '#ffd23a', 'center');
+    const cards = [
+      { name: 'ĐUA XE MÁY', col: '#ffd23a', lines: ['Đua trên xa lộ, đấm đá đối thủ', THEMES.length + ' chặng · chơi online · cửa hàng xe'], sub: BIKES[s.bike].name + ' · cấp ' + s.level + '/5' },
+      { name: 'ĐUA Ô TÔ DRIFT', col: '#ff9a5a', lines: ['Drift trên đèo, ghi điểm bằng góc trượt', DRIFT_MAPS.length + ' bản đồ · chơi online · gara, mâm, tem'], sub: car.name },
+    ];
+    cards.forEach((c, i) => {
+      const x = 40 + i * 222, y = 62, w = 210, h = 204, on = i === this.msel;
+      g.fillStyle = on ? 'rgba(255,210,58,0.16)' : 'rgba(255,255,255,0.05)'; g.fillRect(x, y, w, h);
+      g.strokeStyle = on ? c.col : 'rgba(255,255,255,0.25)'; g.lineWidth = on ? 2 : 1; g.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+      if (i === 0) Render.preview(s.bike, x + 6, y + 6, w - 12, 112, this.t);
+      else Render.carPreview(car.model, this.carPaint(ci), x + 6, y + 6, w - 12, 112, this.t, this.carAlign(ci), this.carLiv(ci), this.carRim(ci));
+      Render.text((on ? '> ' : '') + c.name, x + w / 2, y + 124, 21, on ? c.col : '#ffffff', 'center', w - 12);
+      Render.text(c.sub, x + w / 2, y + 148, 12, '#9fe0ff', 'center', w - 12);
+      c.lines.forEach((l, k) => Render.text(l, x + w / 2, y + 166 + k * 14, 11, '#c8d4e4', 'center', w - 10));
+    });
+    Render.text('TIỀN: ' + U.money(s.money), W / 2, 270, 14, '#ffffff', 'center');
+    Render.text('← → chọn   ENTER vào   ESC quay lại', W / 2, 284, 14, '#a8b8d0', 'center');
   },
   drawMenu() {
     const s = this.save, b = BIKES[s.bike];
     this.dim(0.35); this.panel(56, 8, 400, 304);
-    Render.text('CHỌN CHẶNG ĐUA', W / 2, 10, 28, '#ffd23a', 'center');
+    Render.text('ĐUA XE MÁY · CHỌN CHẶNG', W / 2, 10, 26, '#ffd23a', 'center', 380);
     Render.text('CẤP ' + s.level + '/5      TIỀN: ' + U.money(s.money), W / 2, 37, 17, '#ffffff', 'center');
     Render.text('XE: ' + b.name, 76, 56, 15, '#9fe0ff', 'left', 180);
     Render.text('ĐỘ BỀN', 262, 56, 15, '#9fe0ff', 'left', 52);
     Render.bar(320, 61, 116, 7, this.bikeHp() / b.dur, '#f0b020');
     const laps = Track.laps(s.level);
     const items = THEMES.map((t, i) => ({ a: t.name, b: t.desc + (t.circuit ? ' · ' + laps + ' vòng' : ''), ok: s.passed.includes(i), gp: t.circuit }));
-    items.push({ a: 'ĐUA Ô TÔ DRIFT', b: 'Mới! Ô tô drift trên đèo cua tay áo - ghi điểm bằng góc trượt', ok: false, col: '#ff9a5a', tag: 'MỚI' });
     items.push({ a: 'CHƠI ONLINE', b: 'Phòng chờ - đua cùng bạn bè qua mạng' + (Net.onlineText() ? ' · ' + Net.onlineText() : ''), ok: false, col: '#7fff7f' });
     items.push({ a: 'CỬA HÀNG XE', b: 'Mua xe mới, sửa xe', ok: false });
     const g = Render.g, rh = 17;
@@ -730,7 +840,7 @@ const Game = {
     const need = this.levelNeed(), got = Math.min(need, s.passed.length);
     Render.text(s.level < 5 ? 'Về TOP 3 ở ' + need + ' chặng khác nhau để lên cấp ' + (s.level + 1) + ' (' + got + '/' + need + ')' : 'Đã đạt cấp cao nhất!',
       W / 2, 268, 15, '#ffb000', 'center', 380);
-    Render.text('↑↓ chọn   ENTER xác nhận   ESC quay lại', W / 2, 287, 14, '#a8b8d0', 'center');
+    Render.text('↑↓ chọn   ENTER xác nhận   H hướng dẫn   ESC quay lại', W / 2, 287, 14, '#a8b8d0', 'center');
   },
   drawShop() {
     const s = this.save, g = Render.g;

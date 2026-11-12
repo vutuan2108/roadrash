@@ -1,5 +1,5 @@
 // Load an authored multi-mesh .glb into parts in the game frame (x = left, y = up, z = forward, metres):
-// { id, mesh, name, mat, matName, P: Float32Array, N: Float32Array, I: Uint32Array, lo, hi, tris }
+// { id, mesh, name, mat, matName, P: Float32Array, N: Float32Array, UV: Float32Array | null, I: Uint32Array, lo, hi, tris }
 // frame(x, y, z) maps glTF coordinates to the game frame (before scale s).
 const fs = require('fs');
 function load(file, s, frame) {
@@ -29,7 +29,7 @@ function load(file, s, frame) {
           N[i * 3] = r[0] / l; N[i * 3 + 1] = r[1] / l; N[i * 3 + 2] = r[2] / l; }
       }
       const I = p.indices !== undefined ? Uint32Array.from(acc(p.indices)) : Uint32Array.from({ length: nv }, (_, i) => i);
-      parts.push({ id: parts.length, mesh: n.mesh, prim: pi, name: g.meshes[n.mesh].name || n.name, mat: p.material, matName: (g.materials[p.material] || {}).name, P, N, I, lo, hi, tris: I.length / 3 });
+      parts.push({ id: parts.length, mesh: n.mesh, prim: pi, name: g.meshes[n.mesh].name || n.name, mat: p.material, matName: (g.materials[p.material] || {}).name, P, N, UV: p.attributes.TEXCOORD_0 !== undefined ? Float32Array.from(acc(p.attributes.TEXCOORD_0)) : null, I, lo, hi, tris: I.length / 3 });
     });
     (n.children || []).forEach(c => walk(c, W)); };
   const I4 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];

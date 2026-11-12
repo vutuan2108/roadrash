@@ -63,6 +63,12 @@ Xem mẫu kèm texture thật bằng `pp.js "tex.html?f=file:///.../file.glb"`. 
    - `byName(part)` gán nhóm theo từng mảnh (tên, số thứ tự `id`, vật liệu), dùng khi một vật liệu phủ nhiều thứ khác nhau.
    - `split(part)` trả về một hàm chia một mảnh theo từng tam giác: hàm nhận tâm tam giác và trả về nhóm. Ví dụ mảnh mui xe của R35 chứa cả đèn hậu và đèn pha, nên cắt theo z.
    - `triColors` là file JSON màu texture của từng tam giác, xuất bằng `tex.html?dump=<id mảnh>`. Khi có file này, hàm của `split` nhận màu làm tham số thứ hai. Boss 302 dùng cách này để giữ sọc đen vẽ trong texture và tách viền crôm khỏi phần nhựa đen.
+   - `tex` là bảng `{ nhóm: file }` cho các nhóm giữ lại toạ độ texture của mẫu, dùng cho xe có tem vẽ trong texture: `livery`, `livery2` (thân xe) hoặc `decal` (lớp decal trong suốt nằm trên sơn). Mỗi file chứa ảnh texture dạng data URI, tạo bằng `node tex_img.js file.glb <số thứ tự ảnh> out.txt [cỡ ảnh] [chế độ] [chất lượng]`. Ảnh được ghi kèm trong file xe. Kênh alpha của ảnh cho biết chỗ nào là sơn trần: ở đó game nhân màu sơn của xe vào, nên xe có tem vẫn đổi màu được. Các chế độ:
+     - `paint:#rrggbb:tol`: điểm ảnh gần màu nền đó là sơn (R35: nền trắng, `paint:#ffffff:60`).
+     - `neutral`: tem phủ kín không có một màu nền (GT86 Sugar Skull: nền chuyển từ trắng sang đen). Các mảng xám trơn, rộng là sơn.
+     - `overlay`: alpha có sẵn của ảnh cho biết chỗ có tem (S15 LB-Super Silhouette: lớp vỏ thân xe chỉ vẽ decal).
+     - `alpha`: giữ nguyên alpha, dùng cho nhóm `decal`.
+   - Mâm xe: nhóm `rim` và `rimDark` là mặt mâm, game cho đổi màu. Người chơi có thể lắp bộ bánh của bất kỳ xe nào lên xe khác, nên nhớ gán đúng nhóm cho mâm của xe mới.
    - Bánh xe trong mẫu thường nghiêng (camber). Script đo trục thật của bánh từ bề mặt lốp, có tính theo diện tích tam giác, rồi lưu bánh theo trục đó. Góc nghiêng được ghi thành một phép quay cố định (`qf`, `qr`) để bánh quay không bị đảo. Nếu lốp và mâm của mẫu lệch trục nhau thì đặt `axisCats: ['rim']` để lấy trục theo mâm.
 3. Chạy `node build_car.js cfg_xxx.js`. Script đo tâm bánh từ lốp, phóng theo `wb`, đặt bánh chạm đất, giản lược từng mảnh theo sai số (`err` cho bản gần, `errLo` cho bản xa, `errW` cho bánh xe) rồi ghi file vào `F:/hb_tmp/cars/`. Chép file đó vào `js/g3/`.
 4. Màu và vật liệu của từng nhóm nằm ở bảng `CAR_CAT` trong `models.js`. Thông số lái và va chạm nằm ở `DRIFT_CARS` và `DRIFT_BODY` trong `js/drift.js`.

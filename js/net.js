@@ -51,7 +51,7 @@ const Net = {
     if (this.room) this.send({ t: 'leave' });
     this.room = null;
     this.$('online').hidden = true;
-    Game.state = 'menu';
+    Game.state = Game.mode === 'drift' ? 'dmenu' : 'menu';   // (back to the menu of the mode it was opened from)
   },
   hideOverlay() { this.$('online').hidden = true; },
   status(text, bad) { const s = this.$('ol-status'); s.textContent = text || ''; s.className = bad ? 'bad' : ''; },
@@ -60,7 +60,7 @@ const Net = {
     let name = this.$('ol-name').value.trim();
     if (!name) { name = 'Tay đua ' + (10 + Math.floor(Math.random() * 90)); this.$('ol-name').value = name; }
     try { localStorage.setItem('hb_name', name); } catch (e) { /* ignore */ }
-    return { name, bike: s.bike, bikeHp: Math.max(1, Math.round(Game.bikeHp())), level: s.level, dcar: Game.dIdx(), dpaint: Game.carPaint(Game.dIdx()), dliv: Game.carLiv(Game.dIdx()),
+    return { name, bike: s.bike, bikeHp: Math.max(1, Math.round(Game.bikeHp())), level: s.level, dcar: Game.dIdx(), dpaint: Game.carPaint(Game.dIdx()), dliv: Game.carLiv(Game.dIdx()), drim: Game.carRim(Game.dIdx()),
       dal: Game.carAlign(Game.dIdx()) };   // (the drift car's wheel alignment: the others see its wheels set the same)
   },
   join(code) {
@@ -399,12 +399,13 @@ const Net = {
   onDriftStart(m) {
     const me = m.cars.find(c => c.id === this.id) || m.cars[0];
     const ci = U.clamp(me.car | 0, 0, DRIFT_CARS.length - 1);
-    const r = new DriftRace({ mapIdx: U.clamp(m.map | 0, 0, DRIFT_MAPS.length - 1), carIdx: ci, paint: me.paint, liv: me.liv, al: me.al || Game.carAlign(ci), hard: !!m.hard,
+    const r = new DriftRace({ mapIdx: U.clamp(m.map | 0, 0, DRIFT_MAPS.length - 1), carIdx: ci, paint: me.paint, liv: me.liv, rim: me.rim, al: me.al || Game.carAlign(ci), hard: !!m.hard,
       net: { me: this.id, cars: m.cars } });
     r.ready = false;   // the 3D models of all the cars first
-    Promise.all(r.racers.map(c => Models.loadCar(c.spec.model))).then(() => { r.ready = true; }, () => { r.ready = true; });
+    Promise.all(r.racers.flatMap(c => [c.spec.model, Rim.model(c.rim)]).filter(Boolean).map(m => Models.loadCar(m))).then(() => { r.ready = true; }, () => { r.ready = true; });
     this.dview = r; this.dsnaps = []; this.offset = null; this.loaded = false; this.menu = false; this.finSent = false; this.sendT = 0;
     this.hideOverlay();
+    Game.mode = 'drift';   // (leaving the lobby later lands in the drift menu, also after joining by a link)
     Game.state = 'netdrift';
     Sound.music.stop();
   },

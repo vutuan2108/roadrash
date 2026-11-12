@@ -2345,8 +2345,12 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
   // (near and far detail), the model's own wheels. Car object: root (place / yaw / slope) > tilt (body roll and pitch
   // about a point 0.5 m up) > body; four wheel pivots (steer about y) carrying the spinning wheels
   // =====================================================================================
-  // category -> [material key, colour]: 'carPaint' takes the car's paint, 'brake' is the tail lamps (lit by the brakes)
+  // category -> [material key, colour]: 'carPaint' takes the car's paint, 'brake' is the tail lamps (lit by the brakes),
+  // 'tex:<category>' wears one of the model's own textures (the data's tex[category] and the groups' uv): a body with
+  // a painted livery (the car's paint shows where the texture's alpha says so), or a layer of decals over the paint
+  const RIM_FACE = new Set(['rim', 'rimDark']);
   const CAR_CAT = {
+    livery: ['tex:livery', '#ffffff'], livery2: ['tex:livery2', '#ffffff'], decal: ['tex:decal', '#ffffff'], accent: ['paint', '#0a52b8'],
     paint: ['carPaint', '#ffffff'], black: ['paint', '#111215'], trim: ['paint', '#1c1d21'], carbon: ['paint', '#16171a'],
     grille: ['lam', '#0b0b0d'], under: ['lam', '#0a0a0b'], glass: ['glass', '#0a0d11'], alu: ['chrome', '#b4b8c0'],
     white: ['paint', '#e6e6e2'], exhaust: ['chrome', '#8c7c6a'], strap: ['lam', '#2a4ad0'],
@@ -2357,7 +2361,7 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
   };
   // every drift car has a data file js/g3/<model>.js: loaded on demand (a few hundred KB each), all of them in the
   // background after start-up (preloadCars), and before a race that needs them (loadCar resolves once the file is in)
-  const CAR_FILES = ['z280', 'n180', 'm65', 'gr86', 'boss', 'supra', 'r34', 'rx7vs', 'gtr', 's15c', 'gt2', 'rx7bn', 'r35', 'f40', 'wis'];
+  const CAR_FILES = ['z280', 'n180', 'm65', 'gr86', 'gt86ss', 's15lb', 'gtd', 'boss', 'supra', 'r34', 'rx7vs', 'gtr', 's15c', 'gt2', 'rx7bn', 'r35', 'f40', 'wis'];
   const carLoads = {};
   const hasCar = model => typeof HB_GLB !== 'undefined' && !!HB_GLB[model];
   function loadCar(model) {
@@ -2464,13 +2468,19 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
     if (!D || !D.wheels) return null;
     const bin = s => { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u.buffer; };
     // one geometry per material key: the categories' colours ride along as vertex colours
+    const rimCol = {};
     const build = list => {
       const by = {};
       for (const G of list) {
-        const [key, hex] = CAR_CAT[G.cat] || CAR_CAT.trim, col = lin((D.spec.colors || {})[G.cat] || hex);   // (the model's own colours first)
+        const [key0, hex] = CAR_CAT[G.cat] || CAR_CAT.trim, col0 = lin((D.spec.colors || {})[G.cat] || hex);   // (the model's own colours first)
+        // the face of a rim (RIM_FACE) is a mesh of its own, 'rim:<material>': white here, coloured by its material
+        // (the model's colour, or the one picked in the garage)
+        const face = RIM_FACE.has(G.cat), key = face ? 'rim:' + key0 : key0, col = face ? [1, 1, 1] : col0;
+        if (face) rimCol[key] = col0;
         const pos = new Int16Array(bin(G.pos)), idx = G.n32 ? new Uint32Array(bin(G.idx)) : new Uint16Array(bin(G.idx));
         let g = new T.BufferGeometry();
         g.setAttribute('position', new T.BufferAttribute(Float32Array.from(pos, v => v / D.q), 3)); g.setIndex(new T.BufferAttribute(idx, 1));
+        if (G.uv) g.setAttribute('uv', new T.BufferAttribute(G.uvf ? new Float32Array(bin(G.uv)) : Float32Array.from(new Int16Array(bin(G.uv)), v => v / D.quv), 2));
         g = g.toNonIndexed(); g.computeVertexNormals(); soften(g, 40);
         (by[key] || (by[key] = [])).push([g, col]);
       }
@@ -2478,55 +2488,120 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
       for (const key in by) {   // merge
         let n = 0; for (const [g] of by[key]) n += g.attributes.position.count;
         const P = new Float32Array(n * 3), N = new Float32Array(n * 3), C = new Float32Array(n * 3);
+        const UV = by[key].some(([g]) => g.attributes.uv) ? new Float32Array(n * 2) : null;
         let o = 0;
         for (const [g, c] of by[key]) {
           P.set(g.attributes.position.array, o * 3); N.set(g.attributes.normal.array, o * 3);
+          if (g.attributes.uv) UV.set(g.attributes.uv.array, o * 2);
           for (let i = 0; i < g.attributes.position.count; i++) C.set(c, (o + i) * 3);
           o += g.attributes.position.count; g.dispose();
         }
         const m = new T.BufferGeometry();
         m.setAttribute('position', new T.BufferAttribute(P, 3)); m.setAttribute('normal', new T.BufferAttribute(N, 3)); m.setAttribute('color', new T.BufferAttribute(C, 3));
+        if (UV) m.setAttribute('uv', new T.BufferAttribute(UV, 2));
         m.computeBoundingSphere();
         out[key] = m;
       }
       return out;
     };
-    const split = list => [build(list.filter(G => G.cat !== 'caliper' && G.cat !== 'calDark')), build(list.filter(G => G.cat === 'caliper' || G.cat === 'calDark'))];
+    // a wheel: [what spins, the calipers, its size { R, w } (to fit another car's wheels to this car's)]
+    const split = list => {
+      const spin = build(list.filter(G => G.cat !== 'caliper' && G.cat !== 'calDark')), cal = build(list.filter(G => G.cat === 'caliper' || G.cat === 'calDark'));
+      let R = 0, x0 = 9, x1 = -9;
+      for (const k in spin) { const P = spin[k].attributes.position.array;
+        for (let i = 0; i < P.length; i += 3) { R = Math.max(R, Math.hypot(P[i + 1], P[i + 2])); x0 = Math.min(x0, P[i]); x1 = Math.max(x1, P[i]); } }
+      return [spin, cal, { R, w: x1 - x0 }];
+    };
     const S = D.spec;
-    return (glbCarCache[model] = { S: Object.assign({}, S, { R: S.wheel.R }), hi: build(D.groups), lo: D.lo ? build(D.lo) : null,
+    // the model's own textures (a painted livery, decals) by category, shared by every car of the model
+    const tex = {};
+    for (const k in D.tex || {}) {
+      const img = new Image(), t = tex[k] = new T.Texture(img);
+      t.flipY = false; t.encoding = T.sRGBEncoding; t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = 8;
+      img.onload = () => { t.needsUpdate = true; }; img.src = D.tex[k];
+    }
+    return (glbCarCache[model] = { tex, rimCol, S: Object.assign({}, S, { R: S.wheel.R }), hi: build(D.groups), lo: D.lo ? build(D.lo) : null,
       wf: split(D.wheels.f), wr: split(D.wheels.r) });
   }
-  function glbCar(model, col, liv) {
+  function glbCar(model, col, liv, rim) {
     const G = glbCarGeo(model);
     if (!G) return null;
     const S = G.S, root = new T.Group(), tilt = new T.Group(), body = new T.Group();
     root.rotation.order = 'YXZ'; tilt.position.y = 0.5; body.position.y = -0.5; tilt.add(body); root.add(tilt);
     const paint = liveryPaint(col, S.hub.f[1] + 0.02); paint.setLivery(liv);
     const brake = new T.MeshBasicMaterial({ vertexColors: true });
-    const mat = k => k === 'carPaint' ? paint : k === 'brake' ? brake : G3.mats[k];
-    const level = geos => { const grp = new T.Group(); for (const k in geos) { const ms = new T.Mesh(geos[k], mat(k)); ms.castShadow = k !== 'light' && k !== 'brake'; ms.receiveShadow = true; grp.add(ms); } body.add(grp); return grp; };
+    // the model's own textures, with the car paint's gloss and reflections. A painted body: the texture, and the
+    // car's paint multiplied in where its alpha says the paint is bare (128 = paint .. 255 = texture, see tex_img.js).
+    // Decals: a see-through layer just over the paint
+    const texMats = {};
+    const texMat = cat => {
+      if (texMats[cat]) return texMats[cat];
+      const m = G3.mats.carPaint.clone(); m.map = G.tex[cat];
+      Object.defineProperty(m, 'envMap', { get: () => paint.envMap, set() {} });
+      if (cat === 'decal') { m.color.set('#ffffff'); m.transparent = true; m.depthWrite = false; m.alphaTest = 0.04; m.polygonOffset = true; m.polygonOffsetFactor = -2; m.polygonOffsetUnits = -2; }
+      else {
+        m.color.copy(paint.color);
+        m.onBeforeCompile = s => { s.fragmentShader = s.fragmentShader.replace('#include <map_fragment>',
+          'vec4 wrapT = texture2D(map, vUv); diffuseColor.rgb = wrapT.rgb * mix(diffuseColor.rgb, vec3(1.0), clamp(wrapT.a * 2.0 - 1.0, 0.0, 1.0));'); };
+        m.customProgramCacheKey = () => 'carWrap';
+      }
+      return (texMats[cat] = m);
+    };
+    // the rims' faces: a material of the car's own per kind (chrome, paint), coloured by setRim
+    const rimMats = {};
+    const rimMat = k => {
+      if (rimMats[k]) return rimMats[k];
+      const src = G3.mats[k.slice(4)], m = src.clone();
+      Object.defineProperty(m, 'envMap', { get: () => src.envMap, set() {} });
+      return (rimMats[k] = m);
+    };
+    const mat = k => k === 'carPaint' ? paint : k.startsWith('rim:') ? rimMat(k) : k.startsWith('tex:') ? (G.tex[k.slice(4)] ? texMat(k.slice(4)) : paint) : k === 'brake' ? brake : G3.mats[k];
+    const level = geos => { const grp = new T.Group(); for (const k in geos) { const ms = new T.Mesh(geos[k], mat(k)); ms.castShadow = k !== 'light' && k !== 'brake' && k !== 'tex:decal'; ms.receiveShadow = true; if (k === 'tex:decal') ms.renderOrder = 2; grp.add(ms); } body.add(grp); return grp; };
     const hi = level(G.hi), lo = G.lo ? level(G.lo) : null;
     if (lo) lo.visible = false;
     const wheels = [];
-    for (const [hub, q, [spinG, calG], front] of [[S.hub.f, S.hub.qf, G.wf, true], [S.hub.r, S.hub.qr, G.wr, false]]) for (const side of [1, -1]) {
+    for (const [hub, q, front] of [[S.hub.f, S.hub.qf, true], [S.hub.r, S.hub.qr, false]]) for (const side of [1, -1]) {
       // pivot (steers, about the caster-tilted axis) > mirror (the right side is the left wheel mirrored) > lean (camber
       // and toe: the model's own camber until the car's wheel alignment is set) > spin (rolls about the wheel's own
       // axle) + the calipers (do not)
-      const pivot = new T.Group(), mir = new T.Group(), lean = new T.Group(), spin = new T.Group();
+      // (fit: scales another model's wheel to this car's tyre; the meshes are hung by setRim)
+      const pivot = new T.Group(), mir = new T.Group(), lean = new T.Group(), fit = new T.Group(), spin = new T.Group(), cal = new T.Group();
       pivot.position.set(side * hub[0], hub[1], hub[2]); mir.scale.x = side;
       if (q) lean.quaternion.set(q[0], q[1], q[2], q[3]);
-      for (const k in spinG) { const ms = new T.Mesh(spinG[k], mat(k)); ms.castShadow = k === 'lam'; spin.add(ms); }
-      for (const k in calG) lean.add(new T.Mesh(calG[k], mat(k)));
-      lean.add(spin); mir.add(lean); pivot.add(mir); root.add(pivot); wheels.push({ pivot, spin, lean, front, side });
+      fit.add(cal); fit.add(spin); lean.add(fit); mir.add(lean); pivot.add(mir); root.add(pivot); wheels.push({ pivot, spin, cal, fit, lean, front, side });
     }
+    // the wheels of the car (v: '' its own; '<model>' another car's rims and tyres, sized to this car's; '#rrggbb'
+    // after either: the colour of the rims' faces - see Rim in drift.js). A model still loading: its own wheels until then
+    let rimV = null;
+    const setRim = v => {
+      v = Rim.clean(v);
+      if (v === rimV) return;
+      rimV = v;
+      const dm = Rim.model(v), col = Rim.color(v);
+      let D = dm && dm !== model ? glbCarGeo(dm) : G;
+      if (!D) { D = G; rimV = null; loadCar(dm).then(ok => { if (ok && o.rim === v) setRim(v); }); }
+      o.rim = v;
+      for (const w of wheels) {
+        const [spinG, calG, dim] = w.front ? D.wf : D.wr, own = (w.front ? G.wf : G.wr)[2];
+        while (w.spin.children.length) w.spin.remove(w.spin.children[0]);
+        while (w.cal.children.length) w.cal.remove(w.cal.children[0]);
+        for (const k in spinG) { const ms = new T.Mesh(spinG[k], mat(k)); ms.castShadow = k === 'lam'; w.spin.add(ms); }
+        for (const k in calG) w.cal.add(new T.Mesh(calG[k], mat(k)));
+        const kr = own.R / dim.R;
+        w.fit.scale.set(own.w / dim.w, kr, kr);
+      }
+      for (const k in rimMats) { const c = D.rimCol[k]; if (col) rimMats[k].color.set(col); else if (c) rimMats[k].color.setRGB(c[0], c[1], c[2]); }
+    };
     const sus = susBuild(root, wheels, S);
     const o = alignable({ root, tilt, body, wheels, paint, brake, pods: null, spec: S, glb: true, susUpdate: sus.update,
-      setPaint(c) { paint.color.set(c); },
+      setPaint(c) { paint.color.set(c); for (const k in texMats) if (k !== 'decal') texMats[k].color.copy(paint.color); },
       setLivery(v) { paint.setLivery(v); },
+      setRim,
       setBrake(on) { brake.color.setScalar(on ? 1 : 0.3); },
       setNight() {},
       setDetail(near) { if (lo) { hi.visible = near; lo.visible = !near; } sus.show(near); },
-      dispose() { paint.dispose(); brake.dispose(); } });
+      dispose() { paint.dispose(); brake.dispose(); for (const k in texMats) texMats[k].dispose(); for (const k in rimMats) rimMats[k].dispose(); } });
+    setRim(rim);
     o.setBrake(false);
     return o;
   }
@@ -2571,14 +2646,15 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
     return alignable({ root, tilt, body, wheels, paint, brake, pods: null, spec: S,
       setPaint(c) { paint.color.set(c); },
       setLivery() {},
+      setRim() {},
       setBrake(on) { brake.color.set('#ff2a18').multiplyScalar(on ? 1 : 0.3); },
       setNight() {},
       dispose() { paint.dispose(); brake.dispose(); for (const g of geos) g.dispose(); } });
   }
   // a drift car by model name: the authored model when its data is loaded, else the stand-in (and the file is fetched);
   // al: its wheel alignment (else the model's own camber stays)
-  function driftCar(model, col, al, liv) {
-    let o = glbCar(model, col, liv);
+  function driftCar(model, col, al, liv, rim) {
+    let o = glbCar(model, col, liv, rim);
     if (!o) { loadCar(model); o = standInCar(col); }
     if (al) o.setAlign(al);
     return o;

@@ -74,20 +74,44 @@ const DRIFT_CARS = [
     final: 4.3, R: 0.342, drag: 0.33, muF: 1.12, muR: 1.18, pkF: 0.12, pkR: 0.105, slide: 0.84, lock: 0.9, steerIn: 0.62, brake: 1.12,
     maxAng: 1.08, turbo: true, voice: [31, 250, 330, 2400, 0.3, 2],
     align: { camF: -5.5, camR: -1, toeF: -0.1, toeR: 0.15, cas: 8.5 } },   // (comes with a pro-am drift alignment)
+  // Ford Mustang GT (S550, 2018) drift build: Coyote 5.0 L V8, 460 hp at 7000 rpm and 569 Nm stock, about 1700 kg,
+  // 6-speed MT-82 3.66 / 2.43 / 1.69 / 1.32 / 1.00 / 0.65, final 3.55. Here supercharged and stripped
+  { name: 'Ford Mustang GT Drift Spec', model: 'gtd', price: 62000, color: '#e8650f', hp: 720, kg: 1560, vmax: 360, real: 'Coyote 5.0L V8 (Mustang GT 2018) · zin 460 mã lực · 250 km/h',
+    mass: 1560, a: 1.278, b: 1.442, h: 0.49, torque: 900, pk: 0.6, redline: 7500, idle: 800, gears: [3.66, 2.43, 1.69, 1.32, 1.0, 0.65],
+    final: 3.55, R: 0.327, drag: 0.4, muF: 1.13, muR: 1.19, pkF: 0.12, pkR: 0.105, slide: 0.85, lock: 0.9, steerIn: 0.6, brake: 1.15,
+    maxAng: 1.08, turbo: false, voice: [24, 200, 250, 1500, 0.44, 1.5],
+    align: { camF: -5, camR: -1, toeF: -0.1, toeR: 0.15, cas: 8.5 } },   // (a drift alignment)
   // Porsche 911 GT2 (993): 3.6 L twin-turbo flat six, 430 PS at 5750 rpm, 540 Nm, 1295 kg, rear drive, 6-speed
   // (ratios estimated from the 993 Turbo box), 0-100 4.4 s, 295 km/h. Rear engine: 38 % of the weight on the front
   { name: 'Porsche 911 GT2 (993)', model: 'gt2', price: 65000, color: '#f0c419', hp: 615, kg: 1295, vmax: 321, real: '3.6L 6 máy boxer twin-turbo · zin 430 mã lực · 295 km/h',
     mass: 1295, a: 1.409, b: 0.863, h: 0.48, torque: 780, pk: 0.66, redline: 6800, idle: 900, gears: [3.82, 2.15, 1.56, 1.21, 0.97, 0.75],
     final: 3.44, R: 0.323, drag: 0.3, muF: 1.12, muR: 1.2, pkF: 0.12, pkR: 0.105, slide: 0.84, lock: 0.8, steerIn: 0.58, brake: 1.15,
     maxAng: 0.98, turbo: true, voice: [30, 240, 320, 2100, 0.28, 2] },
+  // Toyota GT86 (ZN6) "Sugar Skull" drift car: a wide-body GT86 in a full wrap, the model's engine bay holds a twin-turbo
+  // V6 swap. Stock GT86: 2.0 L FA20 boxer, 200 PS at 7000 rpm, 205 Nm, about 1240 kg, 6-speed 3.626 / 2.188 / 1.541 /
+  // 1.213 / 1.000 / 0.767, final 4.1, 226 km/h. ownLiv: the body wears the model's own livery (the paint shows under it;
+  // no stripes to pick)
+  { name: 'Toyota GT86 Sugar Skull', model: 'gt86ss', price: 70000, color: '#f2f2f0', hp: 640, kg: 1260, vmax: 313, real: 'GT86 zin: FA20 2.0L boxer · 200 mã lực · 226 km/h', ownLiv: true,
+    mass: 1260, a: 1.21, b: 1.36, h: 0.46, torque: 800, pk: 0.6, redline: 7500, idle: 900, gears: [3.626, 2.188, 1.541, 1.213, 1.0, 0.767],
+    final: 4.1, R: 0.348, drag: 0.33, muF: 1.14, muR: 1.2, pkF: 0.12, pkR: 0.105, slide: 0.85, lock: 0.92, steerIn: 0.62, brake: 1.15,
+    maxAng: 1.1, turbo: true, voice: [30, 250, 320, 2200, 0.24, 2],
+    align: { camF: -5, camR: -1, toeF: -0.1, toeR: 0.15, cas: 8.5 } },   // (a drift alignment)
   // Mazda RX-7 FD3S, BN Sports BLS kit: built 13B rotary, about 600 hp on the street (BN Sports BLS build); capped here
   { name: 'Mazda RX-7 BN Sports', model: 'rx7bn', price: 75000, color: '#c0161e', hp: 700, kg: 1250, vmax: 331, real: '13B rotary độ lớn · ~600 mã lực (bản BN Sports BLS)',
     mass: 1250, a: 1.2125, b: 1.2125, h: 0.46, torque: 720, pk: 0.65, redline: 8500, idle: 1100, gears: [3.483, 2.015, 1.391, 1.0, 0.719],
     final: 4.3, R: 0.319, drag: 0.32, muF: 1.14, muR: 1.2, pkF: 0.12, pkR: 0.105, slide: 0.85, lock: 0.9, steerIn: 0.62, brake: 1.15,
     maxAng: 1.08, turbo: true, voice: [42, 330, 440, 3000, 0.16, 3] },
+  // Nissan Silvia S15 with the Liberty Walk LB-Super Silhouette kit. Stock Spec-R: SR20DET 2.0 L turbo, 250 PS at
+  // 6400 rpm, 275 Nm, about 1240 kg, 6-speed 3.626 / 2.200 / 1.541 / 1.213 / 1.000 / 0.767, final 3.692. Here a big
+  // turbo build; it wears its sponsors' decals (ownLiv: no stripes to pick)
+  { name: 'Nissan Silvia S15 LB-Super Silhouette', model: 's15lb', price: 80000, color: '#14161a', hp: 620, kg: 1180, vmax: 340, real: 'SR20DET 2.0L turbo · zin 250 mã lực (Spec-R)', ownLiv: true,
+    mass: 1180, a: 1.135, b: 1.39, h: 0.45, torque: 700, pk: 0.62, redline: 8000, idle: 950, gears: [3.626, 2.2, 1.541, 1.213, 1.0, 0.767],
+    final: 3.692, R: 0.325, drag: 0.34, muF: 1.14, muR: 1.2, pkF: 0.12, pkR: 0.105, slide: 0.85, lock: 0.92, steerIn: 0.62, brake: 1.15,
+    maxAng: 1.1, turbo: true, voice: [31, 250, 330, 2400, 0.3, 2],
+    align: { camF: -5.5, camR: -1, toeF: -0.1, toeR: 0.15, cas: 8.5 } },   // (a drift alignment)
   // Nissan GT-R R35 with the Liberty Walk LB-Silhouette WORKS GT 35GT-RR kit: VR38DETT 3.8 L twin-turbo V6, 570 PS at
   // 6800 rpm, 633 Nm, about 1750 kg, 6-speed dual clutch, 315 km/h. Four-wheel drive in real life - rear drive here
-  { name: 'Nissan GT-R R35 LB-Silhouette', model: 'r35', price: 85000, color: '#f2f2f0', hp: 800, kg: 1700, vmax: 329, real: 'VR38DETT 3.8L V6 twin-turbo · zin 570 mã lực · 315 km/h',
+  { name: 'Nissan GT-R R35 LB-Silhouette', model: 'r35', price: 85000, color: '#f2f2f0', hp: 800, kg: 1700, vmax: 329, real: 'VR38DETT 3.8L V6 twin-turbo · zin 570 mã lực · 315 km/h', ownLiv: true,
     mass: 1700, a: 1.279, b: 1.501, h: 0.47, torque: 900, pk: 0.55, redline: 7100, idle: 900, gears: [4.056, 2.301, 1.595, 1.248, 1.001, 0.796],
     final: 3.7, R: 0.362, drag: 0.31, muF: 1.14, muR: 1.2, pkF: 0.12, pkR: 0.105, slide: 0.84, lock: 0.82, steerIn: 0.58, brake: 1.18,
     maxAng: 1.0, turbo: true, voice: [30, 250, 320, 2200, 0.24, 2] },
@@ -108,7 +132,7 @@ const DRIFT_CARS = [
 // body ends (rear, front) and half width of each model, for the walls
 const DRIFT_BODY = { z280: [-2.1, 2.18, 0.88], n180: [-2.4, 2.14, 0.9], m65: [-2.52, 2.04, 0.9], gr86: [-2.22, 2.17, 0.97],
   boss: [-2.52, 2.17, 0.91], supra: [-2.24, 2.28, 0.9], r34: [-2.38, 2.22, 0.95], rx7vs: [-2.2, 2.13, 0.97], gtr: [-2.55, 2.28, 1.02],
-  s15c: [-2.4, 2.2, 0.98], gt2: [-1.88, 2.3, 0.93], rx7bn: [-2.25, 2.2, 0.98], r35: [-2.55, 2.35, 1.03], f40: [-1.92, 2.5, 1.0],
+  s15c: [-2.4, 2.2, 0.98], gt86ss: [-2.23, 2.3, 1.0], s15lb: [-2.5, 2.3, 0.92], gtd: [-2.5, 2.22, 1.0], gt2: [-1.88, 2.3, 0.93], rx7bn: [-2.25, 2.2, 0.98], r35: [-2.55, 2.35, 1.03], f40: [-1.92, 2.5, 1.0],
   wis: [-2.42, 2.12, 0.96] };
 // liveries: stripes drawn over the paint (models.js liveryPaint). A car's livery is a string, the style's number and
 // the stripes' colour ('2#f2f2f0'); '' = plain paint
@@ -119,6 +143,16 @@ const Livery = {
   color(v) { return this.clean(v).slice(1); },
   // a stripe colour that shows on a paint: dark on light paint, white on the rest
   contrast(paint) { const n = parseInt(String(paint).slice(1), 16), l = ((n >> 16) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11) / 255; return l > 0.6 ? '#14161a' : '#f2f2f0'; },
+};
+// wheels: every car model's own rims and tyres can be fitted to any car (models.js setRim sizes them to the car's
+// tyres). A car's wheels are a string: '' its own; '<model>' another car's; either followed by '#rrggbb', the colour of
+// the rims' faces ('gr86#f2f2f0', '#c9a227')
+const RIM_COLS = ['', '#f2f2f0', '#c8ccd2', '#8e949c', '#3a3d44', '#14161a', '#c9a227', '#b0703a', '#c0161e', '#e8650f', '#f0c419', '#2f8a3a', '#1ea0dc', '#1f6fd0', '#6a2c91', '#e85aa0'];
+const Rim = {
+  clean(v) { const m = /^([a-z0-9]{0,8})(#[0-9a-fA-F]{6})?$/.exec(String(v || '')); return m ? (DRIFT_CARS.some(c => c.model === m[1]) ? m[1] : '') + (m[2] || '') : ''; },
+  model(v) { return this.clean(v).split('#')[0]; },
+  color(v) { const c = this.clean(v).split('#')[1]; return c ? '#' + c : ''; },
+  make(model, col) { return this.clean((model || '') + (col || '')); },
 };
 const DRIFT_PAINTS = ['#f2f2f0', '#14161a', '#8e949c', '#c0161e', '#e8650f', '#f0c419', '#2f8a3a', '#1ea0dc', '#1f6fd0', '#16245a', '#6a2c91', '#e85aa0', '#20b8b0'];
 
@@ -566,8 +600,10 @@ const DRIFT_AI = {
 };
 
 class DriftRace {
-  // o: { mapIdx, carIdx, paint, al (wheel alignment, see ALIGN), ais (computer drivers), seed?, aiSeed?, net? }. net = { me,
-  // cars: [{ id, name, car, paint, al, liv }] } for an online race: the cars of the other players (remote: no physics here, Net
+  // o: { mapIdx, carIdx, paint, al (wheel alignment, see ALIGN), ais (computer drivers), seed?, aiSeed?, net?, demo? }.
+  // demo: the race behind the title screen and the menus - a computer driver in the camera's car too, no countdown, no
+  // sounds or messages (the car is not 'the player' to the code that makes them). net = { me,
+  // cars: [{ id, name, car, paint, al, liv, rim }] } for an online race: the cars of the other players (remote: no physics here, Net
   // moves them; their alignment only shows on their wheels) in the server's grid order
   constructor(o) {
     this.drift = true; this.local = true;
@@ -586,7 +622,7 @@ class DriftRace {
     this.state = 'countdown'; this.camMode = 0;
     const spec = DRIFT_CARS[o.carIdx];
     this.carIdx = o.carIdx; this.paint = o.paint || spec.color;
-    const c = this.car = this.mkCar(o.carIdx, this.paint, 'BẠN', o.al, o.liv);
+    const c = this.car = this.mkCar(o.carIdx, this.paint, 'BẠN', o.al, o.liv, o.rim);
     c.isPlayer = true;
     this.racers = [c];
     if (o.net) {   // online: the others as remote cars, everyone on the grid in the server's order
@@ -594,7 +630,7 @@ class DriftRace {
       const grid = [];
       for (const n of o.net.cars) {
         if (n.id === o.net.me) { c.netId = n.id; grid.push(c); continue; }
-        const r = this.mkCar(U.clamp(n.car | 0, 0, DRIFT_CARS.length - 1), n.paint, n.name, n.al, n.liv);
+        const r = this.mkCar(U.clamp(n.car | 0, 0, DRIFT_CARS.length - 1), n.paint, n.name, n.al, n.liv, n.rim);
         r.remote = true; r.netId = n.id;
         this.racers.push(r); grid.push(r);
       }
@@ -620,6 +656,11 @@ class DriftRace {
         react: 0.1 + rnd() * 0.6 };   // reaction to the green light (s): the field strings out before the first bend
       this.racers.push(a);
     }
+    if (o.demo) {
+      this.demo = true; this.state = 'racing'; this.count = 0; this.camMode = 1;
+      c.isPlayer = false; c.name = 'DEMO';
+      c.ai = { skill: 0.8, fast: 1.18, hbR: 56, hb: 0.44, lane: 0, hbT: 0, hbCool: 0, stuckT: 0, react: 0 };
+    }
     // the grid: alone on the centre line; with company two abreast behind the line, the player in the second row
     if (this.racers.length === 1) this.place(c, tr.startZ / CFG.segL, 0);
     else {
@@ -631,10 +672,10 @@ class DriftRace {
     this.syncPlayer();
   }
   // align: the car's wheel alignment (al; default: what the car comes with); fx: its effects that do not change (Align.fx)
-  mkCar(ci, paint, name, al, liv) {
+  mkCar(ci, paint, name, al, liv, rim) {
     const spec = DRIFT_CARS[ci];
     al = Align.clean(al || Align.def(spec));
-    return { spec, carIdx: ci, paint, liv: Livery.clean(liv), name, isPlayer: false, ai: null, body: DRIFT_BODY[spec.model], I: spec.mass * spec.a * spec.b * 1.05,
+    return { spec, carIdx: ci, paint, liv: Livery.clean(liv), rim: Rim.clean(rim), name, isPlayer: false, ai: null, body: DRIFT_BODY[spec.model], I: spec.mass * spec.a * spec.b * 1.05,
       align: al, fx: Align.fx(al), gF: 1, gR: 1, gFs: 1, ayA: 0,
       pq: {}, wq: {}, placed: false, auto: true,
       px: 0, pz: 0, psi: 0, vx: 0, vz: 0, w: 0, steer: 0, sIn: 0, ax: 0, ay: 0,

@@ -20,7 +20,7 @@ vm.createContext(sandbox);
 for (const f of ['js/core.js', 'js/track.js', 'js/race.js', 'js/drift.js']) {
   vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox, { filename: f });
 }
-const G = vm.runInContext('({ Race, THEMES, BIKES, CAR_COLS, CAR_TYPES, decodeInput, DRIFT_CARS, DRIFT_MAPS, Align, Livery })', sandbox);
+const G = vm.runInContext('({ Race, THEMES, BIKES, CAR_COLS, CAR_TYPES, decodeInput, DRIFT_CARS, DRIFT_MAPS, Align, Livery, Rim })', sandbox);
 const WEAPON = { club: 1, chain: 2 };
 
 // ---------- static files ----------
@@ -93,6 +93,7 @@ function setProfile(p, m) {
   p.dcar = clampInt(m.dcar, 0, G.DRIFT_CARS.length - 1, 0);
   p.dpaint = /^#[0-9a-fA-F]{6}$/.test(String(m.dpaint)) ? String(m.dpaint) : G.DRIFT_CARS[p.dcar].color;
   p.dliv = G.Livery.clean(m.dliv);   // (stripes over the paint)
+  p.drim = G.Rim.clean(m.drim);      // (wheels: another model's rims, their colour)
   p.dal = G.Align.clean(m.dal && typeof m.dal === 'object' ? m.dal : G.Align.def(G.DRIFT_CARS[p.dcar]));   // (wheel alignment, numbers in range)
 }
 function joinRoom(p, room) {
@@ -134,7 +135,7 @@ function startRace(room) {
 function startDrift(room) {
   const ps = [...room.players.values()];
   if (ps.some(p => p.id !== room.host && !p.ready)) return;
-  const cars = ps.map(p => ({ id: p.id, name: p.name, car: p.dcar, paint: p.dpaint, liv: p.dliv, al: p.dal }));
+  const cars = ps.map(p => ({ id: p.id, name: p.name, car: p.dcar, paint: p.dpaint, liv: p.dliv, rim: p.drim, al: p.dal }));
   room.drift = { map: room.dmap, cars, fin: new Map(), t: 0, endAt: null };
   room.state = 'race'; room.running = false; room.tickN = 0; room.loadT = 0;
   room.waitLoad = new Set(ps.map(p => p.id));
@@ -308,7 +309,7 @@ function handle(p, m) {
 const wss = new WebSocketServer({ server, maxPayload: 4096 });
 wss.on('connection', ws => {
   const p = { id: 'p' + (nextId++), ws, name: 'Tay đua', bike: 0, bikeHp: 100, level: 1, room: null, ready: false, q: [], ack: 0, lastK: 0, ev: [],
-    dcar: 0, dpaint: '#f2f2f0', dliv: '', dst: null };
+    dcar: 0, dpaint: '#f2f2f0', dliv: '', drim: '', dst: null };
   lobby.add(p);
   ws.on('message', data => { let m; try { m = JSON.parse(data); } catch (e) { return; } if (m && typeof m === 'object') later(() => handle(p, m)); });
   ws.on('close', () => { lobby.delete(p); leaveRoom(p); });
