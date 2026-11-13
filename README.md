@@ -193,6 +193,8 @@ Mỗi đèo có thêm 2 khúc số 8: hai vòng cua dài 225° ngược chiều 
 - **Đèo Khau Phạ** (Yên Bái, 7,7 km, chiều nắng vàng): đồi ruộng bậc thang mùa lúa chín hai bên đường, 78 khúc cua gấp.
 - **Đèo Pha Đin** (Điện Biên – Sơn La, 8,2 km, sương sớm): tầm nhìn ngắn, cua nối cua gần như không nghỉ, 83 khúc cua gấp.
 - **Đèo Khánh Lê** (Nha Trang – Đà Lạt, 7,9 km, chạng vạng): rừng thông dưới trời tím, 3 cua tay áo và các đoạn zíc zắc liền nhau.
+- **Đèo Bảo Lộc** (Lâm Đồng, 8,7 km, rừng xanh giữa trưa): 36 cua lớn ôm dài 100–225°, bán kính 46–85 m, gần 80% quãng đường là cua. Hợp để giữ một pha drift dài ở tốc độ cao.
+- **Đèo Thung Khe** (Hòa Bình, 8,4 km, núi đá trắng): 46 cua tròn 120–225° nối nhau liên tục, bán kính 34–48 m. Đảo lái gần như không nghỉ.
 - **Sân drift đêm Bình Dương** (3 vòng, mỗi vòng khoảng 2,4 km, tổng khoảng 7,2 km): đường rộng 22 m, 27 khúc cua mỗi vòng, hầu hết đoạn thẳng được bẻ bằng cua chữ S, có đèn pha và khán đài. Một lượt khoảng 5 phút.
 
 ### Xe
@@ -227,6 +229,28 @@ Công suất, mô-men, trọng lượng và tốc độ ngoài đời lấy theo
 Tất cả xe đều dựng từ mẫu 3D trong thư mục `car/` (xem phần Ghi công), có mâm, lốp, đĩa phanh và heo phanh riêng của mẫu. Bánh xe quay đúng trục và đánh lái được. Các xe dựng bằng khối hình học trước đây (AE86, Silvia S15, RX-7 FD3S, Mustang GT) đã bỏ. Save cũ có các xe này được hoàn lại tiền mua, và Datsun 280Z thay AE86 làm xe có sẵn. Mẫu của xe được tải dần trong nền sau khi mở game. Nếu vào đua khi mẫu chưa tải xong, game hiện "ĐANG TẢI XE..." trong giây lát. Cách chuyển mẫu xem `tools/glb/README.md`.
 
 ### Căn chỉnh góc đặt bánh (camber, toe, caster)
+
+Ngoài 5 góc trên còn hai thông số lái:
+
+- **ACKERMANN** (0-100%): chênh lệch góc lái giữa bánh trong và bánh ngoài. 100% như xe đường phố; gần 0% (hai bánh song song) thì khi drift đầu xe bám hơn lúc lái ngược và xe giữ tốc độ trượt tốt hơn, đổi lại hơi kém bám khi vào cua gắt lúc chưa trượt. Xe drift thường để 0-30%.
+- **GÓC LÁI TỐI ĐA** (30-85°): góc bẻ lái lớn nhất của bánh trước, như lắp bộ kit mở góc lái. Mỗi xe có góc gốc riêng (45-54°). Tăng lên thì xe giữ được góc drift lớn hơn và dễ cứu xe khi đuôi văng quá đà; trên 57° vô-lăng nặng dần. Góc lái lớn nên đi cùng Ackermann thấp.
+
+Bản lưu cũ chưa có hai thông số này sẽ nhận giá trị gốc của xe.
+
+Dòng **ĐỘNG CƠ** (← → xem, ENTER mua và lắp) cho phép độ máy gốc hoặc thay máy khác. Động cơ mua riêng cho từng xe; đã mua rồi thì đổi qua lại không mất tiền.
+
+| Động cơ | Giá | Đặc điểm |
+|---|---|---|
+| Độ Stage 1 | $4.000 | Máy gốc, thêm 15% mô-men |
+| Độ Stage 2 | $12.000 | Máy gốc, turbo lớn, thêm 35% mô-men, nặng thêm 15 kg |
+| SR20DET 2.0L turbo | $10.000 | 500 Nm, tua 7800, nhẹ hơn 20 kg |
+| 13B rotary turbo | $18.000 | 480 Nm, tua 9000, nhẹ hơn 40 kg |
+| LS3 V8 6.2L | $22.000 | 760 Nm ngay từ tua thấp, tua 6800, nặng thêm 20 kg |
+| RB26DETT 2.6L twin-turbo | $26.000 | 720 Nm, tua 8200, nặng thêm 40 kg |
+| 2JZ-GTE 3.0L turbo | $36.000 | 960 Nm, tua 7800, nặng thêm 50 kg |
+| VR38DETT 3.8L V6 twin-turbo | $52.000 | 1150 Nm, tua 7400, nặng thêm 60 kg |
+
+Xe càng mạnh thì đối thủ máy càng được xếp xe mạnh hơn. Hộp số giữ nguyên của xe, nên tốc độ tối đa phụ thuộc cả vào tua máy mới.
 
 Cũng trong màn này có hai dòng **MÂM XE** và **MÀU MÂM** (← → để đổi): lắp bộ mâm và lốp của bất kỳ mẫu xe nào trong game lên xe đang chọn, và đổi màu mặt mâm. Mâm được chỉnh cỡ cho vừa bánh của xe nên không ảnh hưởng tới cách xe chạy. Lựa chọn lưu riêng cho từng xe và dùng cả khi đua online.
 

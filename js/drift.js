@@ -73,14 +73,14 @@ const DRIFT_CARS = [
     mass: 1190, a: 1.135, b: 1.39, h: 0.47, torque: 560, pk: 0.62, redline: 8000, idle: 950, gears: [3.32, 1.9, 1.31, 1.0, 0.76, 0.59],
     final: 4.3, R: 0.342, drag: 0.33, muF: 1.12, muR: 1.18, pkF: 0.12, pkR: 0.105, slide: 0.84, lock: 0.9, steerIn: 0.62, brake: 1.12,
     maxAng: 1.08, turbo: true, voice: [31, 250, 330, 2400, 0.3, 2],
-    align: { camF: -5.5, camR: -1, toeF: -0.1, toeR: 0.15, cas: 8.5 } },   // (comes with a pro-am drift alignment)
+    align: { camF: -5.5, camR: -1, toeF: -0.1, toeR: 0.15, cas: 8.5, ack: 30 } },   // (comes with a pro-am drift alignment)
   // Ford Mustang GT (S550, 2018) drift build: Coyote 5.0 L V8, 460 hp at 7000 rpm and 569 Nm stock, about 1700 kg,
   // 6-speed MT-82 3.66 / 2.43 / 1.69 / 1.32 / 1.00 / 0.65, final 3.55. Here supercharged and stripped
   { name: 'Ford Mustang GT Drift Spec', model: 'gtd', price: 62000, color: '#e8650f', hp: 720, kg: 1560, vmax: 360, real: 'Coyote 5.0L V8 (Mustang GT 2018) · zin 460 mã lực · 250 km/h',
     mass: 1560, a: 1.278, b: 1.442, h: 0.49, torque: 900, pk: 0.6, redline: 7500, idle: 800, gears: [3.66, 2.43, 1.69, 1.32, 1.0, 0.65],
     final: 3.55, R: 0.327, drag: 0.4, muF: 1.13, muR: 1.19, pkF: 0.12, pkR: 0.105, slide: 0.85, lock: 0.9, steerIn: 0.6, brake: 1.15,
     maxAng: 1.08, turbo: false, voice: [24, 200, 250, 1500, 0.44, 1.5],
-    align: { camF: -5, camR: -1, toeF: -0.1, toeR: 0.15, cas: 8.5 } },   // (a drift alignment)
+    align: { camF: -5, camR: -1, toeF: -0.1, toeR: 0.15, cas: 8.5, ack: 30 } },   // (a drift alignment)
   // Porsche 911 GT2 (993): 3.6 L twin-turbo flat six, 430 PS at 5750 rpm, 540 Nm, 1295 kg, rear drive, 6-speed
   // (ratios estimated from the 993 Turbo box), 0-100 4.4 s, 295 km/h. Rear engine: 38 % of the weight on the front
   { name: 'Porsche 911 GT2 (993)', model: 'gt2', price: 65000, color: '#f0c419', hp: 615, kg: 1295, vmax: 321, real: '3.6L 6 máy boxer twin-turbo · zin 430 mã lực · 295 km/h',
@@ -95,7 +95,7 @@ const DRIFT_CARS = [
     mass: 1260, a: 1.21, b: 1.36, h: 0.46, torque: 800, pk: 0.6, redline: 7500, idle: 900, gears: [3.626, 2.188, 1.541, 1.213, 1.0, 0.767],
     final: 4.1, R: 0.348, drag: 0.33, muF: 1.14, muR: 1.2, pkF: 0.12, pkR: 0.105, slide: 0.85, lock: 0.92, steerIn: 0.62, brake: 1.15,
     maxAng: 1.1, turbo: true, voice: [30, 250, 320, 2200, 0.24, 2],
-    align: { camF: -5, camR: -1, toeF: -0.1, toeR: 0.15, cas: 8.5 } },   // (a drift alignment)
+    align: { camF: -5, camR: -1, toeF: -0.1, toeR: 0.15, cas: 8.5, ack: 30 } },   // (a drift alignment)
   // Mazda RX-7 FD3S, BN Sports BLS kit: built 13B rotary, about 600 hp on the street (BN Sports BLS build); capped here
   { name: 'Mazda RX-7 BN Sports', model: 'rx7bn', price: 75000, color: '#c0161e', hp: 700, kg: 1250, vmax: 331, real: '13B rotary độ lớn · ~600 mã lực (bản BN Sports BLS)',
     mass: 1250, a: 1.2125, b: 1.2125, h: 0.46, torque: 720, pk: 0.65, redline: 8500, idle: 1100, gears: [3.483, 2.015, 1.391, 1.0, 0.719],
@@ -108,7 +108,7 @@ const DRIFT_CARS = [
     mass: 1180, a: 1.135, b: 1.39, h: 0.45, torque: 700, pk: 0.62, redline: 8000, idle: 950, gears: [3.626, 2.2, 1.541, 1.213, 1.0, 0.767],
     final: 3.692, R: 0.325, drag: 0.34, muF: 1.14, muR: 1.2, pkF: 0.12, pkR: 0.105, slide: 0.85, lock: 0.92, steerIn: 0.62, brake: 1.15,
     maxAng: 1.1, turbo: true, voice: [31, 250, 330, 2400, 0.3, 2],
-    align: { camF: -5.5, camR: -1, toeF: -0.1, toeR: 0.15, cas: 8.5 } },   // (a drift alignment)
+    align: { camF: -5.5, camR: -1, toeF: -0.1, toeR: 0.15, cas: 8.5, ack: 30 } },   // (a drift alignment)
   // Nissan GT-R R35 with the Liberty Walk LB-Silhouette WORKS GT 35GT-RR kit: VR38DETT 3.8 L twin-turbo V6, 570 PS at
   // 6800 rpm, 633 Nm, about 1750 kg, 6-speed dual clutch, 315 km/h. Four-wheel drive in real life - rear drive here
   { name: 'Nissan GT-R R35 LB-Silhouette', model: 'r35', price: 85000, color: '#f2f2f0', hp: 800, kg: 1700, vmax: 329, real: 'VR38DETT 3.8L V6 twin-turbo · zin 570 mã lực · 315 km/h', ownLiv: true,
@@ -127,7 +127,7 @@ const DRIFT_CARS = [
     mass: 1200, a: 1.114, b: 1.361, h: 0.46, torque: 900, pk: 0.6, redline: 8000, idle: 1000, gears: [3.827, 2.36, 1.685, 1.312, 1.0, 0.793],
     final: 3.7, R: 0.306, drag: 0.32, muF: 1.16, muR: 1.22, pkF: 0.12, pkR: 0.105, slide: 0.85, lock: 0.95, steerIn: 0.64, brake: 1.15,
     maxAng: 1.12, turbo: true, voice: [33, 270, 340, 2400, 0.1, 1.5],
-    align: { camF: -5, camR: -0.75, toeF: -0.05, toeR: 0.2, cas: 9 } },   // (its D1 alignment)
+    align: { camF: -5, camR: -0.75, toeF: -0.05, toeR: 0.2, cas: 9, ack: 15 } },   // (its D1 alignment)
 ];
 // body ends (rear, front) and half width of each model, for the walls
 const DRIFT_BODY = { z280: [-2.1, 2.18, 0.88], n180: [-2.4, 2.14, 0.9], m65: [-2.52, 2.04, 0.9], gr86: [-2.22, 2.17, 0.97],
@@ -143,6 +143,62 @@ const Livery = {
   color(v) { return this.clean(v).slice(1); },
   // a stripe colour that shows on a paint: dark on light paint, white on the rest
   contrast(paint) { const n = parseInt(String(paint).slice(1), 16), l = ((n >> 16) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11) / 255; return l > 0.6 ? '#14161a' : '#f2f2f0'; },
+};
+// engines: the car's own, two stages of tuning on it, and swaps (their own torque, rev range, sound and weight). A car's
+// engine is an id ('' = its own); Engine.spec(car, id) is the car as the physics and the garage see it with that engine
+const DRIFT_ENGINES = [
+  { id: '', name: 'Máy gốc của xe', price: 0, desc: 'Động cơ theo xe.' },
+  { id: 'st1', name: 'Độ Stage 1', price: 4000, k: 1.15, desc: 'Trên máy gốc: ECU, cổ hút, ống xả. Thêm 15% mô-men, tính nết xe giữ nguyên.' },
+  { id: 'st2', name: 'Độ Stage 2', price: 12000, k: 1.35, pkUp: 0.04, turbo: true, dkg: 15, desc: 'Trên máy gốc: turbo lớn, kim phun, két làm mát khí nạp. Thêm 35% mô-men, lực kéo dồn lên tua cao.' },
+  { id: 'sr20', name: 'SR20DET 2.0L turbo', price: 10000, torque: 500, pk: 0.62, redline: 7800, idle: 950, turbo: true, dkg: -20, voice: [31, 250, 330, 2400, 0.3, 2],
+    desc: 'Máy 4 xi-lanh turbo của Silvia: nhẹ đầu xe, bốc ở tua cao, dễ giữ bánh quay.' },
+  { id: '13b', name: '13B rotary turbo', price: 18000, torque: 480, pk: 0.7, redline: 9000, idle: 1000, turbo: true, dkg: -40, voice: [42, 330, 440, 3000, 0.16, 3],
+    desc: 'Máy xoay của RX-7: nhẹ nhất, quay tới 9000 vòng/phút, lực kéo nằm hết ở tua cao.' },
+  { id: 'ls3', name: 'LS3 V8 6.2L', price: 22000, torque: 760, pk: 0.5, redline: 6800, idle: 750, turbo: false, dkg: 20, voice: [24, 200, 250, 1500, 0.44, 1.5],
+    desc: 'V8 hút khí tự nhiên: mô-men lớn ngay từ tua thấp, ga đều và dễ đoán, tua máy thấp.' },
+  { id: 'rb26', name: 'RB26DETT 2.6L twin-turbo', price: 26000, torque: 720, pk: 0.6, redline: 8200, idle: 900, turbo: true, dkg: 40, voice: [33, 260, 330, 2400, 0.22, 2],
+    desc: '6 xi-lanh thẳng hàng của Skyline GT-R: khỏe và quay cao, nặng đầu hơn.' },
+  { id: '2jz', name: '2JZ-GTE 3.0L turbo', price: 36000, torque: 960, pk: 0.58, redline: 7800, idle: 900, turbo: true, dkg: 50, voice: [33, 270, 340, 2400, 0.1, 1.5],
+    desc: '6 xi-lanh thẳng hàng của Supra, turbo đơn lớn: rất nhiều mô-men, bánh sau luôn sẵn sàng quay.' },
+  { id: 'vr38', name: 'VR38DETT 3.8L V6 twin-turbo', price: 52000, torque: 1150, pk: 0.56, redline: 7400, idle: 900, turbo: true, dkg: 60, voice: [30, 250, 320, 2200, 0.24, 2],
+    desc: 'V6 twin-turbo của GT-R R35: mạnh nhất, nặng nhất. Cần chân ga nhẹ nhàng.' },
+];
+const Engine = {
+  clean(v) { return DRIFT_ENGINES.some(e => e.id === v) ? v : ''; },
+  get(id) { return DRIFT_ENGINES.find(e => e.id === id) || DRIFT_ENGINES[0]; },
+  // (a plain copy of the car with the engine's figures; hp as the car table counts it. The final drive comes with the
+  // engine: regeared so the top gear reaches the same share of the speed the power could pull as the car's own
+  // gearing did - more power = more speed in every gear, not only more wheelspin)
+  gearV(s, g) { return s.redline / (s.gears[g] * s.final) / 60 * 2 * Math.PI * s.R * 3.6; },   // km/h at the red line in gear g (0 = first)
+  dragV(s) { return Math.cbrt(s.hp * 745.7 / s.drag) * 3.6; },
+  // seconds from rest to v km/h, about: the lesser of what the rear tyres take (with the weight moving onto them) and
+  // what the power gives, against the drag
+  time(s, v) {
+    const L = s.a + s.b, k = s.muR * TRACTION * 0.86 * (s.tracK || 1), at = k * s.a * 9.81 / (L - k * s.h), P = s.hp * 745.7 * 0.8;
+    let t = 0;
+    for (let u = 0.5; u < v / 3.6; u += 0.5) t += 0.5 / Math.max(0.2, Math.min(at, P / (s.mass * u)) - s.drag * u * u / s.mass - 0.13);
+    return t;
+  },
+  spec(car, id) {
+    const e = this.get(id);
+    if (!e.id) return car;
+    const s = Object.assign({}, car, { eng: e.id, base: car });
+    s.torque = e.torque || Math.round(car.torque * e.k / 5) * 5;
+    s.pk = e.pk || Math.min(0.72, car.pk + (e.pkUp || 0));
+    s.redline = e.redline || car.redline; s.idle = e.idle || car.idle;
+    if (e.turbo !== undefined) s.turbo = e.turbo;
+    if (e.voice) s.voice = e.voice;
+    s.mass = car.mass + (e.dkg || 0); s.kg = car.kg + (e.dkg || 0);
+    s.hp = e.torque ? Math.round(s.torque * s.redline * s.pk / 5600 / 5) * 5 : Math.round(car.hp * e.k / 5) * 5;
+    const top = s.gears.length - 1, share = Math.min(1, this.gearV(car, top) / this.dragV(car)), want = share * this.dragV(s);
+    s.final = +(car.final * this.gearV(s, top) / want).toFixed(2);
+    s.vmax = Math.round(this.gearV(s, top));
+    // wider rear tyres come with the power: more of it reaches the road (forward traction only - the sideways grip and
+    // the car's balance stay). Without them every engine would pull alike below about 150 km/h: the stock tyres are
+    // already at their limit with the stock engine
+    s.tracK = U.clamp(Math.pow(s.hp / car.hp, 0.35), 0.9, 1.4);
+    return s;
+  },
 };
 // wheels: every car model's own rims and tyres can be fitted to any car (models.js setRim sizes them to the car's
 // tyres). A car's wheels are a string: '' its own; '<model>' another car's; either followed by '#rrggbb', the colour of
@@ -163,9 +219,16 @@ const DRIFT_PAINTS = ['#f2f2f0', '#14161a', '#8e949c', '#c0161e', '#e8650f', '#f
 // effect below is 1 (or 0) there. A car may come with its own (spec.align: the pro builds)
 const DEG = Math.PI / 180;
 const ALIGN = {
-  keys: ['camF', 'camR', 'toeF', 'toeR', 'cas'],
-  rng: { camF: [-8, 2, 0.25], camR: [-4, 2, 0.25], toeF: [-1, 1, 0.05], toeR: [-1, 1, 0.05], cas: [2, 12, 0.25] },
-  stock: { camF: -0.75, camR: -1.25, toeF: 0.05, toeR: 0.1, cas: 5.5 },
+  // ack: Ackermann, % (100 = the inner front wheel steers further than the outer one, as on a road car; 0 = both turn
+  // alike, as on a drift car). lock: steering lock, degrees (a car comes with its own, spec.lock; an angle kit adds more)
+  keys: ['camF', 'camR', 'toeF', 'toeR', 'cas', 'ack', 'lock'],
+  rng: { camF: [-8, 2, 0.25], camR: [-4, 2, 0.25], toeF: [-1, 1, 0.05], toeR: [-1, 1, 0.05], cas: [2, 12, 0.25], ack: [0, 100, 5], lock: [30, 85, 1] },
+  stock: { camF: -0.75, camR: -1.25, toeF: 0.05, toeR: 0.1, cas: 5.5, ack: 100, lock: 45 },
+  // Ackermann: geo x sin²(steer) = how far apart (rad) the two front wheels point at full Ackermann. In a drift, on
+  // counter-steer, that split puts one tyre past its best slip: without it the front grips up to `grip` more and the
+  // slide sheds up to `drag` m/s² less (x the split); gripping, parallel wheels scrub in tight turns (`turn` less bite).
+  // lockAng: drift angle the car holds per radian of steering lock beyond its own
+  ack: { geo: 0.58, grip: 0.07, drag: 1.0, turn: 0.04, lockAng: 0.5 },
   // body roll (degrees per m/s² sideways) and the share of it that reaches the tyres' camber (strut front, multi-link
   // rear); ltF: the front's share of the load transfer against an even split (drift cars are stiffer at the front)
   roll: 0.3, rollF: 0.7, rollR: 0.45, ltF: 1.45, track: 1.5,
@@ -176,13 +239,14 @@ const ALIGN = {
   drift: { ay: 7.5, steer: -0.42 }, turn: { ay: 5, steer: 0.08 },
 };
 const Align = {
-  def(spec) { return this.clean(spec.align || ALIGN.stock); },
+  def(spec) { return this.clean(Object.assign({}, ALIGN.stock, { lock: Math.round(spec.lock / DEG) }, spec.align)); },
   // a valid setup (saves, the network): every angle on its step, within its range
-  clean(a) {
-    const o = {};
+  // (spec: the car - an angle the setup lacks (a save from before it existed) is the car's own)
+  clean(a, spec) {
+    const o = {}, d = spec ? this.def(spec) : ALIGN.stock;
     for (const k of ALIGN.keys) {
-      const [lo, hi, st] = ALIGN.rng[k], v = Number(a && a[k]);
-      o[k] = Number.isFinite(v) ? U.clamp(Math.round(v / st) * st, lo, hi) : ALIGN.stock[k];
+      const [lo, hi, st] = ALIGN.rng[k], v = a && a[k] !== undefined && a[k] !== null ? Number(a[k]) : NaN;
+      o[k] = Number.isFinite(v) ? U.clamp(Math.round(v / st) * st, lo, hi) : d[k];
       o[k] = +o[k].toFixed(2);
     }
     return o;
@@ -240,8 +304,19 @@ const Align = {
       snap: U.clamp(1 + 1.2 * a.toeR, 0.4, 1), drag: 1.2 * Math.max(0, -a.toeR),
       gripR: U.clamp(1 + 0.06 * (a.toeR - s.toeR), 0.96, 1.04),
       scrub: sc(a.toeF) + sc(a.toeR) - sc(s.toeF) - sc(s.toeR),
+      // (lockK: past about 57 degrees of lock the steering turns heavier - slower on the keys while gripping)
+      ack: a.ack / 100, lock: a.lock * DEG, lockK: 1 - 0.6 * Math.max(0, a.lock * DEG - 1.0),
     };
   },
+  // the effects for a car: fx plus the drift angle it holds (more steering lock than the car's own = more angle)
+  car(a, spec) {
+    const f = this.fx(a);
+    f.maxAng = U.clamp(spec.maxAng + ALIGN.ack.lockAng * (f.lock - spec.lock), 0.6, 1.4);
+    f.angK = f.maxAng / spec.maxAng;   // (the drift angle the keys ask for grows with it: the extra lock gets used)
+    return f;
+  },
+  // how far apart the front wheels point (rad) at full Ackermann, steered by d; the same as a share of a big split
+  ackSplit(d) { return ALIGN.ack.geo * Math.sin(d) ** 2; },
   // what the garage shows: each effect as a ratio to the stock alignment (> 1 better), with its weight in the drift rating
   STATS: [['frontD', 'BÁM ĐẦU KHI DRIFT', 0.26], ['turn', 'BÁM ĐẦU VÀO CUA', 0.08], ['rearD', 'BÁM ĐUÔI KHI DRIFT', 0.06],
     ['trac', 'LỰC KÉO (BÁM GA)', 0.12], ['brake', 'PHANH', 0.04], ['resp', 'ĂN LÁI', 0.07], ['self', 'TỰ TRẢ LÁI NGƯỢC', 0.1],
@@ -250,10 +325,14 @@ const Align = {
   // (the rating: a weighted sum of the logs; a car with more weight over the rear axle needs its tail steadier)
   stats(a, spec, noScore) {
     const f = this.fx(a), h = spec ? spec.h : 0.48, D = ALIGN.drift, Tn = ALIGN.turn, rearK = spec ? 2 * spec.a / (spec.a + spec.b) : 1;
+    // Ackermann and lock: parallel wheels bite better on counter-steer and shed less speed, a little less bite turning
+    // in; more lock catches a tail that swings too far (and is heavier to turn)
+    const K = ALIGN.ack, par = 1 - f.ack, lk0 = spec ? spec.lock : ALIGN.stock.lock * DEG;
     const st = {
-      frontD: this.axleK(a, true, D.ay, D.steer, h), rearD: this.axleK(a, false, D.ay, D.steer, h), turn: this.axleK(a, true, Tn.ay, Tn.steer, h),
-      resp: f.steer / f.pkF, self: f.self, light: f.light, snap: f.snap, init: 1 / f.gripR,
-      trac: f.trac, brake: 0.62 * f.brake + 0.38, hs: f.yawRaw < 0 ? Math.max(0.3, 1 + f.yawRaw / 3) : 1 + 0.25 * Math.tanh(f.yawRaw / 0.75), roll: 1 - f.scrub * 6 - f.drag * 0.12,
+      frontD: this.axleK(a, true, D.ay, D.steer, h) * (1 + K.grip * par * Math.min(1, this.ackSplit(0.75) / 0.25)), rearD: this.axleK(a, false, D.ay, D.steer, h),
+      turn: this.axleK(a, true, Tn.ay, Tn.steer, h) * (1 - K.turn * par),
+      resp: f.steer / f.pkF, self: f.self, light: f.light * f.lockK, snap: f.snap * (1 + 0.5 * (f.lock - lk0)), init: 1 / f.gripR,
+      trac: f.trac, brake: 0.62 * f.brake + 0.38, hs: f.yawRaw < 0 ? Math.max(0.3, 1 + f.yawRaw / 3) : 1 + 0.25 * Math.tanh(f.yawRaw / 0.75), roll: 1 - f.scrub * 6 - f.drag * 0.12 + 0.04 * par,
     };
     let sc = 0;
     for (const [k, , w] of this.STATS) sc += w * (k === 'snap' || k === 'hs' ? rearK : 1) * Math.log(Math.max(0.05, st[k]));
@@ -270,7 +349,7 @@ const Align = {
   },
   // the best drift setup for a car: coordinate search over the steps from the stock one
   optimize(spec, from) {
-    let a = this.clean(from || ALIGN.stock), best = this.stats(a, spec, true).raw;
+    let a = this.clean(from || (spec ? this.def(Object.assign({}, spec, { align: null })) : ALIGN.stock)), best = this.stats(a, spec, true).raw;
     for (let pass = 0; pass < 60; pass++) {
       let moved = false;
       for (const k of ALIGN.keys) for (const dir of [1, -1]) for (const n of [8, 4, 2, 1]) {
@@ -398,6 +477,34 @@ const DRIFT_MAPS = [
       ['S',  99], ['R',  121,  23], ['S',  74], ['L',  129,  24], ['S',  71], ['R',  69,  36], ['L',  81,  29], ['R',  78,  31], ['L',  67,  33],
       ['S',  80], ['R',  88,  37], ['S',  76], ['R',  69,  33], ['L',  81,  29], ['R',  85,  32], ['L',  64,  34], ['S',  66], ['R',  89,  30],
       ['L',  90,  30], ['R',  90,  30], ['L',  86,  30], ['S',  96], ['S',  160]],
+  },
+  {
+    // big bends only (tools: a random search that keeps the road 42 m clear of itself): long sweepers, 100 to 225 degrees
+    id: 'dBaoLoc', name: 'Đèo Bảo Lộc', desc: 'Lâm Đồng · 8,7 km rừng xanh, 36 cua lớn ôm dài 100–225°, bán kính 46–85 m, gần như không có đoạn thẳng',
+    edge: 1.8, wall: 2.15, drop: 125, waves: [[6, 4, 0.8], [3, 10, 1.9]], centre: 'double', scenery: 'forest',
+    grades: [125000, 310000, 625000, 1050000, 1650000],
+    seq: [['S',  150], ['R',  135,  75], ['L',  150,  73], ['S',  45], ['R',  135,  71], ['L',  130,  81], ['S',  55], ['R',  215,  47],
+      ['L',  195,  48], ['S',  70], ['R',  135,  63], ['L',  135,  74], ['S',  55], ['R',  165,  70], ['S',  45], ['L',  200,  46], ['R',  215,  54],
+      ['S',  70], ['L',  205,  51], ['S',  70], ['R',  150,  64], ['L',  150,  81], ['S',  55], ['R',  155,  58], ['S',  65], ['L',  115,  73],
+      ['R',  145,  62], ['S',  65], ['L',  185,  55], ['S',  90], ['R',  130,  69], ['L',  105,  78], ['S',  55], ['R',  200,  50], ['L',  200,  53],
+      ['S',  65], ['R',  195,  55], ['S',  45], ['L',  125,  83], ['R',  150,  76], ['S',  55], ['L',  150,  64], ['S',  45], ['R',  100,  82],
+      ['L',  120,  70], ['S',  45], ['R',  205,  54], ['S',  65], ['L',  190,  55], ['S',  85], ['R',  150,  67], ['S',  50], ['L',  105,  76],
+      ['R',  140,  85], ['S',  70], ['L',  160,  55], ['S',  90], ['R',  155,  69], ['L',  145,  76], ['S',  45], ['S',  160]],
+  },
+  {
+    // carousels: bends of 120 to 225 degrees on a 34 to 48 m radius, one straight into the next
+    id: 'dThungKhe', name: 'Đèo Thung Khe', desc: 'Hòa Bình · 8,4 km núi đá trắng, 46 cua tròn 120–225° nối nhau liên tục, bán kính 34–48 m',
+    edge: 1.8, wall: 2.15, drop: 110, waves: [[5, 5, 0.2], [2.5, 12, 1.1]], centre: 'dash',
+    grades: [130000, 320000, 650000, 1090000, 1710000],
+    seq: [['S',  150], ['L',  205,  36], ['R',  190,  36], ['S',  60], ['L',  155,  40], ['R',  150,  42], ['S',  35], ['L',  155,  44],
+      ['R',  150,  40], ['S',  45], ['L',  185,  41], ['S',  65], ['R',  180,  41], ['S',  55], ['L',  195,  38], ['S',  35], ['R',  180,  39],
+      ['L',  175,  39], ['S',  75], ['R',  190,  37], ['S',  60], ['L',  170,  34], ['R',  195,  38], ['L',  195,  38], ['S',  50], ['R',  205,  39],
+      ['L',  180,  37], ['S',  50], ['R',  200,  42], ['L',  170,  40], ['S',  60], ['R',  175,  40], ['L',  205,  39], ['S',  70], ['R',  205,  41],
+      ['S',  45], ['L',  190,  44], ['S',  60], ['R',  180,  41], ['L',  180,  38], ['S',  45], ['R',  170,  41], ['L',  200,  36], ['S',  65],
+      ['R',  125,  42], ['L',  140,  41], ['S',  45], ['R',  185,  37], ['L',  160,  35], ['R',  185,  36], ['S',  65], ['L',  165,  39],
+      ['R',  195,  35], ['L',  190,  37], ['S',  60], ['R',  195,  38], ['L',  200,  35], ['S',  45], ['R',  215,  36], ['L',  210,  40], ['S',  70],
+      ['R',  205,  41], ['L',  205,  42], ['S',  45], ['R',  185,  42], ['S',  65], ['L',  200,  39], ['R',  205,  41], ['S',  50], ['L',  175,  41],
+      ['R',  210,  42], ['S',  50], ['S',  160]],
   },
   {
     id: 'dArena', name: 'Sân drift đêm Bình Dương', desc: 'Sân kín dưới đèn pha · đường rộng 22 m · 27 khúc cua mỗi vòng, nối tiếp nhau',
@@ -600,7 +707,7 @@ const DRIFT_AI = {
 };
 
 class DriftRace {
-  // o: { mapIdx, carIdx, paint, al (wheel alignment, see ALIGN), ais (computer drivers), seed?, aiSeed?, net?, demo? }.
+  // o: { mapIdx, carIdx, paint, al (wheel alignment, see ALIGN), eng (engine id), ais (computer drivers), seed?, aiSeed?, net?, demo? }.
   // demo: the race behind the title screen and the menus - a computer driver in the camera's car too, no countdown, no
   // sounds or messages (the car is not 'the player' to the code that makes them). net = { me,
   // cars: [{ id, name, car, paint, al, liv, rim }] } for an online race: the cars of the other players (remote: no physics here, Net
@@ -622,7 +729,7 @@ class DriftRace {
     this.state = 'countdown'; this.camMode = 0;
     const spec = DRIFT_CARS[o.carIdx];
     this.carIdx = o.carIdx; this.paint = o.paint || spec.color;
-    const c = this.car = this.mkCar(o.carIdx, this.paint, 'BẠN', o.al, o.liv, o.rim);
+    const c = this.car = this.mkCar(o.carIdx, this.paint, 'BẠN', o.al, o.liv, o.rim, o.eng);
     c.isPlayer = true;
     this.racers = [c];
     if (o.net) {   // online: the others as remote cars, everyone on the grid in the server's order
@@ -646,8 +753,11 @@ class DriftRace {
     const names = DRIFT_AI.names.slice().sort(() => rnd() - 0.5), paints = DRIFT_PAINTS.filter(p => p !== this.paint).sort(() => rnd() - 0.5);
     // cars ranked by power to weight: the computer drivers get one a step below, the same or a step above the player's
     const rankd = DRIFT_CARS.map((_, i) => i).sort((a, b) => DRIFT_CARS[a].hp / DRIFT_CARS[a].mass - DRIFT_CARS[b].hp / DRIFT_CARS[b].mass);
+    // (the player's place in that order: the car nearest to its own power to weight - with a bigger engine, faster rivals)
+    const pr = c.spec.hp / c.spec.mass; let pi = 0, pd = 1e9;
+    rankd.forEach((q, k) => { const d = Math.abs(DRIFT_CARS[q].hp / DRIFT_CARS[q].mass - pr); if (d < pd) { pd = d; pi = k; } });
     for (let k = 0; k < nAi; k++) {
-      const ci = rankd[U.clamp(rankd.indexOf(o.carIdx) + Math.floor(rnd() * 3) - 1, 0, DRIFT_CARS.length - 1)];
+      const ci = rankd[U.clamp(pi + Math.floor(rnd() * 3) - 1, 0, DRIFT_CARS.length - 1)];
       const pk = paints[k % paints.length];
       const a = this.mkCar(ci, pk, names[k], null, k % 2 ? (1 + k * 2 % 5) + Livery.contrast(pk) : '');   // (every other one wears stripes)
       const skill = U.clamp((nAi > 1 ? 0.2 + 0.75 * k / (nAi - 1) : 0.6) + (rnd() - 0.5) * 0.15, 0, 1);
@@ -672,11 +782,11 @@ class DriftRace {
     this.syncPlayer();
   }
   // align: the car's wheel alignment (al; default: what the car comes with); fx: its effects that do not change (Align.fx)
-  mkCar(ci, paint, name, al, liv, rim) {
-    const spec = DRIFT_CARS[ci];
-    al = Align.clean(al || Align.def(spec));
+  mkCar(ci, paint, name, al, liv, rim, eng) {
+    const spec = Engine.spec(DRIFT_CARS[ci], Engine.clean(eng));
+    al = Align.clean(al || Align.def(spec), spec);
     return { spec, carIdx: ci, paint, liv: Livery.clean(liv), rim: Rim.clean(rim), name, isPlayer: false, ai: null, body: DRIFT_BODY[spec.model], I: spec.mass * spec.a * spec.b * 1.05,
-      align: al, fx: Align.fx(al), gF: 1, gR: 1, gFs: 1, ayA: 0,
+      align: al, fx: Align.car(al, spec), gF: 1, gR: 1, gFs: 1, ayA: 0, ackS: 0,
       pq: {}, wq: {}, placed: false, auto: true,
       px: 0, pz: 0, psi: 0, vx: 0, vz: 0, w: 0, steer: 0, sIn: 0, ax: 0, ay: 0,
       u: 0, v: 0, beta: 0, gear: 1, nextGear: 1, shiftT: 0, shock: 0, revT: 0, rpm: spec.idle, spin: 0, kick: 0, clutch: false, limiter: false,
@@ -995,11 +1105,12 @@ class DriftRace {
     const want = -(inp.steer || 0);
     c.sIn += (want - c.sIn) * Math.min(1, dt * STEER.keys);
     const d0 = u > 1 ? Math.atan2(v + c.w * S.a, Math.max(u, 2)) : 0;
-    const din = S.steerIn / (1 + spd / STEER.fade);
-    const target = U.clamp(d0 * c.dk * 0.95 + c.sIn * (din * (1 - c.dk) + STEER.drift * c.dk), -S.lock, S.lock);
+    // (lock beyond the car's own: the keys reach it at low speed - it fades out quickly, the steering at speed stays as it was)
+    const din = (S.steerIn + Math.max(0, c.fx.lock - S.lock) / (1 + spd / 6)) / (1 + spd / STEER.fade);
+    const target = U.clamp(d0 * c.dk * 0.95 + c.sIn * (din * (1 - c.dk) + STEER.drift * c.dk), -c.fx.lock, c.fx.lock);
     // (the alignment: gripping, toe and the caster's weight set how fast the keys turn the wheels; drifting, the caster's
     // self-centring sets how fast the wheel spins back into counter-steer)
-    const rate = STEER.rate * (c.fx.steer * (1 - c.dk) + c.fx.self * c.dk);
+    const rate = STEER.rate * (c.fx.steer * c.fx.lockK * (1 - c.dk) + c.fx.self * c.dk);
     c.steer += U.clamp(target - c.steer, -dt * rate, dt * rate);
     c.beta = beta;
     // the drift angle the assist aims for: throttle holds it, the keys trim it, lifting off straightens the car
@@ -1016,12 +1127,12 @@ class DriftRace {
     if (toward > 0.05) c.holdT = HOLD_T; else c.holdT = away > 0.3 ? 0 : Math.max(0, c.holdT - dt);
     // (the angle a drift can be held at grows with the front tyres' grip at full counter-steer - the wheel alignment's
     // camber and caster: fronts that wash out at lock let the car straighten, fronts that bite carry more angle)
-    const hold = (c.holdT > 0 ? (gas ? 0.42 + (c.nitroOn ? 0.1 : 0) : 0.22) + 0.34 * toward : gas ? 0.12 : 0.05) * U.clamp(c.gFs ** 2, 0.7, 1.3);
+    const hold = (c.holdT > 0 ? (gas ? 0.42 + (c.nitroOn ? 0.1 : 0) : 0.22) + 0.34 * toward : gas ? 0.12 : 0.05) * U.clamp(c.gFs ** 2, 0.7, 1.3) * c.fx.angK;
     // holding the other way hard on the throttle (not a quick dab to straighten) swings the car across into a drift
     // the other way - linking an S-bend. A short counter-steer just straightens it
     c.awayT = away > 0.8 ? c.awayT + dt : 0;
     c.swing = !!gas && c.awayT > SWING_T;
-    const aim = c.swing ? -0.35 : U.clamp(hold - 0.4 * away - (brk ? 0.12 : 0), 0, S.maxAng);
+    const aim = c.swing ? -0.35 : U.clamp(hold - 0.4 * away - (brk ? 0.12 : 0), 0, c.fx.maxAng);
     c.dTarget += (aim - c.dTarget) * Math.min(1, dt * (aim < c.dTarget ? 2.5 : 6));
     // how hard the path curves into the bend (x PATH.acc): keys towards it = tighter, away = wider / swing across
     c.pathK = c.dside * ((gas || c.hand ? PATH.base : PATH.lift) + PATH.tow * toward - PATH.away * away);
@@ -1040,6 +1151,10 @@ class DriftRace {
     // steadies (toe-out loosens) the rear while gripping
     const fx = c.fx;
     c.gF = Align.axleK(c.align, true, c.ayA, c.steer, S.h); c.gR = Align.axleK(c.align, false, c.ayA, c.steer, S.h);
+    // Ackermann (against the full Ackermann of a road car): the wheels closer to parallel bite better on the counter-
+    // steer of a drift, a little worse in a tight turn while gripping
+    c.ackS = Align.ackSplit(c.steer);
+    c.gF *= 1 + (1 - fx.ack) * (ALIGN.ack.grip * Math.min(1, c.ackS / 0.25) * c.dk - ALIGN.ack.turn * Math.min(1, c.ackS / 0.08) * (1 - c.dk));
     if (c.dk > 0.3) c.gFs += (c.gF - c.gFs) * Math.min(1, dt * 3);   // (the front's grip through the drift, smoothed)
     const GF = S.muF * c.surf * Fzf * c.gF, GR = S.muR * c.surf * Fzr * (c.looseT > 0 ? 0.45 : 1) * c.gR * (1 + (fx.gripR - 1) * (1 - c.dk));
     // front tyres (front toe: toe-out answers the wheel sooner - a smaller peak slip)
@@ -1063,7 +1178,7 @@ class DriftRace {
     } else {
       // friction ellipse: straight ahead the tyres take TRACTION x more than sideways (not while drifting); the rear
       // camber and toe set how much of it the throttle can use (forward bite)
-      const GRx = GR * (c.drifting ? 1 : TRACTION) * fx.trac, r = Math.hypot(Fxr / GRx, Fyr / GR);
+      const GRx = GR * (c.drifting ? 1 : TRACTION) * fx.trac * (S.tracK || 1), r = Math.hypot(Fxr / GRx, Fyr / GR);
       if (r > 1) { const k = (1 - (1 - S.slide) * smoothK(1, 1.3, r)) / r; Fxr *= k; Fyr *= k; }
       slide = Math.max(smoothK(0.98, 1.25, r), smoothK(1.4, 3, Math.abs(ar) / S.pkR));
       c.wheelSpin = c.drive > 0 ? smoothK(0.9, 1.3, c.drive / GRx) : 0;
@@ -1079,7 +1194,7 @@ class DriftRace {
     if (u > 2) {
       if (c.dk > 0.02) Mz += I * c.dk * (DASSIST.kp * (c.dside * c.dTarget + beta) + DASSIST.kd * U.clamp(dB, -8, 8));
       // (past the car's angle the body is pulled straighter - later and more weakly with the tail toed out: it snaps round)
-      const snap = fx.snap, ex = Math.abs(beta) - S.maxAng - 0.3 * snap;
+      const snap = fx.snap, ex = Math.abs(beta) - fx.maxAng - 0.3 * snap;
       if (ex > 0) Mz += Math.sign(beta) * I * (ex * 14 + Math.max(0, -Math.sign(beta) * w) * 1.6) * snap;
     }
     const spd = Math.hypot(c.vx, c.vz);
@@ -1105,7 +1220,8 @@ class DriftRace {
       // a car hung out sideways sheds speed, more so when it is held tight into the bend: a bend taken too fast
       // tightens up instead of running into the rail (less with front tyres that bite)
       // (less for a computer car catching up; more with the rear wheels toed out: the outer one scrubs sideways)
-      const scrub = c.dk * ((PATH.scrubAng * Math.abs(Math.sin(c.beta)) + PATH.scrubTow * c.toward) * Math.min(1.6, (spd / 20) * (spd / 20)) / (c.boost * c.boost) + fx.drag);
+      const scrub = c.dk * Math.max(0, (PATH.scrubAng * Math.abs(Math.sin(c.beta)) + PATH.scrubTow * c.toward) * Math.min(1.6, (spd / 20) * (spd / 20)) / (c.boost * c.boost) + fx.drag
+        - ALIGN.ack.drag * (1 - fx.ack) * Math.min(0.5, c.ackS));   // (parallel front wheels: no tyre dragged across the slide)
       FX -= c.vx / spd * scrub * m; FZ -= c.vz / spd * scrub * m;
     }
     if (c.dk < 0.98 && spd > GRIP.v0 && Math.abs(c.sIn) > 0.05 && c.u > 0) {

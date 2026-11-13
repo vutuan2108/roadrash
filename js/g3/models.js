@@ -2621,9 +2621,16 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
         w.lean.quaternion.copy(_qa).multiply(_qb);
       }
       o.casAxis.set(0, Math.cos(al.cas * D), -Math.sin(al.cas * D));
+      o.ack = al.ack === undefined ? 1 : al.ack / 100;
       o.steer(o.steerA || 0);
     };
-    o.steer = d => { o.steerA = d; for (const w of o.wheels) if (w.front) w.pivot.quaternion.setFromAxisAngle(o.casAxis, d); if (o.susUpdate) o.susUpdate(); };
+    // (Ackermann: the wheel on the inside of the steer turns further than the other, by the car's share of the full split)
+    o.steer = d => {
+      o.steerA = d;
+      const split = (o.ack === undefined ? 1 : o.ack) * 0.29 * Math.sin(d) ** 2;
+      for (const w of o.wheels) if (w.front) w.pivot.quaternion.setFromAxisAngle(o.casAxis, U.clamp(d + w.side * split, -1.55, 1.55));   // (never past square to the car)
+      if (o.susUpdate) o.susUpdate();
+    };
     return o;
   }
   // a plain stand-in (a body block, a cabin, four wheels) while a model's data file is still loading, or if it fails to

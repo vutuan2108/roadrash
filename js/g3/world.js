@@ -45,6 +45,15 @@ const World = (() => {
       sun: [0.62, 0.16, -0.77], sunCol: '#ffb070', sunI: 1.5, hemi: ['#ffd0b0', '#3a4a30', 0.72], exp: 1.05, clouds: 14,
       asphalt: '#55555a', centre: 'dash', shoulder: '#8e7c5c',
       rings: [{ r: 2700, h: 700, col: '#5a5680', f: 4, cut: 0.12, seed: 21 }, { r: 2200, h: 360, col: '#4a5048', f: 7, cut: 0.2, seed: 22 }] },
+    // green hills under a high sun (long sweepers), pale limestone on a clear cool morning (carousels)
+    dBaoLoc: { base: -25, ground: '#35602c', sky: ['#1f62c6', '#8cc2ee', '#e4f0e0'], fog: ['#dcead8', 230, 1900],
+      sun: [0.42, 0.7, -0.58], sunCol: '#fff6dc', sunI: 1.4, hemi: ['#dcf0ff', '#4a6a3a', 0.82], exp: 1.0, clouds: 18,
+      asphalt: '#58585c', centre: 'double', shoulder: '#8a7a56',
+      rings: [{ r: 2700, h: 560, col: '#5a8a6a', f: 5, cut: 0.2, seed: 81 }, { r: 2200, h: 320, col: '#3f7040', f: 8, cut: 0.28, seed: 82 }] },
+    dThungKhe: { base: -25, ground: '#8a8c7a', sky: ['#3a78c8', '#a8cce8', '#eef2f0'], fog: ['#e8ecea', 200, 1700],
+      sun: [-0.48, 0.6, -0.64], sunCol: '#fffaf0', sunI: 1.3, hemi: ['#eef4fa', '#8a8a78', 0.9], exp: 1.03, clouds: 10,
+      asphalt: '#626266', centre: 'dash', shoulder: '#b4b0a0',
+      rings: [{ r: 2700, h: 640, col: '#a8b0b4', f: 8, cut: 0.4, seed: 91 }, { r: 2150, h: 380, col: '#8a9a8a', f: 12, cut: 0.42, seed: 92 }] },
     // a cliff road above the sea at noon, rice terraces in the afternoon, a misty morning, pines at dusk
     dHaiVan: { roadMin: 120, base: -8, sea: '#1c62a8', sky: ['#1a5cc4', '#7fb8ee', '#d6ecf8'], fog: ['#d6ecf8', 260, 2100],
       sun: [-0.35, 0.72, -0.6], sunCol: '#fff4dc', sunI: 1.4, hemi: ['#d8ecff', '#7a8a6a', 0.82], exp: 1.0, clouds: 22,
@@ -191,8 +200,9 @@ const World = (() => {
   TERRAIN.dMaPiLeng = widen(TERRAIN.pass, 7.25); TERRAIN.dOQuyHo = widen(TERRAIN.forest, 7.25); TERRAIN.dArena = widen(TERRAIN.dArena, 11.5);
   TERRAIN.dHaiVan = widen(TERRAIN.pass, 7.25); TERRAIN.dPhaDin = widen(TERRAIN.pass, 7.25);
   TERRAIN.dKhauPha = widen(terraces(TERRAIN.forest), 7.25); TERRAIN.dKhanhLe = widen(TERRAIN.forest, 7.25);
+  TERRAIN.dBaoLoc = widen(TERRAIN.forest, 7.25); TERRAIN.dThungKhe = widen(TERRAIN.pass, 7.25);
   // the drift stages borrow the scenery of the stage they look like
-  const DECOR_AS = { dMaPiLeng: 'pass', dOQuyHo: 'forest', dArena: 'gpNight', dHaiVan: 'pass', dKhauPha: 'pass', dPhaDin: 'pass', dKhanhLe: 'forest' };
+  const DECOR_AS = { dMaPiLeng: 'pass', dOQuyHo: 'forest', dArena: 'gpNight', dHaiVan: 'pass', dKhauPha: 'pass', dPhaDin: 'pass', dKhanhLe: 'forest', dBaoLoc: 'forest', dThungKhe: 'pass' };
   // ---------------------------------------------------------------- road centre line
   class Path {
     // lapN: the road is a closed circuit of lapN segments (the race segments repeat it lap after lap)
@@ -1253,7 +1263,7 @@ const World = (() => {
     }
   }
   const PAL_GROUND = { coast: '#c8b083', forest: '#3a6a30', pass: '#6a7a4a', city: '#202024', gpIsland: '#a8b070', gpHills: '#3a6a30', gpNight: '#121a14',
-    dMaPiLeng: '#6a7a4a', dOQuyHo: '#3a5a30', dArena: '#121212', dHaiVan: '#6a7a4a', dKhauPha: '#8a8a42', dPhaDin: '#6a7a5a', dKhanhLe: '#24382a' };
+    dMaPiLeng: '#6a7a4a', dOQuyHo: '#3a5a30', dArena: '#121212', dHaiVan: '#6a7a4a', dKhauPha: '#8a8a42', dPhaDin: '#6a7a5a', dKhanhLe: '#24382a', dBaoLoc: '#3a6a30', dThungKhe: '#8a8c7a' };
   let WIRE_MAT = null, POOL_MAT = null, POOLW_MAT = null, LAMP_GLOW = null, FLOOD_GLOW = null, G3_POOL_GEO = null;
 
   // ================================================================ showroom (shop preview)

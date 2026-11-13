@@ -94,7 +94,7 @@ function setProfile(p, m) {
   p.dpaint = /^#[0-9a-fA-F]{6}$/.test(String(m.dpaint)) ? String(m.dpaint) : G.DRIFT_CARS[p.dcar].color;
   p.dliv = G.Livery.clean(m.dliv);   // (stripes over the paint)
   p.drim = G.Rim.clean(m.drim);      // (wheels: another model's rims, their colour)
-  p.dal = G.Align.clean(m.dal && typeof m.dal === 'object' ? m.dal : G.Align.def(G.DRIFT_CARS[p.dcar]));   // (wheel alignment, numbers in range)
+  p.dal = G.Align.clean(m.dal && typeof m.dal === 'object' ? m.dal : null, G.DRIFT_CARS[p.dcar]);   // (wheel alignment, numbers in range)
 }
 function joinRoom(p, room) {
   if (room.players.size >= MAX_HUMANS) return send(p, { t: 'err', msg: 'Phòng đã đủ ' + MAX_HUMANS + ' người.' });

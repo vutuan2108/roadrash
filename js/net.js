@@ -399,7 +399,7 @@ const Net = {
   onDriftStart(m) {
     const me = m.cars.find(c => c.id === this.id) || m.cars[0];
     const ci = U.clamp(me.car | 0, 0, DRIFT_CARS.length - 1);
-    const r = new DriftRace({ mapIdx: U.clamp(m.map | 0, 0, DRIFT_MAPS.length - 1), carIdx: ci, paint: me.paint, liv: me.liv, rim: me.rim, al: me.al || Game.carAlign(ci), hard: !!m.hard,
+    const r = new DriftRace({ mapIdx: U.clamp(m.map | 0, 0, DRIFT_MAPS.length - 1), carIdx: ci, paint: me.paint, liv: me.liv, rim: me.rim, eng: Game.carEng(ci), al: me.al || Game.carAlign(ci), hard: !!m.hard,
       net: { me: this.id, cars: m.cars } });
     r.ready = false;   // the 3D models of all the cars first
     Promise.all(r.racers.flatMap(c => [c.spec.model, Rim.model(c.rim)]).filter(Boolean).map(m => Models.loadCar(m))).then(() => { r.ready = true; }, () => { r.ready = true; });
