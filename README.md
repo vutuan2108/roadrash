@@ -131,14 +131,28 @@ Sau màn hình tiêu đề, game hỏi chế độ chơi: **ĐUA XE MÁY** hoặ
 ### Đối thủ máy
 
 - Chọn số đối thủ ở dòng **ĐỐI THỦ MÁY** trong menu drift: dùng ← → để đổi từ TẮT đến 5 xe. Mặc định là 3.
+- Xe máy chạy phía trước để bạn đuổi theo. Chúng chạy theo đường đua chuẩn (vào cua từ phía ngoài, ôm sát lòng cua rồi thoát ra ngoài) và drift góc lớn.
+- Chọn trình độ của xe máy ở dòng **ĐỘ KHÓ MÁY**: **DỄ** (mặc định) hoặc **KHÓ**.
+
+  | | DỄ | KHÓ |
+  |---|---|---|
+  | Xe | cùng hạng hoặc hơn một bậc so với xe bạn | cùng hạng hoặc hơn tới hai bậc |
+  | Máy độ (như trong gara) | Stage 1, +15% công suất | Stage 2, +35% công suất |
+  | Dẫn trước bạn tối đa khoảng | 25 m | 45 m |
+  | Góc drift | vừa | lớn |
+  | Bạn bám sát đuôi | chạy như thường | chạy nhanh hơn, khó vượt |
+
+  - Quá khoảng cách đó, xe máy chạy chậm lại cho bạn đuổi kịp. Lúc chờ, chúng vào cua chậm hơn, nhả ga sớm trên đường thẳng và drift góc rộng hơn, chứ không phanh đứng chờ.
+  - Thưởng hạng khi đua với máy KHÓ được nhân 1,5.
+- Dòng **ĐỘ KHÓ ĐƯỜNG** là chuyện khác: nó chỉ đổi bề rộng mặt đường. Hai dòng này chọn riêng được.
 - Các xe máy xuất phát hai xe một hàng sau vạch. Bạn đứng ở hàng thứ hai.
-- Xe máy chạy cùng hạng xe với bạn (hạng xe dưới, ngang hoặc trên một bậc), màu sơn khác nhau và tay lái mạnh yếu khác nhau.
-- Xe máy cũng drift và được chấm điểm theo đúng luật như bạn. Vào cua chúng xếp hàng drift nối đuôi nhau, ra đường thẳng thì vượt sang bên còn trống.
-- Xe máy bám theo bạn. Bị bỏ xa thì chúng tăng tốc đuổi kịp, còn dẫn trước quá xa thì chậm lại chờ bạn.
+- Xe máy có màu sơn khác nhau và tay lái mạnh yếu khác nhau.
+- Xe máy cũng drift và được chấm điểm theo đúng luật như bạn. Vào cua chúng xếp hàng drift nối đuôi nhau, ra đường thẳng thì vượt sang bên còn trống. Drift sát sau một xe máy đang drift (trong 7 m) thì bạn được điểm x1,5.
+- Bạn vượt lên thì xe máy đuổi theo bạn. Bị bỏ xa thì chúng tăng tốc đuổi kịp.
 - Trong vòng 30 m sau bạn, xe máy chạy theo đúng đường bạn chạy và drift ở những chỗ bạn drift. Xe gần bạn nhất giữ khoảng 2 m sau đuôi xe bạn để drift song hành (tandem): cả hai đều được điểm x1,5.
 - Bạn chạy rất chậm hoặc dừng lại thì xe máy vượt lên, không đứng chờ sau bạn.
 - Xếp hạng tính theo **tổng điểm drift**, không tính ai về đích trước. Bảng điểm trực tiếp hiện ở góc trên bên trái, chấm màu trên bản đồ nhỏ là vị trí từng xe.
-- Khi bạn về đích, xe máy nào chưa về được chạy nốt tới đích rồi mới chốt bảng điểm. Hạng nhất thưởng thêm $3,000, hạng nhì $1,500, hạng ba $600.
+- Khi bạn về đích, xe máy nào chưa về được chạy nốt tới đích rồi mới chốt bảng điểm. Hạng nhất thưởng thêm $3,000, hạng nhì $1,500, hạng ba $600 (gấp 1,5 lần khi đua với máy KHÓ).
 - Xe máy về đích sẽ tấp vào lề rồi rời đường sau vài giây để không cản bạn. Xe đã về đích (kể cả xe bạn) không còn va chạm với xe khác.
 
 ### Phím điều khiển
@@ -154,7 +168,7 @@ Bộ phím theo các game drift trên PC như CarX Drift Racing và Forza Horizo
 | Shift | Côn. Giữ côn rồi vê ga, thả ra thì "đá côn" làm bánh sau mất bám |
 | B / V (hoặc E / Q) | Lên / xuống số. Bấm vào là chuyển sang số tay |
 | T | Đổi giữa số tự động và số tay |
-| N | Nitro. Bình nitro tự nạp lại khi drift |
+| N | Nitro. Bình đầy dùng được 6 giây (mỗi vạch trên thanh NITRO là 1 giây; xe máy vẫn dùng bình 3,6 giây như cũ), vào đua có sẵn nửa bình. Bình tự nạp lại khi drift. Khi bật, mỗi ống pô phụt lửa nóng màu xanh (lõi trắng, đầu ngả cam) dài khoảng 0,5-1,1 m, chập chờn theo nhịp xả và có quầng sáng hắt xuống đường |
 | C | Đổi camera: bám sau xe, sau xa, nắp capo |
 | R | Đặt lại xe lên đường, dùng khi xe bị kẹt hoặc quay ngược |
 | H | Còi |
@@ -251,6 +265,44 @@ Dòng **ĐỘNG CƠ** (← → xem, ENTER mua và lắp) cho phép độ máy g�
 | VR38DETT 3.8L V6 twin-turbo | $52.000 | 1150 Nm, tua 7400, nặng thêm 60 kg |
 
 Xe càng mạnh thì đối thủ máy càng được xếp xe mạnh hơn. Hộp số giữ nguyên của xe, nên tốc độ tối đa phụ thuộc cả vào tua máy mới.
+
+Mỗi lần ← → đổi động cơ ở dòng này, xe rồ máy một lần để bạn nghe tiếng máy đó. Tiếng máy khác nhau theo:
+
+- **Kiểu máy:**
+  - 4 máy thẳng hàng (SR20) rền và vọt tua cao.
+  - Boxer (GR86) có tiếng ục ục.
+  - 6 máy thẳng hàng (RB26, 2JZ, L28) êm và hát lên tới vạch đỏ.
+  - V6 (VR38) đục và khỏe.
+  - Boxer 6 máy của Porsche gào và rè.
+  - V8 Mỹ trầm, nổ lụp bụp không đều khi chạy tua thấp.
+  - V8 của F40 rít cao.
+  - Máy xoay 13B kêu "brrr" chói.
+- **Turbo và siêu nạp:** xe turbo có tiếng huýt của turbo khi giữ ga ở tua cao. Mustang GT Drift Spec có tiếng rít của bộ siêu nạp theo vòng tua.
+- **Công suất:** xe càng mạnh thì tiếng máy càng to và gằn. Xe 800 mã lực to hơn xe 250 mã lực khoảng 4-5 dB.
+- **Độ máy:** Stage 1 và Stage 2 to và rè hơn máy gốc. Stage 2 có tiếng turbo lớn hơn.
+
+Dòng **PÔ XE** ngay dưới dòng động cơ dùng để độ pô. Mỗi lần ← → sang loại pô khác, xe rồ máy một lần qua pô đó (dùng động cơ đang lắp), kể cả tiếng nổ khi nhả ga. Bấm H để nghe lại, ENTER để mua và lắp. Pô mua riêng cho từng xe. Pô chỉ đổi tiếng máy, tiếng nổ và lửa ở đầu pô, không đổi công suất.
+
+| Pô | Giá | Tiếng |
+|---|---|---|
+| Pô zin | miễn phí | Êm, ít khi nổ |
+| Pô tiêu âm kép | $1.500 | Nhỏ hơn pô zin khoảng 3 dB, trầm và đục, không nổ |
+| Pô thể thao | $2.500 | To hơn khoảng 2 dB, ấm và trầm hơn, thỉnh thoảng nổ khi nhả ga |
+| Pô lon JDM | $3.000 | To hơn khoảng 4 dB, tiếng mũi rền và vang ở tua cao |
+| Pô thẳng | $4.000 | To nhất (khoảng 5 dB), rè và thô, nổ lụp bụp khi nhả ga |
+| Pô van điện | $6.000 | Đi nhẹ thì êm như pô zin; đạp ga trên nửa vòng tua thì van mở, to như pô thẳng |
+| Pô titan | $7.000 | To hơn khoảng 4 dB, tiếng cao và sắc, rít kim loại khi lên tua |
+| Pô nổ (pop & bang) | $9.000 | Nhả ga là nổ liên tục khoảng 10 tiếng mỗi giây, có tiếng "đùng" trầm và lưỡi lửa cam lớn ở đầu pô |
+
+Mức dB là đo trên các xe 4 máy, 6 máy và V8 ở tua cao.
+
+Lửa pô xuất hiện như xe thật. Pô càng thoáng (thẳng, pop & bang) thì càng hay nổ, pô zin chỉ thỉnh thoảng:
+
+- Nhả ga ở tua cao, và lúc xe trôi ở tua cao sau khi nhả ga.
+- Lên số khi đang đạp hết ga ở tua cao, do ngắt đánh lửa lúc sang số.
+- Chạm giới hạn vòng tua khi đang đạp ga, ví dụ đạp côn rồ máy.
+
+Ngọn lửa có chân màu xanh, thân vàng rồi ngả cam đỏ ở đầu, phụt theo từng nhịp xả và xé thành nhiều lưỡi ở đuôi. Gió thổi lửa về phía sau theo hướng xe chạy: chạy nhanh thì lửa dài và mảnh, drift thì lửa bay xéo theo hướng trượt, đứng yên thì lửa hơi bốc lên. Tiếng nổ lớn để lại một làn khói nhỏ. Bảng bên phải màn setup so sánh âm lượng, độ trầm, độ rè, độ cao tiếng, độ vang và mức nổ của pô đang xem với pô đang lắp.
 
 Cũng trong màn này có hai dòng **MÂM XE** và **MÀU MÂM** (← → để đổi): lắp bộ mâm và lốp của bất kỳ mẫu xe nào trong game lên xe đang chọn, và đổi màu mặt mâm. Mâm được chỉnh cỡ cho vừa bánh của xe nên không ảnh hưởng tới cách xe chạy. Lựa chọn lưu riêng cho từng xe và dùng cả khi đua online.
 

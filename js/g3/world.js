@@ -341,6 +341,65 @@ const World = (() => {
     }
     dispose() { this.g.dispose(); this.mat.dispose(); }
   }
+  // exhaust flames: a tube out of each pipe (unit length along -z, the mouth at the origin, radius 1), shaped in the
+  // vertex shader: it swells just past the mouth and tapers to a point, and flutters more towards the tip. Like a real
+  // exhaust flame: blue at the root where it burns cleanest, yellow-white, then orange-red at the tip as it cools
+  // (c0 -> c1 at mid -> c2; the edges read cooler than the middle); turbulence and the exhaust's pulses scroll out of
+  // the pipe and the tail tears into separate tongues and puffs. Seen side-on its edges fade, so it reads as a glowing
+  // volume rather than a shell; under nitro, bright bands stand near the mouth (shock diamonds). Drawn premultiplied:
+  // it adds its light and dims what is behind it a little (occ), so its colour still reads over a sunlit road; no tone
+  // mapping (ACES would bleach it)
+  const FLAME_VS = `uniform float time; uniform float seed; uniform float bulge; uniform float wob; varying float vV; varying float vF; varying float vA;
+    void main() {
+      vV = 1.0 - uv.y; vA = uv.x;
+      float v = vV, s = (1.0 + bulge * sin(3.1416 * min(v * 1.5, 1.0))) * (1.0 - 0.8 * v);
+      vec3 p = vec3(position.xy * s, position.z);
+      p.x += sin(time * 37.0 + v * 9.0 + seed) * wob * v * v; p.y += cos(time * 31.0 + v * 7.0 + seed * 1.3) * wob * 0.85 * v * v;
+      vec4 mv = modelViewMatrix * vec4(p, 1.0);
+      vF = abs(dot(normalize(normalMatrix * normal), normalize(-mv.xyz)));
+      gl_Position = projectionMatrix * mv;
+    }`;
+  const FLAME_FS = `uniform float time; uniform float power; uniform float diam; uniform float seed; uniform float occ; uniform float mid;
+    uniform vec3 c0; uniform vec3 c1; uniform vec3 c2;
+    varying float vV; varying float vF; varying float vA;
+    float h1(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    float n2(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+      return mix(mix(h1(i), h1(i + vec2(1.0, 0.0)), f.x), mix(h1(i + vec2(0.0, 1.0)), h1(i + vec2(1.0, 1.0)), f.x), f.y); }
+    void main() {
+      float v = vV, ang = vA * 6.2832;   // (the noise runs round the tube without a seam)
+      float n = n2(vec2(sin(ang) * 1.7 + seed, v * 6.0 - time * 19.0)) * 0.55 + n2(vec2(cos(ang) * 2.3 + seed * 1.7, v * 12.0 - time * 33.0)) * 0.45;
+      float puls = 0.72 + 0.28 * sin(v * 17.0 - time * 46.0 + seed);   // (the exhaust's pulses going out)
+      float body = pow(1.0 - v, 1.3) * smoothstep(0.0, 0.04, v) * (0.3 + 0.85 * n) * puls * power;
+      float tear = smoothstep(0.85 * v - 0.12, 0.85 * v + 0.12, n2(vec2(sin(ang) * 1.1 + seed * 2.3, v * 3.5 - time * 13.0)));
+      body *= mix(1.0, tear, smoothstep(0.15, 0.65, v));
+      float shock = diam * pow(0.5 + 0.5 * cos(v * 30.0 - 0.6), 14.0) * (1.0 - smoothstep(0.05, 0.5, v));
+      float a = clamp((body + shock) * pow(vF, 1.2), 0.0, 1.0);
+      float w = min(1.0, v + 0.3 * (1.0 - vF));
+      vec3 col = (w < mid ? mix(c0, c1, smoothstep(0.0, mid, w)) : mix(c1, c2, smoothstep(mid, 1.0, w))) + shock * 0.5;
+      gl_FragColor = vec4(col * a, a * occ);
+      #include <encodings_fragment>
+    }`;
+  let FLAME_G = null;
+  function flameGeo() {
+    if (FLAME_G) return FLAME_G;
+    FLAME_G = new T.CylinderGeometry(1, 1, 1, 18, 18, true);   // (shaped in FLAME_VS)
+    FLAME_G.translate(0, -0.5, 0); FLAME_G.rotateX(Math.PI / 2);   // the mouth at the origin, the tip at z = -1
+    return FLAME_G;
+  }
+  function flameMat() {
+    return new T.ShaderMaterial({ uniforms: { time: { value: 0 }, power: { value: 1 }, diam: { value: 0 }, seed: { value: 0 }, occ: { value: 0.3 }, bulge: { value: 0.5 }, wob: { value: 0.3 },
+      mid: { value: 0.3 }, c0: { value: new T.Color() }, c1: { value: new T.Color() }, c2: { value: new T.Color() } }, vertexShader: FLAME_VS, fragmentShader: FLAME_FS,
+      transparent: true, depthWrite: false, side: T.DoubleSide, toneMapped: false,
+      blending: T.CustomBlending, blendEquation: T.AddEquation, blendSrc: T.OneFactor, blendDst: T.OneMinusSrcAlphaFactor });
+  }
+  // flame colours { out / core: [root c0, middle c1, tip c2, where the middle is], glow }. A pop: a blue root, yellow-
+  // white, orange-red tip. Nitro (the extra oxygen burns it hotter): blue most of the way, white-hot inside, orange
+  // only at the very tips
+  const FLAME_COL = {
+    nitro: { out: ['#2448ff', '#6f86ff', '#ff7a3a', 0.6], core: ['#a8c4ff', '#ffffff', '#ffd9a0', 0.45], glow: '#4a70ff' },
+    pop: { out: ['#3060ff', '#ffc860', '#ff3a0a', 0.22], core: ['#9ab4ff', '#fff6dc', '#ffa030', 0.3], glow: '#ff7a2a' },
+  };
+  const FLAME_AXIS = new T.Vector3(0, 0, -1);
   // black rubber left on the tarmac: a ring buffer of quads, one strip per tyre
   class Skids {
     constructor(scene) {
@@ -1064,14 +1123,32 @@ const World = (() => {
       this.smoke = new Smoke(this.scene, this.night ? '#9aa0b4' : '#e4e4e2');
       this.skids = new Skids(this.scene);
       // a model for every car on the stage (the player's first), each with its exhaust flames and smoke emitters
-      this.dcs = race.racers.map(c => {
-        const o = Models.driftCar(c.spec.model, c.paint, c.align, c.liv, c.rim);
+      this.dcs = race.racers.map((c, k) => {
+        const o = Models.driftCar(c.spec.model, c.paint, c.align, c.liv, c.rim), S = o.spec;
         this.scene.add(o.root);
         o.setNight(this.night);
-        o.flames = []; o.emitAcc = [0, 0, 0, 0];
-        for (let i = 0; i < 4; i++) {
+        o.flames = []; o.jets = []; o.emitAcc = [0, 0, 0, 0];
+        for (let i = 0; i < 4; i++) {   // (a bright spot at each pipe's mouth)
           const sp = new T.Sprite(this.mat(new T.SpriteMaterial({ map: G3.tx.glow, color: '#ff9040', transparent: true, depthWrite: false, blending: T.AdditiveBlending })));
           sp.visible = false; sp.renderOrder = 6; this.scene.add(sp); o.flames.push(sp);
+        }
+        // the flame out of each pipe: the outer flame and its hot core (two materials a car), riding on the body
+        o.fOut = this.mat(flameMat()); o.fCore = this.mat(flameMat());
+        o.fOut.uniforms.seed.value = k * 3.1; o.fCore.uniforms.seed.value = k * 3.1 + 7;
+        S.exh.slice(0, 4).forEach(e => {
+          const grp = new T.Group(), out = new T.Mesh(flameGeo(), o.fOut), core = new T.Mesh(flameGeo(), o.fCore);
+          out.renderOrder = 6; core.renderOrder = 7; out.frustumCulled = core.frustumCulled = false;
+          grp.add(out, core); grp.position.set(e[0], e[1], e[3] !== undefined ? e[3] : S.len[0]); grp.visible = false;
+          o.body.add(grp); o.jets.push({ grp, out, core, r: e[2] });
+        });
+        // the light the flames throw on the road behind the car
+        if (S.exh.length) {
+          const gg = this.glowPlane || (this.glowPlane = this.own(new T.PlaneGeometry(1, 1).rotateX(-Math.PI / 2)));
+          const gl = new T.Mesh(gg, this.mat(new T.MeshBasicMaterial({ map: G3.tx.glow, color: '#3a78ff', transparent: true, opacity: 0, depthWrite: false,
+            blending: T.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 })));
+          const ex = S.exh.reduce((s, e) => s + e[0], 0) / S.exh.length, ez = S.exh.reduce((s, e) => s + (e[3] !== undefined ? e[3] : S.len[0]), 0) / S.exh.length;
+          gl.position.set(ex, 0.04, ez - 0.75); gl.scale.set(2.2, 1, 3.2); gl.visible = false; gl.renderOrder = 5;
+          o.root.add(gl); o.gglow = gl;
         }
         return o;
       });
@@ -1083,10 +1160,21 @@ const World = (() => {
     }
     syncDriftCar(race, c, o, k, dt) {
       const S = o.spec, R = o.root, me = c === race.car, cp = this.cam.position, dist = Math.hypot(c.px - cp.x, c.pz - cp.z);
-      // a computer car is drawn while it is on the stage and not far away; its tyres mark the road and smoke nearer still
-      R.visible = me ? race.camMode !== 2 : !c.gone && dist < 700 && dist > 4.5;   // (not right in front of the lens)
+      // a computer car is drawn while it is on the stage and not far away; its tyres mark the road and smoke nearer still.
+      // It is hidden only with the lens over (or inside) its body - a car right under the camera, e.g. in tandem right
+      // behind the player, would fill the bottom of the picture - not merely near it: a car going past beside the camera
+      // (overtaken, or catching up from behind) still shows at the edge of the picture until it is out of view
+      let inCar = false;
+      if (!me && dist < 6) {
+        const B = c.body || [-2.3, 2.2, 0.9], ox = cp.x - c.px, oz = cp.z - c.pz, s1 = Math.sin(c.psi), c1 = Math.cos(c.psi), m = 0.45;
+        const al = ox * s1 + oz * c1, sd = ox * c1 - oz * s1;   // (the camera along / across the car)
+        inCar = al > B[0] - m && al < B[1] + m && Math.abs(sd) < B[2] + m && cp.y < c.y + this.dy + 3.5;
+      }
+      R.visible = me ? race.camMode !== 2 : !c.gone && dist < 700 && !inCar;
       if (!me && (!R.visible || dist > 260)) {
         for (const f of o.flames) f.visible = false;
+        for (const J of o.jets) J.grp.visible = false;
+        if (o.gglow) o.gglow.visible = false;
         for (let i = 0; i < 4; i++) this.skids.cut(k * 4 + i);
         if (!R.visible) return;
       }
@@ -1116,25 +1204,69 @@ const World = (() => {
         else this.skids.cut(k * 4 + i);
         const sm = front ? 0 : Math.min(1, c.smoke);
         if (sm > 0.2 && dt > 0) {
-          o.emitAcc[i] += sm * 70 * dt * (me ? 1 : 0.6);   // the others' smoke lighter: it must not blind the player
+          o.emitAcc[i] += sm * 58 * dt * (me ? 1 : 0.6);   // the others' smoke lighter: it must not blind the player
           while (o.emitAcc[i] >= 1) {
             o.emitAcc[i]--;
             const j = () => (Math.random() - 0.5);
             // (born on the road under the tyre and going up more than out)
             this.smoke.emit(x + j() * 0.12, q.y + this.dy + 0.03, z + j() * 0.12, c.vx * 0.08 + j() * 0.3 + cs * side * 0.15, 1.3 + Math.random() * 0.7, c.vz * 0.08 + j() * 0.3 - sn * side * 0.15,
-              0.3, 1.3 + Math.random() * 0.6 + sm * 0.5, 0.75 + Math.random() * 0.5, (0.08 + 0.065 * sm) * (me ? 1 : 0.7));
+              0.3, 1.25 + Math.random() * 0.6 + sm * 0.45, 0.75 + Math.random() * 0.5, (0.07 + 0.057 * sm) * (me ? 1 : 0.7));
           }
         }
       }
-      // exhaust: pops on lifting off, blue nitro flame
+      // exhaust flames. Nitro: out of each pipe a flickering flame, mostly blue (hot) with orange tips, around 0.5-1.1 m.
+      // A pop (lift-off, the overrun, an upshift flat out, the rev limiter): a short burst balling out of the pipe, blue
+      // at the root then yellow and orange-red, bigger with the exhaust's fire and the pop's strength. Both pulse frame to
+      // frame like the exhaust's pulses, are blown back by the air the car drives through (trailing its travel in a
+      // drift, longer and thinner at speed), rise a little with the car standing, light the road behind and glow at the
+      // pipes' mouths; a big pop leaves a puff of smoke
+      const nit = c.nitroOn, on = R.visible && (nit || c.backfire > 0), C = FLAME_COL[nit ? 'nitro' : 'pop'];
+      const fire = nit ? 1 : U.clamp(c.backfire / 0.22, 0, 1) * (c.exh ? c.exh.fire : 1) * Math.min(1.4, c.bang || 1);
+      const newPop = !nit && c.backfire > (o.bf || 0) + 0.04;
+      o.bf = c.backfire;
+      let stretch = 1;
+      if (on) {
+        const U1 = o.fOut.uniforms, U2 = o.fCore.uniforms, flick = 0.75 + 0.5 * Math.random();
+        U1.time.value = this.time; U2.time.value = this.time * 1.3;
+        const setC = (u, k) => { u.c0.value.set(k[0]); u.c1.value.set(k[1]); u.c2.value.set(k[2]); u.mid.value = k[3]; };
+        setC(U1, C.out); setC(U2, C.core);
+        U1.diam.value = nit ? 0.5 : 0; U2.diam.value = nit ? 0.8 : 0;
+        // (a bigger pop is a bigger flame, not a more solid one: the power stays about the same, the tongues show)
+        const fp = Math.min(1.2, fire);
+        U1.power.value = (nit ? 1.4 : 1.2 * fp) * flick; U2.power.value = (nit ? 1.9 : 1.6 * fp) * flick;
+        U1.bulge.value = nit ? 0.45 : 0.8; U2.bulge.value = nit ? 0.2 : 0.45;   // (nitro a jet; a pop balls out)
+        U1.occ.value = 0.3; U2.occ.value = 0.25;
+        U1.wob.value = U2.wob.value = nit ? 0.18 : 0.35;
+        // the air past the car, in the car's frame: the gas leaves the pipe at about 22 m/s and is swept back by the car's
+        // travel (in a drift the flames trail off to the side of the travel); standing, it rises a little
+        const vx = c.vx || 0, vz = c.vz || 0, sp = Math.hypot(vx, vz), s1 = Math.sin(c.psi), c1 = Math.cos(c.psi);
+        const d = this._fd || (this._fd = new T.Vector3()), q = this._fq || (this._fq = new T.Quaternion());
+        d.set(-(vx * c1 - vz * s1) * 0.7, 0.35 * Math.max(0, 1 - sp / 6), -22 - (vx * s1 + vz * c1) * 0.7).normalize();
+        q.setFromUnitVectors(FLAME_AXIS, d);
+        for (const J of o.jets) J.grp.quaternion.copy(q);
+        stretch = 1 + Math.min(0.7, sp / 45);
+      }
       o.root.updateMatrixWorld();
       for (let i = 0; i < o.flames.length; i++) {
-        const f = o.flames[i], e = S.exh[i];
-        f.visible = !!e && R.visible && (c.nitroOn || c.backfire > 0);
+        const f = o.flames[i], e = S.exh[i], J = o.jets[i];
+        f.visible = !!e && on;
+        if (J) J.grp.visible = f.visible;
         if (!f.visible) continue;
-        f.position.set(e[0], e[1], (e[3] !== undefined ? e[3] : S.len[0]) - 0.2 - (c.nitroOn ? 0.15 : 0)); o.body.localToWorld(f.position);   // e[3]: tip z of a model's own pipes
-        const sc = (c.nitroOn ? 0.75 : 0.5) * (0.7 + Math.random() * 0.6);
-        f.scale.set(sc, sc, 1); f.material.color.set(c.nitroOn ? '#5aa8ff' : '#ff8a3a');
+        // (each pipe's own length every frame: the exhaust's pulses; the core shorter and narrower)
+        const k = Math.random(), L = (nit ? 0.95 * (0.55 + 0.6 * k) : (0.22 + 0.3 * fire) * (0.6 + 0.7 * k)) * stretch;
+        const rr = (e[2] * (nit ? 1.7 : 1.6) + 0.015) / Math.sqrt(stretch);
+        J.out.scale.set(rr, rr, L); J.core.scale.set(rr * 0.55, rr * 0.55, L * (nit ? 0.45 : 0.55));
+        f.position.set(e[0], e[1], (e[3] !== undefined ? e[3] : S.len[0]) - 0.03); o.body.localToWorld(f.position);   // e[3]: tip z of a model's own pipes
+        const sc = (nit ? 0.36 : 0.36 * Math.min(1.6, fire)) * (0.75 + Math.random() * 0.5);
+        f.scale.set(sc, sc, 1); f.material.color.set(C.glow);
+        if (newPop && fire > 0.7 && dt > 0) {   // (the puff of a big pop, out with the flame)
+          const bx = -Math.sin(c.psi), bz = -Math.cos(c.psi);
+          this.smoke.emit(f.position.x, f.position.y, f.position.z, bx * 1.6 + (c.vx || 0) * 0.5, 0.5, bz * 1.6 + (c.vz || 0) * 0.5, 0.15, 0.8, 0.55, 0.07 * Math.min(1.5, fire));
+        }
+      }
+      if (o.gglow) {
+        o.gglow.visible = on;
+        if (on) { o.gglow.material.opacity = (nit ? 0.4 : 0.35 * Math.min(1, fire)) * (0.8 + 0.4 * Math.random()); o.gglow.material.color.set(C.glow); }
       }
     }
     // chase camera: looks along a mix of the nose and the direction of travel, so a drift is seen from the side;

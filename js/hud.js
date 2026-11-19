@@ -101,6 +101,8 @@ const Render = {
     this.box(6, H - 46, 128, 40, 0.45);
     this.text('NITRO', 12, H - 45, 12, c.nitroOn ? '#7ac8ff' : '#9fe0ff');
     this.bar(52, H - 40, 76, 5, c.nitro, '#3a9aff');
+    g.fillStyle = 'rgba(0,0,0,0.6)';   // (a tick a second of boost: the bottle holds NITRO.secs)
+    for (let s = 1; s < NITRO.secs; s++) g.fillRect(52 + 76 * s / NITRO.secs - 0.5, H - 40, 1, 5);
     const chip = (x, on, label, col) => {
       this.rr(x, H - 28, 38, 11, 2, on ? col : 'rgba(255,255,255,0.08)', 'rgba(255,255,255,0.25)');
       this.text(label, x + 19, H - 28, 10, on ? '#000' : '#7a828e', 'center', 36);

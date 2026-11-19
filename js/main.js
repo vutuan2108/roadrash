@@ -26,7 +26,7 @@ const Game = {
     let s = null;
     try { s = JSON.parse(localStorage.getItem('hb_save') || 'null'); } catch (e) { s = null; }
     this.save = Object.assign({ money: 2500000, level: 1, owned: [0], bike: 0, hp: { 0: BIKES[0].dur }, passed: [],
-      dcars: [], dcar: '', dpaint: {}, dliv: {}, drim: {}, deng: {}, dengs: {}, dalign: {}, dbest: {}, dai: 3, dhard: false }, s || {});
+      dcars: [], dcar: '', dpaint: {}, dliv: {}, drim: {}, deng: {}, dengs: {}, dexh: {}, dexhs: {}, dalign: {}, dbest: {}, dai: 3, dhard: false, daih: false }, s || {});
     // one-time gift so existing saves also get the 2.5M starting money
     if (!this.save.gift) { this.save.money = Math.max(this.save.money, 2500000); this.save.gift = 1; this.store(); }
     this.fixCars();
@@ -188,36 +188,44 @@ const Game = {
   carEng(i) { return Engine.clean(this.save.deng[DRIFT_CARS[i].model]); },
   carSpec(i) { return Engine.spec(DRIFT_CARS[i], this.carEng(i)); },
   ownsEng(i, id) { return !id || (this.save.dengs[DRIFT_CARS[i].model] || []).includes(id); },
+  // the car's exhaust (id, '' = stock) and the exhausts bought for it
+  carExh(i) { return Exhaust.clean(this.save.dexh[DRIFT_CARS[i].model]); },
+  ownsExh(i, id) { return !id || (this.save.dexhs[DRIFT_CARS[i].model] || []).includes(id); },
   carRim(i) { return Rim.clean(this.save.drim[DRIFT_CARS[i].model]); },       // (the car's wheels: model + colour, '' = its own)
   carLiv(i) { return Livery.clean(this.save.dliv[DRIFT_CARS[i].model]); },   // (the car's stripes: style + colour, '' = none)
   // the car's wheel alignment (camber, toe, caster): the player's own, else what the car comes with
   carAlign(i) { const c = DRIFT_CARS[i]; return Align.clean(this.save.dalign[c.model], c); },   // (angles a save lacks: the car's own)
   updDriftMenu() {
-    const n = DRIFT_MAPS.length + 5, HARD = DRIFT_MAPS.length, AI = HARD + 1, s = this.save;
+    const n = DRIFT_MAPS.length + 6, HARD = DRIFT_MAPS.length, AI = HARD + 1, AIL = AI + 1, s = this.save;
     if (Input.pressed('up')) { this.dsel = (this.dsel + n - 1) % n; Sound.beep(520, 0.05); }
     if (Input.pressed('down')) { this.dsel = (this.dsel + 1) % n; Sound.beep(520, 0.05); }
     if (Input.pressed('back')) { this.state = 'mode'; return; }
     if (Input.pressed('horn')) { this.state = 'help'; this.helpBack = true; return; }   // (H: how to play)
-    // the number of computer drivers: left / right (or ENTER to step through)
-    const dir = (Input.pressed('right') ? 1 : 0) - (Input.pressed('left') ? 1 : 0) || ((this.dsel === AI || this.dsel === HARD) && Input.pressed('ok') ? 1 : 0);
+    // the settings rows: left / right (or ENTER to step through)
+    const dir = (Input.pressed('right') ? 1 : 0) - (Input.pressed('left') ? 1 : 0) || (this.dsel >= HARD && this.dsel <= AIL && Input.pressed('ok') ? 1 : 0);
     if (this.dsel === HARD) {   // easy (the road as it is) / hard (half as wide)
       if (dir) { s.dhard = !s.dhard; this.store(); Sound.beep(700, 0.05); }
       return;
     }
-    if (this.dsel === AI) {
+    if (this.dsel === AI) {   // the number of computer drivers
       if (dir) { s.dai = ((s.dai | 0) + dir + DRIFT_AI.max + 1) % (DRIFT_AI.max + 1); this.store(); Sound.beep(700, 0.05); }
+      return;
+    }
+    if (this.dsel === AIL) {   // their level: easy / hard (AI_HARD)
+      if (dir) { s.daih = !s.daih; this.store(); Sound.beep(700, 0.05); }
       return;
     }
     if (!Input.pressed('ok')) return;
     Sound.beep(880, 0.1);
     if (this.dsel < DRIFT_MAPS.length) this.startDrift(this.dsel);
-    else if (this.dsel === AI + 1) Net.open(null, 'drift');   // online: rooms created from here race drift
-    else if (this.dsel === AI + 2) { this.state = 'garage'; this.gsel = this.dIdx(); this.gmsg = ''; }
+    else if (this.dsel === AIL + 1) Net.open(null, 'drift');   // online: rooms created from here race drift
+    else if (this.dsel === AIL + 2) { this.state = 'garage'; this.gsel = this.dIdx(); this.gmsg = ''; }
     else this.state = 'mode';
   },
   startDrift(i) {
     const s = this.save, ci = this.dIdx();
-    const r = this.drace = new DriftRace({ mapIdx: i, carIdx: ci, paint: this.carPaint(ci), liv: this.carLiv(ci), rim: this.carRim(ci), eng: this.carEng(ci), al: this.carAlign(ci), ais: s.dai | 0, hard: !!s.dhard });
+    const r = this.drace = new DriftRace({ mapIdx: i, carIdx: ci, paint: this.carPaint(ci), liv: this.carLiv(ci), rim: this.carRim(ci), eng: this.carEng(ci), exh: this.carExh(ci), al: this.carAlign(ci),
+      ais: s.dai | 0, aiHard: !!s.daih, hard: !!s.dhard });
     this.state = 'drift';
     Sound.music.stop();
     r.ready = false;   // until the 3D models of all its cars are in
@@ -226,14 +234,14 @@ const Game = {
   finishDrift(reason) {
     const r = this.drace, s = this.save, id = this.driftKey(r.def.id, r.hard), quit = reason === 'quit', score = r.score;
     const grade = quit ? -1 : r.rank(score), prev = s.dbest[id] || 0, rec = !quit && score > prev;
-    // with computer drivers: the final order by score, and a prize for the top three
+    // with computer drivers: the final order by score, and a prize for the top three (half as much again against hard ones)
     const table = !quit && r.racers.length > 1 ? r.standings() : null, place = table ? table.findIndex(t => t.me) + 1 : 0;
-    const prize = table ? [3000, 1500, 600][place - 1] || 0 : 0;
+    const prize = table ? Math.round(([3000, 1500, 600][place - 1] || 0) * (r.aiHard ? 1.5 : 1)) : 0;
     const money = quit ? 0 : Math.round(score / 10) + [0, 300, 800, 1500, 3000, 6000][grade + 1] + prize;
     if (rec) s.dbest[id] = score;
     s.money += money;
     this.store();
-    this.dres = { map: r.def.name + (r.hard ? ' (KHÓ)' : ''), car: DRIFT_CARS[r.carIdx].name, score, grade, money, rec, prev, best: r.best, hits: r.hits, bumps: r.car.bumps, time: r.time, quit, table, place, prize };
+    this.dres = { map: r.def.name + (r.hard ? ' (KHÓ)' : ''), car: DRIFT_CARS[r.carIdx].name, score, grade, money, rec, prev, best: r.best, hits: r.hits, bumps: r.car.bumps, time: r.time, quit, table, place, prize, aiHard: r.aiHard };
     this.state = 'dres';
     Sound.quiet(); Sound.music.start();
   },
@@ -268,7 +276,7 @@ const Game = {
     // C: the wheel alignment of an owned car
     if (Input.pressed('cam') && i < DRIFT_CARS.length) {
       if (!this.ownsCar(i)) { this.gmsg = 'Mua xe trước rồi mới căn chỉnh được'; Sound.beep(200, 0.1); }
-      else { this.state = 'dalign'; this.acar = i; this.asel = 0; this.aedit = this.carAlign(i); this.arim = this.carRim(i); this.aeng = this.carEng(i); this.aengSel = DRIFT_ENGINES.findIndex(e => e.id === this.aeng); this.amsg = ''; this.arep = 0; this.arepAcc = 0; Sound.beep(880, 0.08); return; }
+      else { this.state = 'dalign'; this.acar = i; this.asel = 0; this.aedit = this.carAlign(i); this.arim = this.carRim(i); this.aeng = this.carEng(i); this.aengSel = DRIFT_ENGINES.findIndex(e => e.id === this.aeng); this.aexh = this.carExh(i); this.aexhSel = DRIFT_EXHAUSTS.findIndex(e => e.id === this.aexh); this.amsg = ''; this.arep = 0; this.arepAcc = 0; Sound.beep(880, 0.08); return; }
     }
     if (!Input.pressed('ok')) return;
     if (i === DRIFT_CARS.length) { this.state = 'dmenu'; return; }
@@ -301,7 +309,7 @@ const Game = {
       ['SHIFT', 'Côn: giữ rồi vê ga, thả ra để "đá côn"'], ['B / V (E / Q)', 'Lên / xuống số'], ['T', 'Số tự động / số tay'],
       ['N', 'Nitro (tự nạp lại khi drift)'], ['C', 'Đổi camera'], ['R', 'Đặt lại xe lên đường'], ['ESC / P', 'Tạm dừng']],
       tips: ['Vào cua: kéo phanh tay hoặc đá côn, rồi giữ ga để xe trượt ngang.', 'Điểm tính theo góc trượt, tốc độ và độ sát rào. Chạm rào là mất chuỗi điểm.',
-        'Gara: mua xe, đổi màu sơn, tem. Phím C trong gara: căn góc bánh, đổi động cơ, mâm.'] },
+        'Gara: mua xe, đổi màu sơn, tem. Phím C trong gara: căn góc bánh, đổi động cơ, pô, mâm.'] },
   },
   updHelp() {
     const menu = this.mode === 'drift' ? 'dmenu' : 'menu';
@@ -431,15 +439,18 @@ const Game = {
       const b = this.driftBest(i), r = DriftRace.prototype.rank.call({ def: m }, b);
       return { a: m.name, b: m.desc + (m.circuit ? ' · ' + m.laps + ' vòng' : ''), rec: b ? b.toLocaleString('en-US') : '--', grade: b ? DRIFT_RANKS[r] || '-' : '' };
     });
-    const nai = s.dai | 0, iH = DRIFT_MAPS.length, iA = iH + 1;
-    items.push({ a: 'ĐỘ KHÓ', b: s.dhard ? 'KHÓ: mặt đường hẹp lại còn khoảng 60%, rào sát hơn (← → để đổi). Kỷ lục tính riêng.'
+    const nai = s.dai | 0, iH = DRIFT_MAPS.length, iA = iH + 1, iL = iA + 1;
+    items.push({ a: 'ĐỘ KHÓ ĐƯỜNG', b: s.dhard ? 'KHÓ: mặt đường hẹp lại còn khoảng 60%, rào sát hơn (← → để đổi). Kỷ lục tính riêng.'
       : 'DỄ: mặt đường rộng như bình thường (← → để đổi sang KHÓ: đường hẹp còn khoảng 60%).',
       opt: (this.dsel === iH ? '◄ ' : '') + (s.dhard ? 'KHÓ' : 'DỄ') + (this.dsel === iH ? ' ►' : '') });
     items.push({ a: 'ĐỐI THỦ MÁY', b: 'Số xe máy drift cùng đường (← → để đổi). Xếp hạng theo điểm drift, top 3 có thưởng.',
       opt: (this.dsel === iA ? '◄ ' : '') + (nai ? nai + ' XE' : 'TẮT') + (this.dsel === iA ? ' ►' : '') });
+    items.push({ a: 'ĐỘ KHÓ MÁY', b: s.daih ? 'KHÓ: máy xe mạnh hơn, drift góc lớn, dẫn xa hơn và khó vượt. Thưởng hạng x1.5.'
+      : 'DỄ: máy chạy trước và chờ gần bạn để bạn đuổi theo, drift nhẹ tay hơn (← → để đổi).',
+      opt: (this.dsel === iL ? '◄ ' : '') + (s.daih ? 'KHÓ' : 'DỄ') + (this.dsel === iL ? ' ►' : '') });
     items.push({ a: 'CHƠI ONLINE', b: (Net.onlineText() ? Net.onlineText().toUpperCase() + ' · ' : '') + 'Đua drift với bạn bè qua mạng: tạo phòng, gửi link mời, xếp hạng theo điểm drift' });
-    items.push({ a: 'GARA Ô TÔ', b: 'Mua xe, đổi màu sơn, tem · phím C: căn góc bánh, Ackermann, đổi động cơ, mâm' }, { a: 'QUAY LẠI', b: '' });
-    // (nine stages and five more rows; the keys are on the how-to-play screen, H)
+    items.push({ a: 'GARA Ô TÔ', b: 'Mua xe, đổi màu sơn, tem · phím C: căn góc bánh, Ackermann, đổi động cơ, pô, mâm' }, { a: 'QUAY LẠI', b: '' });
+    // (nine stages and six more rows; the keys are on the how-to-play screen, H)
     const rh = 14, y0 = 61;
     Render.text('KỶ LỤC', 400, 49, 12, '#a8b8d0', 'right'); Render.text('HẠNG', 448, 49, 12, '#a8b8d0', 'right');
     items.forEach((it, i) => {
@@ -504,7 +515,7 @@ const Game = {
     Render.text(c.ownLiv ? 'TEM: NGUYÊN BẢN CỦA XE' : 'TEM (T): ' + DRIFT_LIVERIES[Livery.style(liv)], 280, 290, 11, c.ownLiv ? '#9fe0ff' : '#ffffff', 'left', 190);
     if (liv && !c.ownLiv) { Render.text('MÀU (Y)', 452, 290, 11, '#ffffff', 'right', 46); Render.rr(457, 291, 22, 7, 2, Livery.color(liv), 'rgba(255,255,255,0.5)'); }
     if (this.gmsg) Render.text(this.gmsg, 140, 258, 15, '#7fff7f', 'center', 230);
-    Render.text('ENTER mua/chọn  C căn bánh & mâm  T/Y tem xe  ESC quay lại', 140, 282, 12, '#a8b8d0', 'center', 236);
+    Render.text('ENTER mua/chọn  C bánh, máy, pô, mâm  T/Y tem xe  ESC quay lại', 140, 282, 12, '#a8b8d0', 'center', 236);
   },
   // ---------------- wheel alignment (garage, C): camber, toe, caster of an owned car ----------------
   // per angle: its name, the 3D view that shows it, and what it does (the garage's explanation)
@@ -520,11 +531,30 @@ const Game = {
   ALIGN_ACTS: [['TỐI ƯU CHO DRIFT', 'Tự tính bộ góc cho điểm drift cao nhất với chính chiếc xe này (chiều cao trọng tâm, phân bổ trọng lượng): camber trước âm vừa đủ bù nghiêng thân và caster, camber sau gần 0, toe trước hơi choãi, toe sau hơi chụm, caster cao.'],
     ['VỀ THÔNG SỐ GỐC', 'Bộ góc có sẵn khi mua xe. Xe đường phố: camber nhỏ, caster khoảng 5,5°, toe chụm nhẹ - đầm, dễ lái, nhưng đầu xe kém bám khi lái ngược lúc drift.'],
     ['LƯU & QUAY LẠI', 'Lưu bộ góc cho xe này (dùng cả khi chơi online) và quay về gara.']],
+  // the engine and exhaust rows: the engine shown revs once through the exhaust shown - idle, up to the rev limiter,
+  // held there a moment (its bangs), let go (the blow-off, a pop, the crackle as the revs fall) - so each can be heard
+  revEngine(dt) {
+    const R = this.arev;
+    if (!R) return;
+    const t = R.t += dt, gas = t > 0.3 && t < 1.5 ? 1 : 0, lifted = R.gas && !gas;
+    R.r += ((gas ? 1 : 0.06) - R.r) * Math.min(1, dt * (gas ? 4 : 1.2));
+    if (gas && R.r > 0.97) R.r = 0.97 + Math.random() * 0.03;   // (bouncing off the limiter)
+    if (lifted && R.s.turbo) Sound.blowoff();
+    const bang = Exhaust.pop(Exhaust.get(R.x), dt, R.r, lifted, !gas, !!gas);
+    if (bang) Sound.pop(bang, 0.8 + Math.random() * 0.45);
+    R.gas = gas;
+    Sound.voice(Engine.sound(R.s, R.x));
+    Sound.engine(R.r, 0.09 + 0.08 * gas, gas);
+    if (t > 3.2) this.stopRev();
+  },
+  rev(eng, exh) { this.arev = { t: 0, r: 0.06, gas: 0, s: Engine.spec(DRIFT_CARS[this.acar], eng), x: exh }; },
+  stopRev() { if (this.arev) { this.arev = null; Sound.engine(0, 0); } },
   updAlign(dt) {
-    const K = ALIGN.keys, NR = 3, n = K.length + NR + this.ALIGN_ACTS.length, i = this.asel, c = DRIFT_CARS[this.acar];
+    const K = ALIGN.keys, NR = 4, n = K.length + NR + this.ALIGN_ACTS.length, i = this.asel, c = DRIFT_CARS[this.acar];
+    this.revEngine(dt);
     if (Input.pressed('up')) { this.asel = (i + n - 1) % n; Sound.beep(520, 0.05); }
     if (Input.pressed('down')) { this.asel = (i + 1) % n; Sound.beep(520, 0.05); }
-    if (Input.pressed('back')) { this.saveAlign(); this.state = 'garage'; return; }
+    if (Input.pressed('back')) { this.stopRev(); this.saveAlign(); this.state = 'garage'; return; }
     if (i < K.length) {
       // left / right: one step; held, it repeats, faster after a while
       const dir = (Input.is('right') ? 1 : 0) - (Input.is('left') ? 1 : 0);
@@ -543,10 +573,12 @@ const Game = {
     // the wheels: left / right through every car's rims (the car's own first), and through their colours
     if (i < K.length + NR) {
       const dir = (Input.pressed('right') ? 1 : 0) - (Input.pressed('left') ? 1 : 0);
-      // the engine: left / right to look through them, ENTER fits the one shown (buying it first if need be)
+      // the engine: left / right to look through them (each one revs: hear it; H again), ENTER fits the one shown
+      // (buying it first if need be)
       if (i === K.length) {
         const NE = DRIFT_ENGINES.length;
         if (dir) { this.aengSel = (this.aengSel + dir + NE) % NE; this.amsg = ''; Sound.beep(700, 0.04); }
+        if (dir || Input.pressed('horn')) this.rev(DRIFT_ENGINES[this.aengSel].id, this.aexh);
         if (Input.pressed('ok')) {
           const e = DRIFT_ENGINES[this.aengSel], s = this.save;
           if (e.id === this.aeng) this.amsg = 'Xe đang lắp động cơ này';
@@ -559,9 +591,26 @@ const Game = {
         }
         return;
       }
+      // the exhaust: the same - left / right (each one heard on the engine fitted), H hears it again, ENTER fits / buys
+      if (i === K.length + 1) {
+        const NX = DRIFT_EXHAUSTS.length;
+        if (dir) { this.aexhSel = (this.aexhSel + dir + NX) % NX; this.amsg = ''; Sound.beep(700, 0.04); }
+        const x = DRIFT_EXHAUSTS[this.aexhSel], s = this.save;
+        if (dir || Input.pressed('horn')) this.rev(this.aeng, x.id);
+        if (Input.pressed('ok')) {
+          if (x.id === this.aexh) { this.amsg = 'Xe đang lắp pô này'; this.rev(this.aeng, x.id); }
+          else if (this.ownsExh(this.acar, x.id)) { this.aexh = x.id; this.amsg = 'Đã lắp ' + x.name; Sound.beep(1100, 0.15); }
+          else if (s.money >= x.price) {
+            s.money -= x.price; (s.dexhs[c.model] || (s.dexhs[c.model] = [])).push(x.id);
+            this.aexh = x.id; s.dexh[c.model] = x.id; this.store();
+            this.amsg = 'Đã mua và lắp ' + x.name; Sound.beep(1200, 0.2);
+          } else { this.amsg = 'Không đủ tiền (cần ' + U.money(x.price) + ')'; Sound.beep(200, 0.1); }
+        }
+        return;
+      }
       if (!dir) return;
       const own = c.model, cur = Rim.model(this.arim) || own, col = Rim.color(this.arim);
-      if (i === K.length + 1) {
+      if (i === K.length + 2) {
         const L = [own].concat(DRIFT_CARS.map(q => q.model).filter(m => m !== own)), m = L[(L.indexOf(cur) + dir + L.length) % L.length];
         this.arim = Rim.make(m === own ? '' : m, col);
         Models.loadCar(m);
@@ -573,9 +622,9 @@ const Game = {
     const j = i - K.length - NR;
     if (j === 0) { this.aedit = Align.clean(Align.best(c).a); this.amsg = 'Đã áp dụng bộ góc drift tối ưu cho xe này'; Sound.beep(1100, 0.15); }
     else if (j === 1) { this.aedit = Align.def(c); this.amsg = 'Đã trả về bộ góc gốc của xe'; Sound.beep(700, 0.1); }
-    else { this.saveAlign(); this.state = 'garage'; this.gmsg = 'Đã lưu căn chỉnh ' + c.name; Sound.beep(880, 0.08); }
+    else { this.stopRev(); this.saveAlign(); this.state = 'garage'; this.gmsg = 'Đã lưu căn chỉnh ' + c.name; Sound.beep(880, 0.08); }
   },
-  saveAlign() { const m = DRIFT_CARS[this.acar].model; this.save.dalign[m] = Align.clean(this.aedit); this.save.drim[m] = Rim.clean(this.arim); this.save.deng[m] = Engine.clean(this.aeng); this.store(); },
+  saveAlign() { const m = DRIFT_CARS[this.acar].model; this.save.dalign[m] = Align.clean(this.aedit); this.save.drim[m] = Rim.clean(this.arim); this.save.deng[m] = Engine.clean(this.aeng); this.save.dexh[m] = Exhaust.clean(this.aexh); this.store(); },
   // an angle as the garage writes it: camber / caster with their sign, toe as in (vào) / out (ra) per wheel
   fmtAlign(k, v) {
     const f = x => Math.abs(x).toFixed(2).replace('.', ',');
@@ -597,15 +646,15 @@ const Game = {
   },
   drawAlign() {
     const g = Render.g, c = DRIFT_CARS[this.acar], a = this.aedit, K = ALIGN.keys, sel = this.asel, D = Math.PI / 180;
-    const best = Align.best(c).a, st = Align.stats(a, c), info = sel < K.length ? this.ALIGN_INFO[K[sel]] : null, NR = 3;
+    const best = Align.best(c).a, st = Align.stats(a, c), info = sel < K.length ? this.ALIGN_INFO[K[sel]] : null, NR = 4;
     this.dim(0.5); this.panel(8, 6, 496, 308);
-    Render.text('SETUP XE: BÁNH · ĐỘNG CƠ · MÂM', 18, 10, 18, '#ff9a5a', 'left', 260);
-    Render.text(c.name, 494, 14, 13, '#9fe0ff', 'right', 220);
+    Render.text('SETUP XE: BÁNH · ĐỘNG CƠ · PÔ · MÂM', 18, 10, 18, '#ff9a5a', 'left', 270);
+    Render.text(c.name, 494, 14, 13, '#9fe0ff', 'right', 210);
     // ---- left: the five angles (a slider each: grey tick = the car's own setup, green = the best for drift), the actions
     K.forEach((k, r) => {
-      const y = 33 + r * 16, on = sel === r,   // (rows 16 apart: the two wheel rows fit under them)
+      const y = 32 + r * 15, on = sel === r,   // (rows 15 apart: the four parts rows fit under them)
         [lo, hi] = ALIGN.rng[k], X = v => 24 + 206 * (v - lo) / (hi - lo);
-      if (on) { g.fillStyle = 'rgba(255,154,90,0.2)'; g.fillRect(16, y - 2, 222, 16); g.fillStyle = '#ff9a5a'; g.fillRect(16, y - 2, 3, 16); }
+      if (on) { g.fillStyle = 'rgba(255,154,90,0.2)'; g.fillRect(16, y - 2, 222, 15); g.fillStyle = '#ff9a5a'; g.fillRect(16, y - 2, 3, 15); }
       Render.text((on ? '> ' : '  ') + this.ALIGN_INFO[k].name, 22, y - 2, 11, on ? '#ffd23a' : '#ffffff', 'left', 120);
       Render.text(this.fmtAlign(k, a[k]), 232, y - 2, 11, on ? '#ffd23a' : '#9fe0ff', 'right', 90);
       g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(24, y + 10.5, 206, 1.5);
@@ -620,28 +669,33 @@ const Game = {
     // (the engine row shows the one being looked at: fitted, owned, or its price)
     const eb = DRIFT_ENGINES[this.aengSel], es = Engine.spec(c, eb.id);
     const etag = eb.id === this.aeng ? ' [ĐANG LẮP]' : this.ownsEng(this.acar, eb.id) ? ' [ĐÃ CÓ]' : ' ' + U.money(eb.price);
-    [['ĐỘNG CƠ', eb.name + etag], ['MÂM XE', rcar ? rcar.name : 'Mâm gốc của xe'], ['MÀU MÂM', rc ? '' : 'Màu gốc']].forEach(([name, val], j) => {
-      const y = 146 + j * 13, on = sel === K.length + j;
+    const xb = DRIFT_EXHAUSTS[this.aexhSel], xtag = xb.id === this.aexh ? ' [ĐANG LẮP]' : this.ownsExh(this.acar, xb.id) ? ' [ĐÃ CÓ]' : ' ' + U.money(xb.price);
+    // (rows: name, value, the value is one being looked at but not fitted)
+    [['ĐỘNG CƠ', eb.name + etag, eb.id !== this.aeng], ['PÔ XE', xb.name + xtag, xb.id !== this.aexh],
+      ['MÂM XE', rcar ? rcar.name : 'Mâm gốc của xe'], ['MÀU MÂM', rc ? '' : 'Màu gốc']].forEach(([name, val, other], j) => {
+      const y = 139 + j * 13, on = sel === K.length + j;
       if (on) { g.fillStyle = 'rgba(255,154,90,0.2)'; g.fillRect(16, y - 1, 222, 13); g.fillStyle = '#ff9a5a'; g.fillRect(16, y - 1, 3, 13); }
       Render.text((on ? '> ' : '  ') + name, 22, y - 1, 11, on ? '#ffd23a' : '#ffffff', 'left', 70);
-      if (j === 2 && rc) {   // a swatch of the colour between the arrows
+      if (j === 3 && rc) {   // a swatch of the colour between the arrows
         Render.rr(198, y + 2, 24, 8, 2, rc, 'rgba(255,255,255,0.5)');
         if (on) { Render.text('◀', 195, y - 1, 11, '#ffd23a', 'right'); Render.text('▶', 233, y - 1, 11, '#ffd23a', 'right'); }
-      } else Render.text((on ? '◀ ' : '') + val + (on ? ' ▶' : ''), 232, y - 1, j ? 11 : 10, on ? '#ffd23a' : j === 0 && eb.id !== this.aeng ? '#ffb04a' : '#9fe0ff', 'right', 156);
+      } else Render.text((on ? '◀ ' : '') + val + (on ? ' ▶' : ''), 232, y - 1, j < 2 ? 10 : 11, on ? '#ffd23a' : other ? '#ffb04a' : '#9fe0ff', 'right', 156);
     });
     this.ALIGN_ACTS.forEach(([name], j) => {
-      const y = 187 + j * 11, on = sel === K.length + NR + j;
+      const y = 193 + j * 11, on = sel === K.length + NR + j;
       if (on) { g.fillStyle = 'rgba(255,154,90,0.2)'; g.fillRect(16, y - 1, 222, 11); g.fillStyle = '#ff9a5a'; g.fillRect(16, y - 1, 3, 11); }
       Render.text((on ? '> ' : '  ') + name, 22, y - 2, 12, on ? '#ffd23a' : j === 0 ? '#7fff7f' : '#ffffff', 'left', 210);
     });
-    Render.text('▮ gốc', 150, 211, 8, '#8e949c', 'left'); Render.text('▮ tối ưu drift', 182, 211, 8, '#4ad86a', 'left');
+    Render.text('▮ gốc', 150, 216, 8, '#8e949c', 'left'); Render.text('▮ tối ưu drift', 182, 216, 8, '#4ad86a', 'left');
     // the selected row's explanation
-    g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(16, 221, 222, 1);
+    g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(16, 226, 222, 1);
     const RIM_TEXT = ['Chọn bộ mâm và lốp của bất kỳ mẫu xe nào trong game (← →). Mâm được chỉnh cỡ cho vừa bánh của xe này nên không ảnh hưởng tới cách xe chạy. Dùng cả khi chơi online.',
       'Màu mặt mâm (← →). "Màu gốc" là màu có sẵn của bộ mâm đang chọn. Viền mâm, ốc và heo phanh giữ nguyên màu.'];
     const ENG_TEXT = eb.desc + ' Thay máy đi kèm cầu sau có tỉ số hợp với máy và lốp sau rộng hơn: máy mạnh hơn thì mỗi số chạy nhanh hơn và xe bốc hơn. ' +
       (eb.id === this.aeng ? '' : this.ownsEng(this.acar, eb.id) ? 'ENTER để lắp. ' : 'ENTER để mua và lắp (' + U.money(eb.price) + '). ') + 'Tiền: ' + U.money(this.save.money) + '.';
-    const yEnd = this.wrapText(info ? info.text : sel === K.length ? ENG_TEXT : sel < K.length + NR ? RIM_TEXT[sel - K.length - 1] : this.ALIGN_ACTS[sel - K.length - NR][1], 18, 224, 218, 9, '#c8d4e4', 9.8);
+    const EXH_TEXT = xb.desc + ' Pô chỉ đổi tiếng máy, tiếng nổ và lửa ở đầu pô, không đổi công suất. ' +
+      (xb.id === this.aexh ? '' : this.ownsExh(this.acar, xb.id) ? 'ENTER để lắp. ' : 'ENTER để mua và lắp (' + U.money(xb.price) + '). ') + 'Tiền: ' + U.money(this.save.money) + '.';
+    const yEnd = this.wrapText(info ? info.text : sel === K.length ? ENG_TEXT : sel === K.length + 1 ? EXH_TEXT : sel < K.length + NR ? RIM_TEXT[sel - K.length - 2] : this.ALIGN_ACTS[sel - K.length - NR][1], 18, 229, 218, 9, '#c8d4e4', 9.8);
     if (this.amsg && yEnd < 287) Render.text(this.amsg, 127, 288, 10, '#7fff7f', 'center', 220);
     // ---- right: the 3D view (the angle as set, on the car) with a true-scale diagram of it
     const vx = 244, vy = 32, vw = 252, vh = 122, view = info ? info.view : '3q';
@@ -669,6 +723,7 @@ const Game = {
     // ---- right, below: the drift rating and each effect against the car's stock street alignment
     const ry = 158;
     if (sel === K.length) this.drawEngPanel(c, eb, vx, ry, vw);
+    else if (sel === K.length + 1) this.drawExhPanel(xb, vx, ry, vw);
     else {
     Render.text('ĐIỂM SETUP DRIFT', vx, ry, 11, '#ffffff', 'left');
     Render.bar(vx + 98, ry + 3, 110, 6, st.score / 100, st.score >= 90 ? '#4ad86a' : st.score >= 60 ? '#f0b020' : '#e86a3a');
@@ -689,7 +744,34 @@ const Game = {
     Render.text('Camber thật bánh trước khi drift (lái ngược ' + Math.round(-ALIGN.drift.steer / D) + '°): bánh chịu tải ' + this.fmtAlign('camF', +dr.toFixed(1)) + ' · bánh nhẹ ' + this.fmtAlign('camF', +dl.toFixed(1)), vx, yc, 8.5, '#9fe0ff', 'left', vw);
     Render.text('Khi vào cua (chưa trượt): bánh chịu tải ' + this.fmtAlign('camF', +tr.toFixed(1)) + ' · bánh nhẹ ' + this.fmtAlign('camF', +tl.toFixed(1)) + '  (lốp bám nhất ≈ ' + this.fmtAlign('camF', ALIGN.opt) + ')', vx, yc + 11, 8.5, '#9fe0ff', 'left', vw);
     }
-    Render.text('↑↓ chọn   ← → chỉnh (giữ để chỉnh nhanh)   ENTER áp dụng   ESC lưu & quay lại', W / 2, 300, 10, '#a8b8d0', 'center', 480);
+    Render.text(sel === K.length || sel === K.length + 1 ? '↑↓ chọn   ← → xem và nghe thử   H nghe lại   ENTER mua / lắp   ESC lưu & quay lại'
+      : '↑↓ chọn   ← → chỉnh (giữ để chỉnh nhanh)   ENTER áp dụng   ESC lưu & quay lại', W / 2, 300, 10, '#a8b8d0', 'center', 480);
+  },
+  // the setup screen's right-hand panel on the exhaust row: how the exhaust shown sounds (bars; a white tick = the one
+  // fitted now), and while it is revving, a level meter
+  drawExhPanel(xb, x, y, w) {
+    const g = Render.g, cur = Exhaust.get(this.aexh), same = xb.id === this.aexh;
+    Render.text('PÔ: ' + xb.name, x, y, 11, '#ffb04a', 'left', w - 70);
+    Render.text(same ? 'ĐANG LẮP' : this.ownsExh(this.acar, xb.id) ? 'ĐÃ CÓ' : U.money(xb.price), x + w, y, 11, same ? '#7fff7f' : '#ffd23a', 'right');
+    Render.text(same ? 'tiếng pô này:' : 'tiếng pô này (vạch trắng: pô đang lắp):', x, y + 13, 8.5, '#a8b8d0', 'left');
+    const rows = [['ÂM LƯỢNG', e => (e.loud - 0.6) / 1.2], ['ĐỘ TRẦM', e => (e.deep - 0.5) / 1], ['ĐỘ RÈ, GẮT', e => (e.rasp + 0.15) / 0.62],
+      ['ĐỘ CAO TIẾNG', e => (e.tone + 0.35) / 0.8], ['ĐỘ VANG (Ù)', e => (e.q - 0.7) / 1.3], ['NỔ KHI NHẢ GA', e => e.pop]];
+    // (plain bars: Render.bar turns red when low, and a quiet exhaust is not a fault)
+    const bar = (bx, by, f, col) => { g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(bx, by, 120, 5); g.fillStyle = col; g.fillRect(bx, by, 120 * f, 5); };
+    rows.forEach(([name, f], i) => {
+      const yy = y + 26 + i * 13;
+      Render.text(name, x, yy, 9.5, '#e8e8e8', 'left', 86);
+      bar(x + 92, yy + 2, U.clamp(f(xb), 0.03, 1), '#ff9a5a');
+      if (!same) { g.fillStyle = '#ffffff'; g.fillRect(x + 92 + 120 * U.clamp(f(cur), 0.03, 1) - 0.5, yy, 1, 9); }
+    });
+    const yy = y + 26 + rows.length * 13 + 2;
+    Render.text(xb.valve ? 'Van: đóng khi đi nhẹ (êm), mở khi đạp ga trên nửa vòng tua.' : 'Không đổi công suất xe, chỉ đổi tiếng và lửa đầu pô.', x, yy, 8.5, '#9fe0ff', 'left', w);
+    // the rev being played: its revs as a meter, or how to hear it
+    const R = this.arev;
+    if (R) {
+      Render.text('♪ ĐANG NỔ MÁY', x, yy + 13, 9.5, '#7fff7f', 'left', 90);
+      bar(x + 92, yy + 15, U.clamp(R.r, 0, 1), R.r > 0.85 ? '#e8503a' : '#4ad86a');
+    } else Render.text('← → nghe pô khác · H nghe lại', x, yy + 13, 9.5, '#ffd23a', 'left', w);
   },
   // the setup screen's right-hand panel on the engine row: the car's figures with the engine being looked at (bars as
   // in the garage), each against the engine fitted now, and the speed every gear reaches at the red line
@@ -818,7 +900,7 @@ const Game = {
     Render.text(r.grade >= 0 ? DRIFT_RANKS[r.grade] : '-', 160, 124, 32, r.grade >= 3 ? '#ffd23a' : r.grade >= 0 ? '#7fff7f' : '#ff8a8a', 'center');
     // the table
     const x0 = 238, x1 = 470;
-    Render.text('BẢNG ĐIỂM CHUNG CUỘC', (x0 + x1) / 2, 60, 14, '#ff9a5a', 'center');
+    Render.text(r.aiHard ? 'BẢNG ĐIỂM · MÁY KHÓ' : 'BẢNG ĐIỂM CHUNG CUỘC', (x0 + x1) / 2, 60, 14, '#ff9a5a', 'center');
     r.table.forEach((t, i) => {
       const y = 78 + i * 16;
       if (t.me) { g.fillStyle = 'rgba(255,210,58,0.16)'; g.fillRect(x0 - 4, y - 1, x1 - x0 + 6, 15); }

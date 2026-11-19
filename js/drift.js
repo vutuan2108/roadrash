@@ -150,19 +150,76 @@ const DRIFT_ENGINES = [
   { id: '', name: 'Máy gốc của xe', price: 0, desc: 'Động cơ theo xe.' },
   { id: 'st1', name: 'Độ Stage 1', price: 4000, k: 1.15, desc: 'Trên máy gốc: ECU, cổ hút, ống xả. Thêm 15% mô-men, tính nết xe giữ nguyên.' },
   { id: 'st2', name: 'Độ Stage 2', price: 12000, k: 1.35, pkUp: 0.04, turbo: true, dkg: 15, desc: 'Trên máy gốc: turbo lớn, kim phun, két làm mát khí nạp. Thêm 35% mô-men, lực kéo dồn lên tua cao.' },
-  { id: 'sr20', name: 'SR20DET 2.0L turbo', price: 10000, torque: 500, pk: 0.62, redline: 7800, idle: 950, turbo: true, dkg: -20, voice: [31, 250, 330, 2400, 0.3, 2],
+  { id: 'sr20', name: 'SR20DET 2.0L turbo', price: 10000, torque: 500, pk: 0.62, redline: 7800, idle: 950, turbo: true, dkg: -20, voice: [31, 250, 330, 2400, 0.3, 2], snd: 'i4',
     desc: 'Máy 4 xi-lanh turbo của Silvia: nhẹ đầu xe, bốc ở tua cao, dễ giữ bánh quay.' },
-  { id: '13b', name: '13B rotary turbo', price: 18000, torque: 480, pk: 0.7, redline: 9000, idle: 1000, turbo: true, dkg: -40, voice: [42, 330, 440, 3000, 0.16, 3],
+  { id: '13b', name: '13B rotary turbo', price: 18000, torque: 480, pk: 0.7, redline: 9000, idle: 1000, turbo: true, dkg: -40, voice: [42, 330, 440, 3000, 0.16, 3], snd: 'rot',
     desc: 'Máy xoay của RX-7: nhẹ nhất, quay tới 9000 vòng/phút, lực kéo nằm hết ở tua cao.' },
-  { id: 'ls3', name: 'LS3 V8 6.2L', price: 22000, torque: 760, pk: 0.5, redline: 6800, idle: 750, turbo: false, dkg: 20, voice: [24, 200, 250, 1500, 0.44, 1.5],
+  { id: 'ls3', name: 'LS3 V8 6.2L', price: 22000, torque: 760, pk: 0.5, redline: 6800, idle: 750, turbo: false, dkg: 20, voice: [24, 200, 250, 1500, 0.44, 1.5], snd: 'v8',
     desc: 'V8 hút khí tự nhiên: mô-men lớn ngay từ tua thấp, ga đều và dễ đoán, tua máy thấp.' },
-  { id: 'rb26', name: 'RB26DETT 2.6L twin-turbo', price: 26000, torque: 720, pk: 0.6, redline: 8200, idle: 900, turbo: true, dkg: 40, voice: [33, 260, 330, 2400, 0.22, 2],
+  { id: 'rb26', name: 'RB26DETT 2.6L twin-turbo', price: 26000, torque: 720, pk: 0.6, redline: 8200, idle: 900, turbo: true, dkg: 40, voice: [33, 260, 330, 2400, 0.22, 2], snd: 'i6',
     desc: '6 xi-lanh thẳng hàng của Skyline GT-R: khỏe và quay cao, nặng đầu hơn.' },
-  { id: '2jz', name: '2JZ-GTE 3.0L turbo', price: 36000, torque: 960, pk: 0.58, redline: 7800, idle: 900, turbo: true, dkg: 50, voice: [33, 270, 340, 2400, 0.1, 1.5],
+  { id: '2jz', name: '2JZ-GTE 3.0L turbo', price: 36000, torque: 960, pk: 0.58, redline: 7800, idle: 900, turbo: true, dkg: 50, voice: [33, 270, 340, 2400, 0.1, 1.5], snd: 'i6',
     desc: '6 xi-lanh thẳng hàng của Supra, turbo đơn lớn: rất nhiều mô-men, bánh sau luôn sẵn sàng quay.' },
-  { id: 'vr38', name: 'VR38DETT 3.8L V6 twin-turbo', price: 52000, torque: 1150, pk: 0.56, redline: 7400, idle: 900, turbo: true, dkg: 60, voice: [30, 250, 320, 2200, 0.24, 2],
+  { id: 'vr38', name: 'VR38DETT 3.8L V6 twin-turbo', price: 52000, torque: 1150, pk: 0.56, redline: 7400, idle: 900, turbo: true, dkg: 60, voice: [30, 250, 320, 2200, 0.24, 2], snd: 'v6',
     desc: 'V6 twin-turbo của GT-R R35: mạnh nhất, nặng nhất. Cần chân ga nhẹ nhàng.' },
 ];
+// engine sound by layout (Sound.engine's car voices; the pitch and rev range are the voice arrays above): w: the three
+// oscillators' waves, sub: a sine an octave under the firing note, burble / br: an uneven beat on the firing pulses at
+// br x the firing note, rasp: exhaust noise pulsed with the firing, q: how much the intake and exhaust resonate
+const ENGINE_SND = {
+  i4: { w: ['sawtooth', 'square', 'sawtooth'], sub: 0.08, burble: 0, br: 0.5, rasp: 0.3, q: 2.6 },     // buzzy, revs high
+  b4: { w: ['sawtooth', 'square', 'sawtooth'], sub: 0.15, burble: 0.22, br: 0.5, rasp: 0.3, q: 2.2 },  // the boxer rumble (unequal headers)
+  i6: { w: ['sawtooth', 'sawtooth', 'sawtooth'], sub: 0.1, burble: 0, br: 0.5, rasp: 0.18, q: 3.4 },  // smooth, sings to the red line
+  v6: { w: ['sawtooth', 'square', 'sawtooth'], sub: 0.22, burble: 0.08, br: 0.5, rasp: 0.25, q: 2.6 },
+  f6: { w: ['sawtooth', 'square', 'square'], sub: 0.15, burble: 0.12, br: 0.5, rasp: 0.42, q: 3.0 },  // the flat six's howl and rasp
+  v8: { w: ['sawtooth', 'square', 'square'], sub: 0.38, burble: 0.28, br: 0.25, rasp: 0.3, q: 1.6 },  // cross-plane: deep, with a lumpy lope
+  v8f: { w: ['sawtooth', 'sawtooth', 'square'], sub: 0.15, burble: 0, br: 0.5, rasp: 0.35, q: 3.0 },  // flat-plane: shrieks like two fours
+  rot: { w: ['square', 'square', 'sawtooth'], sub: 0, burble: 0.06, br: 0.5, rasp: 0.5, q: 1.5 },     // the rotary's brap
+};
+// each car's own engine layout (an engine swap brings its own, DRIFT_ENGINES snd); v8s: a supercharged V8 (its whine)
+const DRIFT_SND = { z280: 'i6', n180: 'i4', m65: 'v8', gr86: 'b4', boss: 'v8', supra: 'i6', r34: 'i6', rx7vs: 'rot', gtr: 'v8',
+  s15c: 'i4', gtd: 'v8s', gt2: 'f6', gt86ss: 'v6', rx7bn: 'rot', s15lb: 'i4', r35: 'v6', f40: 'v8f', wis: 'i6' };
+// exhausts (pô): only the sound and the flames out of the pipes - the power stays. loud: x the engine's volume; tone: the
+// exhaust filter (- darker, + brighter); deep: x the low end; rasp: + exhaust rasp; q: x the resonance (the drone);
+// pop: crackle on the overrun (0 none .. 1 a pop-and-bang map) and how sure a pop is on lifting off; bang: x a pop's
+// loudness; fire: x the backfire flames; valve: shut (about stock) while cruising, opening under load at high revs
+const DRIFT_EXHAUSTS = [
+  { id: '', name: 'Pô zin', price: 0, loud: 1, tone: 0, deep: 1, rasp: 0, q: 1, pop: 0.1, bang: 0.8, fire: 0.8,
+    desc: 'Pô theo xe: có bầu tiêu âm và bộ xúc tác, tiếng êm, ít khi nổ.' },
+  { id: 'quiet', name: 'Pô tiêu âm kép', price: 1500, loud: 0.75, tone: -0.3, deep: 1.25, rasp: -0.12, q: 0.8, pop: 0, bang: 0.6, fire: 0.6,
+    desc: 'Hai bầu tiêu âm lớn: êm hơn cả pô zin, tiếng trầm và đục, không nổ.' },
+  { id: 'sport', name: 'Pô thể thao', price: 2500, loud: 1.25, tone: 0.08, deep: 1.35, rasp: 0.08, q: 1.1, pop: 0.3, bang: 1, fire: 1,
+    desc: 'Ống to, bầu tiêu âm thẳng: tiếng ấm và trầm, to hơn rõ khi đạp ga, thỉnh thoảng nổ khi nhả ga.' },
+  { id: 'can', name: 'Pô lon JDM', price: 3000, loud: 1.45, tone: 0.3, deep: 0.7, rasp: 0.2, q: 1.9, pop: 0.35, bang: 1, fire: 1,
+    desc: 'Lon pô to bản kiểu Nhật: tiếng mũi, rền "ò ò" và vang lên ở tua cao.' },
+  { id: 'straight', name: 'Pô thẳng', price: 4000, loud: 1.7, tone: 0.18, deep: 1.25, rasp: 0.42, q: 0.85, pop: 0.6, bang: 1.25, fire: 1.3,
+    desc: 'Bỏ hết bầu tiêu âm và bộ xúc tác: to nhất, rè và thô, nổ lụp bụp khi nhả ga.' },
+  { id: 'valve', name: 'Pô van điện', price: 6000, loud: 1.55, tone: 0.15, deep: 1.3, rasp: 0.3, q: 1.05, pop: 0.35, bang: 1.1, fire: 1.1, valve: true,
+    desc: 'Có van trong pô: đi nhẹ thì van đóng, êm gần như pô zin; đạp ga lên tua cao thì van mở, gào như pô thẳng.' },
+  { id: 'ti', name: 'Pô titan', price: 7000, loud: 1.4, tone: 0.4, deep: 0.85, rasp: 0.25, q: 1.45, pop: 0.4, bang: 1, fire: 1,
+    desc: 'Ống titan thành mỏng: tiếng cao, sắc, rít kim loại khi lên tua.' },
+  { id: 'pops', name: 'Pô nổ (pop & bang)', price: 9000, loud: 1.55, tone: 0.12, deep: 1.3, rasp: 0.35, q: 1, pop: 1, bang: 1.5, fire: 1.8,
+    desc: 'Pô thẳng kèm bản đồ ECU đánh lửa muộn: nhả ga là nổ liên tục như pháo, lửa phụt ra đầu pô.' },
+];
+const Exhaust = {
+  clean(v) { return DRIFT_EXHAUSTS.some(e => e.id === v) ? v : ''; },
+  get(id) { return DRIFT_EXHAUSTS.find(e => e.id === id) || DRIFT_EXHAUSTS[0]; },
+  // pops a second on the overrun (off the throttle, the revs up): the stock pipe now and then, a pop-and-bang map ~10
+  rate(x) { return 10 * Math.pow(x.pop, 1.6); },
+  // the throttle let go at revs (0..1 of the red line) this frame: a pop? Then off the throttle: crackle. On it, on the
+  // rev limiter (cut: the ignition cut lets fuel through to burn in the pipe): bangs, a free-flowing exhaust more often.
+  // Returns the pop's strength (0 = none) for the sound and the flame
+  pop(x, dt, revs, lifted, off, cut) {
+    if (lifted && revs > 0.6) return Math.random() < 0.6 + 0.4 * x.pop ? x.bang : 0;
+    if (off && revs > 0.42 && Math.random() < dt * this.rate(x)) return x.bang * (0.45 + Math.random() * 0.6);
+    if (cut && revs > 0.965 && Math.random() < dt * (0.3 + 0.8 * this.rate(x))) return x.bang * (0.6 + Math.random() * 0.5);
+    return 0;
+  },
+  // an upshift flat out at high revs: the cut between the gears spits a flame (most of the time through a free-flowing
+  // pipe, now and then through the stock one)
+  shift(x) { return Math.random() < 0.2 + 0.8 * x.pop ? x.bang * (0.7 + Math.random() * 0.4) : 0; },
+};
+const SND_OF = new WeakMap();
 const Engine = {
   clean(v) { return DRIFT_ENGINES.some(e => e.id === v) ? v : ''; },
   get(id) { return DRIFT_ENGINES.find(e => e.id === id) || DRIFT_ENGINES[0]; },
@@ -188,6 +245,7 @@ const Engine = {
     s.redline = e.redline || car.redline; s.idle = e.idle || car.idle;
     if (e.turbo !== undefined) s.turbo = e.turbo;
     if (e.voice) s.voice = e.voice;
+    if (e.snd) s.snd = e.snd;
     s.mass = car.mass + (e.dkg || 0); s.kg = car.kg + (e.dkg || 0);
     s.hp = e.torque ? Math.round(s.torque * s.redline * s.pk / 5600 / 5) * 5 : Math.round(car.hp * e.k / 5) * 5;
     const top = s.gears.length - 1, share = Math.min(1, this.gearV(car, top) / this.dragV(car)), want = share * this.dragV(s);
@@ -198,6 +256,23 @@ const Engine = {
     // already at their limit with the stock engine
     s.tracK = U.clamp(Math.pow(s.hp / car.hp, 0.35), 0.9, 1.4);
     return s;
+  },
+  // the car's engine sound (Sound.voice) through exhaust xid: its layout's character; louder and rougher with more
+  // power (250 hp quietest, 800 hp about 4-5 dB louder); the tuning stages' freer exhausts louder and raspier still,
+  // Stage 2's big turbo whistles louder; a supercharger whines; then the exhaust (DRIFT_EXHAUSTS) shapes it
+  sound(s, xid) {
+    const byX = SND_OF.get(s) || (SND_OF.set(s, {}), SND_OF.get(s)), x = Exhaust.get(Exhaust.clean(xid));
+    let p = byX[x.id];
+    if (p) return p;
+    const k = s.snd || DRIFT_SND[s.model] || 'i4', st = s.eng === 'st1' ? 1 : s.eng === 'st2' ? 2 : 0;
+    p = Object.assign({}, ENGINE_SND[k === 'v8s' ? 'v8' : k], { v: s.voice });
+    p.loud = Math.min(3.3, 1.8 * U.clamp(Math.pow(s.hp / 350, 0.3), 0.88, 1.35) * (1 + 0.06 * st) * x.loud);
+    p.drive = 0.95 + 0.4 * U.clamp((s.hp - 250) / 550, 0, 1);
+    p.rasp = Math.max(0, p.rasp + 0.12 * st + x.rasp);
+    p.sub *= x.deep; p.q *= x.q; p.tone = x.tone; p.valve = x.valve ? 1 : 0;
+    p.turbo = s.turbo ? (st === 2 ? 1.5 : 1) : 0;
+    p.sc = k === 'v8s' ? 1 : 0;
+    return (byX[x.id] = p);
   },
 };
 // wheels: every car model's own rims and tyres can be fitted to any car (models.js setRim sizes them to the car's
@@ -697,7 +772,34 @@ const DRIFT_HARD = 0.625;
 // push of one catching the player up, lane = x how far off the centre line their own line runs, follow = how far back (m)
 // they take the player's line and drift where the player did (further back that ran them into the rails)
 const HARD_AI = { fast: 0.9, chase: 0.4, lane: 0.5, follow: 12 };
+// the computer drivers' levels (menu row ĐỘ KHÓ MÁY, save daih). They drive out in front for the player to chase: a
+// racing line, big drift angles, cars and engines at least as quick as the player's, and they keep within reach.
+// skill0 = the weakest one's skill (the best 0.95), cars = their car's place in the power-to-weight order against the
+// player's (from, to: 0 = the player's class, +1 = a class up), eng = their engine (DRIFT_ENGINES id: tuned like a
+// player's - the final drive regeared, wider rear tyres - so the power reaches the road), fast = x their speed into
+// the bends, brake = the braking (m/s²) they plan a bend with, lead = how far (m) ahead of the player they run before
+// they ease off, wait = the most they ease off (x their speed into the bends), lift = the most they lift off early
+// (1 - x the speed they open the throttle for), show = the most drift angle (rad) they add while waiting (wider drifts
+// shed speed), defend = x their speed into the bends
+// with the player right behind them (within 15 m), lane = x how far their own lines stray from the racing line, react =
+// the longest reaction to the green (s), hbR = m added to the bend radius they flick the handbrake into, cool = s before
+// the next flick, ang = the drift angle (rad) they hold on top of the assist's on the throttle (x 0.6 .. 1 by skill;
+// a bigger angle scores more - turning the keys further into the bend would also tighten the path and run them into
+// the inside rail)
+const AI_LEVEL = {
+  easy: { skill0: 0.35, cars: [0, 1], eng: 'st1', fast: 1.0, brake: 7.3, lead: 25, wait: 0.75, lift: 0.25, show: 0.15, defend: 1.0, lane: 0.4, react: 0.7, hbR: 10, cool: 2.0, ang: 0.18 },
+  hard: { skill0: 0.6, cars: [0, 2], eng: 'st2', fast: 1.0, brake: 7.5, lead: 45, wait: 0.8, lift: 0.2, show: 0.15, defend: 1.05, lane: 0.25, react: 0.3, hbR: 18, cool: 1.4, ang: 0.3 },
+};
+// the computer drivers' racing line: the line of least bend (wide in, the apex, wide out) kept at least edge m inside
+// the tarmac's edges and wall m from the rails (the narrow road: the rails close in more than the tarmac's edges, and a
+// drift aimed through an apex cuts in a few metres); iters = relaxation sweeps on each level, from every 16th
+// centre-line point down to every one
+const RLINE = { edge: 3.6, wall: 5.4, iters: { 16: 600, 8: 400, 4: 250, 2: 150, 1: 80 }, sor: 1.5 };
 const DRIFT_RANKS = ['C', 'B', 'A', 'S', 'SS'];
+// nitro: secs of boost a full bottle holds - the player's (was 3.6) and the computer drivers' (as their pace was tuned
+// with; a seeded bench showed no clear change in how often they get away either way) -, the share of it a car starts
+// with, the share a second of drifting at full angle puts back, x the torque while it burns
+const NITRO = { secs: 6, aiSecs: 3.6, start: 0.5, gain: 0.05, torque: 1.5 };
 
 // computer drivers: names, the most of them, metres between grid rows. Each gets a skill 0..1 (how fast it dares into
 // the bends, how tight a bend gets a handbrake flick and how long the flick is) and a line of its own across the road
@@ -707,14 +809,16 @@ const DRIFT_AI = {
 };
 
 class DriftRace {
-  // o: { mapIdx, carIdx, paint, al (wheel alignment, see ALIGN), eng (engine id), ais (computer drivers), seed?, aiSeed?, net?, demo? }.
+  // o: { mapIdx, carIdx, paint, al (wheel alignment, see ALIGN), eng (engine id), ais (computer drivers), aiHard (their
+  // level, see AI_LEVEL), hard (the narrow road), seed?, aiSeed?, net?, demo? }.
   // demo: the race behind the title screen and the menus - a computer driver in the camera's car too, no countdown, no
   // sounds or messages (the car is not 'the player' to the code that makes them). net = { me,
   // cars: [{ id, name, car, paint, al, liv, rim }] } for an online race: the cars of the other players (remote: no physics here, Net
   // moves them; their alignment only shows on their wheels) in the server's grid order
   constructor(o) {
     this.drift = true; this.local = true;
-    this.mapIdx = o.mapIdx; this.def = DRIFT_MAPS[o.mapIdx]; this.hard = !!o.hard;
+    this.mapIdx = o.mapIdx; this.def = DRIFT_MAPS[o.mapIdx]; this.hard = !!o.hard; this.aiHard = !!o.aiHard && !o.net;
+    this.lv = AI_LEVEL[this.aiHard ? 'hard' : 'easy'];
     // (hard: the same stage with the tarmac and the rails DRIFT_HARD x as far from the centre line)
     const d = this.hard ? Object.assign({}, this.def, { edge: this.def.edge * DRIFT_HARD, wall: this.def.wall * DRIFT_HARD }) : this.def;
     // what World needs to know about the stage (it keys its look by theme.id)
@@ -729,7 +833,7 @@ class DriftRace {
     this.state = 'countdown'; this.camMode = 0;
     const spec = DRIFT_CARS[o.carIdx];
     this.carIdx = o.carIdx; this.paint = o.paint || spec.color;
-    const c = this.car = this.mkCar(o.carIdx, this.paint, 'BẠN', o.al, o.liv, o.rim, o.eng);
+    const c = this.car = this.mkCar(o.carIdx, this.paint, 'BẠN', o.al, o.liv, o.rim, o.eng, o.exh);
     c.isPlayer = true;
     this.racers = [c];
     if (o.net) {   // online: the others as remote cars, everyone on the grid in the server's order
@@ -751,21 +855,24 @@ class DriftRace {
     // the computer drivers: cars of about the player's class, a spread of skills, their own paint and line
     const rnd = o.aiSeed !== undefined ? U.rng(o.aiSeed) : Math.random, nAi = U.clamp(o.ais | 0, 0, DRIFT_AI.max);
     const names = DRIFT_AI.names.slice().sort(() => rnd() - 0.5), paints = DRIFT_PAINTS.filter(p => p !== this.paint).sort(() => rnd() - 0.5);
-    // cars ranked by power to weight: the computer drivers get one a step below, the same or a step above the player's
+    // cars ranked by power to weight: the computer drivers get one of the player's class or a step or two above (AI_LEVEL cars)
     const rankd = DRIFT_CARS.map((_, i) => i).sort((a, b) => DRIFT_CARS[a].hp / DRIFT_CARS[a].mass - DRIFT_CARS[b].hp / DRIFT_CARS[b].mass);
     // (the player's place in that order: the car nearest to its own power to weight - with a bigger engine, faster rivals)
     const pr = c.spec.hp / c.spec.mass; let pi = 0, pd = 1e9;
     rankd.forEach((q, k) => { const d = Math.abs(DRIFT_CARS[q].hp / DRIFT_CARS[q].mass - pr); if (d < pd) { pd = d; pi = k; } });
+    const lv = this.lv;
     for (let k = 0; k < nAi; k++) {
-      const ci = rankd[U.clamp(pi + Math.floor(rnd() * 3) - 1, 0, DRIFT_CARS.length - 1)];
+      const ci = rankd[U.clamp(pi + lv.cars[0] + Math.floor(rnd() * (lv.cars[1] - lv.cars[0] + 1)), 0, DRIFT_CARS.length - 1)];
       const pk = paints[k % paints.length];
-      const a = this.mkCar(ci, pk, names[k], null, k % 2 ? (1 + k * 2 % 5) + Livery.contrast(pk) : '');   // (every other one wears stripes)
-      const skill = U.clamp((nAi > 1 ? 0.2 + 0.75 * k / (nAi - 1) : 0.6) + (rnd() - 0.5) * 0.15, 0, 1);
+      const a = this.mkCar(ci, pk, names[k], null, k % 2 ? (1 + k * 2 % 5) + Livery.contrast(pk) : '', '', lv.eng);   // (every other one wears stripes)
+      const skill = U.clamp((nAi > 1 ? lv.skill0 + (0.95 - lv.skill0) * k / (nAi - 1) : 0.8) + (rnd() - 0.5) * 0.15, 0, 1);
       const hk = this.hard ? HARD_AI : { fast: 1, lane: 1 };
-      a.ai = { skill, fast: (0.98 + 0.27 * skill) * hk.fast, hbR: 40 + 22 * skill, hb: 0.28 + 0.22 * skill, lane: (rnd() - 0.5) * 3 * hk.lane, hbT: 0, hbCool: 0, stuckT: 0,
-        react: 0.1 + rnd() * 0.6 };   // reaction to the green light (s): the field strings out before the first bend
+      a.ai = { skill, fast: (0.98 + 0.27 * skill) * hk.fast * lv.fast, hbR: 40 + 22 * skill + lv.hbR, hb: 0.28 + 0.22 * skill,
+        lane: (rnd() - 0.5) * 3 * hk.lane * lv.lane, ang: lv.ang * (0.6 + 0.4 * skill), hbT: 0, hbCool: 0, stuckT: 0,
+        react: 0.1 + rnd() * (lv.react - 0.1) };   // reaction to the green light (s): the field strings out before the first bend
       this.racers.push(a);
     }
+    if (nAi) this.rline = this.racingLine();   // (their lane is an offset from it)
     if (o.demo) {
       this.demo = true; this.state = 'racing'; this.count = 0; this.camMode = 1;
       c.isPlayer = false; c.name = 'DEMO';
@@ -781,16 +888,17 @@ class DriftRace {
     this.player = { z: this.startZ, x: 0, speed: 0, top: 50 / CFG.KZ, pal: { id: 'dcar' }, lean: 0, pitch: 0, crash: null, isPlayer: true, lap: 1 };
     this.syncPlayer();
   }
-  // align: the car's wheel alignment (al; default: what the car comes with); fx: its effects that do not change (Align.fx)
-  mkCar(ci, paint, name, al, liv, rim, eng) {
+  // align: the car's wheel alignment (al; default: what the car comes with); fx: its effects that do not change (Align.fx);
+  // exh: its exhaust (DRIFT_EXHAUSTS: its sound, pops and flames)
+  mkCar(ci, paint, name, al, liv, rim, eng, exh) {
     const spec = Engine.spec(DRIFT_CARS[ci], Engine.clean(eng));
     al = Align.clean(al || Align.def(spec), spec);
-    return { spec, carIdx: ci, paint, liv: Livery.clean(liv), rim: Rim.clean(rim), name, isPlayer: false, ai: null, body: DRIFT_BODY[spec.model], I: spec.mass * spec.a * spec.b * 1.05,
+    return { spec, carIdx: ci, paint, liv: Livery.clean(liv), rim: Rim.clean(rim), exh: Exhaust.get(Exhaust.clean(exh)), name, isPlayer: false, ai: null, body: DRIFT_BODY[spec.model], I: spec.mass * spec.a * spec.b * 1.05,
       align: al, fx: Align.car(al, spec), gF: 1, gR: 1, gFs: 1, ayA: 0, ackS: 0,
       pq: {}, wq: {}, placed: false, auto: true,
       px: 0, pz: 0, psi: 0, vx: 0, vz: 0, w: 0, steer: 0, sIn: 0, ax: 0, ay: 0,
       u: 0, v: 0, beta: 0, gear: 1, nextGear: 1, shiftT: 0, shock: 0, revT: 0, rpm: spec.idle, spin: 0, kick: 0, clutch: false, limiter: false,
-      drive: 0, brk: 0, hand: false, gas: 0, nitro: 0.5, nitroOn: false, surf: 1, seg: 0, sAbs: 0, al: 0, off: 0, h: 0, y: 0, slope: 0,
+      drive: 0, brk: 0, hand: false, gas: 0, nitro: NITRO.start, nitroOn: false, surf: 1, seg: 0, sAbs: 0, al: 0, off: 0, h: 0, y: 0, slope: 0,
       rearSlide: 0, frontSlide: 0, wheelSpin: 0, smoke: 0, hit: 0, hitT: 0, bump: 0, bumpT: 0, near: 99, wrongT: 0, backfire: 0, lastGas: 0,
       drifting: false, dside: 1, dk: 0, dTarget: 0, pathK: 0, toward: 0, holdT: 0, awayT: 0, swing: false, fRatio: 0, bPrev: 0, feintT: 0, looseT: 0,
       score: 0, chain: null, best: { chain: 0, angle: 0, kmh: 0, time: 0 }, hits: 0, bumps: 0, fin: 0, gone: false, tan: 0, boost: 1, push: 0 };
@@ -838,6 +946,53 @@ class DriftRace {
     out.h = C.H[j] + (C.H[j + 1] - C.H[j]) * t;
     out.y = C.Y[j] + (C.Y[j + 1] - C.Y[j]) * t; out.slope = (C.Y[j + 1] - C.Y[j]) / SEG_M;
     return out;
+  }
+
+  // the racing line (hard computer drivers): off = offset (m, + = right) at every centre-line point, the line that bends
+  // least (the sum of its squared bend) inside the room RLINE leaves - wide into a bend, the apex, wide out; k = how
+  // sharply that line bends (1/m, + = to the right, like the centre line's). Relaxed coarse to fine (a projected
+  // Gauss-Seidel on every s-th point, s = 16 .. 1). A pass keeps its two ends on the centre line
+  racingLine() {
+    const C = this.ctr, loop = C.loop, M = loop ? C.N : C.N + 1, lim = Math.max(0, Math.min(this.hwM - RLINE.edge, this.wallM - RLINE.wall));
+    const X = C.X, Z = C.Z, nx = new Float64Array(M), nz = new Float64Array(M), off = new Float64Array(M);
+    for (let i = 0; i < M; i++) { nx[i] = -Math.cos(C.H[i]); nz[i] = Math.sin(C.H[i]); }
+    // one level's points: centre gx, gz, crosswise gnx, gnz, offset go, where the line is px, pz
+    const gx = new Float64Array(M), gz = new Float64Array(M), gnx = new Float64Array(M), gnz = new Float64Array(M);
+    const go = new Float64Array(M), px = new Float64Array(M), pz = new Float64Array(M), w = RLINE.sor;
+    for (let s = 16; s >= 1; s >>= 1) {
+      const K = loop ? Math.floor(M / s) : Math.floor((M - 1) / s) + 1;
+      for (let j = 0; j < K; j++) {
+        const i = j * s;
+        gx[j] = X[i]; gz[j] = Z[i]; gnx[j] = nx[i]; gnz[j] = nz[i]; go[j] = off[i];
+        px[j] = X[i] + nx[i] * off[i]; pz[j] = Z[i] + nz[i] * off[i];
+      }
+      const j0 = loop ? 0 : 2, j1 = loop ? K : K - 2;
+      for (let it = RLINE.iters[s]; it > 0; it--) {
+        for (let j = j0; j < j1; j++) {
+          let a = j - 1, b = j + 1, a2 = j - 2, b2 = j + 2;
+          if (j < 2 || j >= K - 2) { a = (a + K) % K; b = b % K; a2 = (a2 + K) % K; b2 = b2 % K; }   // (a lap: round the join)
+          // (where this point would sit for the least bend through its neighbours, along its own crosswise line)
+          const tx = (4 * (px[a] + px[b]) - px[a2] - px[b2]) / 6, tz = (4 * (pz[a] + pz[b]) - pz[a2] - pz[b2]) / 6;
+          let o = go[j] + w * ((tx - gx[j]) * gnx[j] + (tz - gz[j]) * gnz[j] - go[j]);
+          o = o > lim ? lim : o < -lim ? -lim : o;
+          go[j] = o; px[j] = gx[j] + gnx[j] * o; pz[j] = gz[j] + gnz[j] * o;
+        }
+      }
+      // back onto every point, straight in between (the start for the next, finer level)
+      for (let j = 0; j < K; j++) off[j * s] = go[j];
+      for (let j = 0; j < K; j++) {
+        const i = j * s, e = loop ? (j + 1 < K ? i + s : M) : Math.min(M - 1, i + s), oe = off[e % M];
+        for (let q = i + 1; q < e; q++) off[q] = off[i] + (oe - off[i]) * (q - i) / (e - i);
+      }
+    }
+    // how sharply the line bends: its heading over 4 points, as the computer drivers read the centre line's
+    const k = new Float32Array(M), hd = i => { const a = i % M, b = (i + 1) % M; return Math.atan2(X[b] + nx[b] * off[b] - X[a] - nx[a] * off[a], Z[b] + nz[b] * off[b] - Z[a] - nz[a] * off[a]); };
+    const last = loop ? M : M - 5;
+    for (let i = 0; i < last; i++) {
+      let d = hd(i) - hd(i + 4); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI;
+      k[i] = d / (4 * SEG_M);
+    }
+    return { off, k };
   }
 
   static readKeys() {
@@ -910,35 +1065,60 @@ class DriftRace {
     const A = c.ai, C = this.ctr, N = C.N, SEG = SEG_M, spd = Math.hypot(c.vx, c.vz);
     const idx = i => C.loop ? ((i % N) + N) % N : U.clamp(i, 0, N);
     const curv = i => { let d = C.H[idx(i)] - C.H[idx(i + 4)]; if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return d / (4 * SEG); };
-    let vt = 60, lane = A.lane, brake = false;
+    // (their own line is an offset from the racing line, and the bends are read along that line, which bends less)
+    const lv = this.lv, RL = c.isPlayer ? null : this.rline, M = RL ? RL.off.length : 1, ri = i => C.loop ? ((i % M) + M) % M : U.clamp(i, 0, M - 1);
+    const la = 7 + spd * 0.55, ti = idx(c.seg + Math.round(la / SEG));
+    let vt = 60, lane = RL ? RL.off[ri(ti)] + A.lane : A.lane, brake = false;
     // the chase: gap = metres the player is ahead (+) or behind (-). Behind the player, the pace rises with the gap
     // until it has caught up; well ahead of the player, it eases off and waits, so the field stays round the player
     const P = this.car, mm = (c.sAbs + c.al) * SEG, gap = (P.sAbs + P.al) * SEG - mm;
     const chase = !c.fin && !P.fin && this.state === 'racing' && Math.abs(gap) < 400;
     // (an arcade rubber band besides: far behind, an unseen push along the way it goes - not through the tyres, so it
     // never lights them up - and drifts that shed less speed; boost 1 = none)
-    let fast = A.fast;
+    let fast = A.fast, vgK = 1;   // (vgK: x the speed it opens the throttle for - waiting for the player it lifts, never brakes)
     c.boost = 1; c.push = 0;
-    if (chase) {
-      const ck = this.hard ? HARD_AI.chase : 1;   // (less of it on the narrow road)
-      if (gap > 9) { fast *= 1 + Math.min(CHASE.fast, (gap - 9) / 100) * ck; c.boost = 1 + Math.min(CHASE.boost, (gap - 9) / 60); c.push = U.clamp((gap - 25) / 6, 0, CHASE.push) * ck; }
-      else if (gap < -25) fast *= Math.max(0.8, 1 + (gap + 25) / 150);
+    if (chase && gap > 9) {
+      // (less of it on the narrow road; on the racing line, whose bends already go quicker, half the extra bend speed)
+      const ck = this.hard ? HARD_AI.chase : 1;
+      fast *= 1 + Math.min(CHASE.fast, (gap - 9) / 100) * ck * (RL ? 0.5 : 1); c.boost = 1 + Math.min(CHASE.boost, (gap - 9) / 60); c.push = U.clamp((gap - 25) / 6, 0, CHASE.push) * ck;
     }
-    if (c.fin) { vt = 8; lane = this.hwM - 2.2; }   // finished: pull over to the right and roll to a stop
+    // ahead of the player: within lv.lead m it drives flat out (harder still with the player right on its tail,
+    // lv.defend); further ahead it eases off in the bends and lifts off early, so the player can always catch it up -
+    // however far ahead it got. (Not by the player's own speed: the player held up behind other computer cars would
+    // slow the leader, which slows them... the whole field crawled.)
+    // Its drifts also get wider (lv.show rad more angle): they shed more speed, and give the player something to watch
+    A.angX = 0;
+    if (!c.fin && !P.fin && this.state === 'racing' && gap < -lv.lead) {
+      const over = -gap - lv.lead;
+      fast *= Math.max(lv.wait, 1 - over / 150);
+      vgK = 1 - Math.min(lv.lift, over / 150);
+      A.angX = Math.min(lv.show, over / 60 * lv.show);
+    } else if (chase && gap < -2 && gap > -15) fast *= lv.defend;
+    // the speed the bends ahead allow (braking for them at bk m/s²); vtC = read along the centre line
+    const bk = lv.brake;
+    let vtC = 60;
+    if (c.fin) { vt = vtC = 8; lane = this.hwM - 2.2; }   // finished: pull over to the right and roll to a stop
     else for (let k = 2; k < 140; k += 2) {
       const R = 1 / Math.max(Math.abs(curv(c.seg + k)), 1e-4), vc = Math.sqrt(9.81 * R) * fast;
-      vt = Math.min(vt, Math.sqrt(vc * vc + 2 * 7 * k * SEG));
+      vtC = Math.min(vtC, Math.sqrt(vc * vc + 2 * bk * k * SEG));
+      if (RL) { const RR = 1 / Math.max(Math.abs(RL.k[ri(c.seg + k)]), 1e-4), vr = Math.sqrt(9.81 * RR) * fast; vt = Math.min(vt, Math.sqrt(vr * vr + 2 * bk * k * SEG)); }
     }
-    // close behind the player (30 m): the player's line, and a drift where the player drifted (no flicks of its own).
+    // (catching the player up, the bends as the centre line reads them: the extra speed of the chase on top of the
+    // racing line's ran it into the rails)
+    if (!RL || c.fin || (chase && gap > 9)) vt = vtC;
+    // close behind the player (30 m): the player's line, no faster than the player went there, and a drift where the
+    // player drifted (no flicks of its own, and the player's angles - its own bigger ones ran it wide of that line).
     // The first car behind the player (nobody between) also holds a tandem gap: about two metres between the bumpers.
     // Further back: its own driving, the rubber band and free nitro to catch up
-    const la = 7 + spd * 0.55;
     let tandem = false, follow = false;
     if (chase && gap > 20) c.nitro = Math.min(1, c.nitro + dt * 0.12);
     if (chase && gap > 1.5 && gap < (this.hard ? HARD_AI.follow : TANDEM.follow) && Math.hypot(P.vx, P.vz) > 8) {   // (the player crawling: go past instead)
-      follow = true;
-      const ln = this.trailAt(mm + la), here = this.trailAt(mm + 3);
-      if (ln && gap > TANDEM.gap - 0.5) lane = U.clamp(ln.off, 1.6 - this.hwM, this.hwM - 1.6);   // (alongside: keep out of its way)
+      follow = true; vt = vtC;   // (on the player's line: the bends as the centre line reads them)
+      const ln = this.trailAt(mm + la), here = this.trailAt(mm + 3), at6 = this.trailAt(mm + 6);
+      if (at6) vt = Math.min(vt, at6.v + 2);
+      // (alongside: keep out of its way; 3 m off the edges - a following drift right out on the player's wide line
+      // swung into the rail)
+      if (ln && gap > TANDEM.gap - 0.5) lane = U.clamp(ln.off, 3 - this.hwM, this.hwM - 3);
       if (here && here.d && !c.drifting && spd > 12 && A.hbCool <= 0) { A.hbT = 0.28; A.hbCool = 1.5; }
       tandem = gap > TANDEM.gap - 0.5 && gap < 28 && !this.racers.some(o => o !== c && o !== P && !o.gone && !o.fin && (o.sAbs + o.al) * SEG > mm && (o.sAbs + o.al) * SEG < mm + gap);
       if (tandem) {
@@ -989,7 +1169,7 @@ class DriftRace {
       lane = l;
     }
     // where to go: a point ahead on our line; analogue steering towards it
-    const ti = idx(c.seg + Math.round(la / SEG)), h = C.H[ti];
+    const h = C.H[ti];
     const tx = C.X[ti] - Math.cos(h) * lane, tz = C.Z[ti] + Math.sin(h) * lane;
     let e = Math.atan2(tx - c.px, tz - c.pz) - (spd > 2 ? Math.atan2(c.vx, c.vz) : c.psi);
     while (e > Math.PI) e -= 2 * Math.PI; while (e < -Math.PI) e += 2 * Math.PI;
@@ -998,17 +1178,19 @@ class DriftRace {
     const R2 = 1 / Math.max(Math.abs(curv(c.seg + Math.round(18 / SEG))), 1e-4);
     // (behind the player and chasing, only into the tight ones: every drift sheds speed)
     const hbR = c.boost > 1 ? Math.min(A.hbR, 34) : A.hbR;
-    if (!c.fin && !follow && R2 < hbR && spd > 12 && !c.drifting && A.hbCool <= 0) { A.hbT = A.hb; A.hbCool = 2.5; }
+    if (!c.fin && !follow && R2 < hbR && spd > 12 && !c.drifting && A.hbCool <= 0) { A.hbT = A.hb; A.hbCool = lv.cool; }
     // stuck against something or facing the wrong way: back on the road
     if (spd < 1.5 && this.state === 'racing' && !c.fin) A.stuckT += dt; else A.stuckT = 0;
     if (A.stuckT > 2.5 || c.wrongT > 1.2) { this.resetCar(c); A.stuckT = 0; c.wrongT = 0; }
-    const nitro = !c.fin && !c.drifting && (A.skill > 0.35 || (chase && gap > 20)) && c.nitro > 0.25 && vt > spd + 6;
+    const nitro = !c.fin && !c.drifting && (A.skill > 0.35 || (chase && gap > 20)) && c.nitro > 0.25 && vt * vgK > spd + 6;
     // steering: drifting, a softer hand that never holds full lock into the bend (holding it scrubs a lot of speed);
     // following, never so much lock that the tail lets go (a feint) where the player did not drift
     let steer = U.clamp(-e * 3.2, c.drifting ? -0.9 : -1, c.drifting ? 0.9 : 1);
     if (!c.drifting && A.hbT <= 0 && (c.boost > 1 || (follow && !(this.trailAt(mm + 6) || {}).d))) steer = U.clamp(steer, -0.82, 0.82);
-    A.vt = vt; A.mode = tandem ? 'T' : follow ? 'F' : chase && gap > 9 ? 'C' : '-';   // (for the tests)
-    return { steer, gas: spd < vt && !brake, brake: spd > vt * 1.12 || brake, hand: A.hbT > 0, nitro };
+    A.angOn = !follow;   // (its own bigger drift angle: not on the player's line, see control)
+    A.vt = vt; A.mode = tandem ? 'T' : follow ? 'F' : chase && gap > 9 ? 'C' : vgK < 1 ? 'W' : '-';   // (for the tests)
+    // (waiting, it lifts only between drifts: off the throttle mid-drift the angle goes)
+    return { steer, gas: spd < vt * (c.drifting ? 1 : vgK) && !brake, brake: spd > vt * 1.12 || brake, hand: A.hbT > 0, nitro };
   }
 
   // ---------------- driver controls: gears, clutch, throttle, brakes, steering ----------------
@@ -1023,7 +1205,10 @@ class DriftRace {
     const kRpm = g => Math.abs(ratio(g)) * S.final / S.R * 60 / (2 * Math.PI);   // engine rpm per m/s at the rear tyres
     const shift = g => {
       if (g === c.gear || c.shiftT > 0 || g > S.gears.length || g < 1) return;
-      c.nextGear = g; c.shiftT = 0.09; if (c.isPlayer && Sound.shift) Sound.shift();
+      // (up a gear flat out near the red line: a flame out of the pipes as the drive is cut)
+      const spit = g > c.gear && inp.gas && c.rpm > S.redline * 0.8 ? Exhaust.shift(c.exh) : 0;
+      if (spit) { c.backfire = Math.max(c.backfire, 0.16); c.bang = spit; }
+      c.nextGear = g; c.shiftT = 0.09; if (c.isPlayer && Sound.shift) { Sound.shift(); if (spit && Sound.pop) Sound.pop(spit, 0.9 + Math.random() * 0.3); }
     };
     if (c.shiftT > 0) {
       c.shiftT -= dt;
@@ -1085,10 +1270,10 @@ class DriftRace {
     if (c.rpm >= S.redline) c.rpm = S.redline * (0.97 + Math.random() * 0.03);
     // drive force at the rear tyres
     c.nitroOn = !!inp.nitro && c.nitro > 0 && gas > 0 && c.gear >= 1 && !free;
-    if (c.nitroOn) c.nitro = Math.max(0, c.nitro - dt * 0.28);
+    if (c.nitroOn) c.nitro = Math.max(0, c.nitro - dt / (c.isPlayer ? NITRO.secs : NITRO.aiSecs));
     let drive = 0;
     if (!free && !c.limiter && gas) {
-      const tq = S.torque * torqueCurve(Math.min(c.rpm, S.redline) / S.redline, S.pk) * (c.nitroOn ? 1.5 : 1) * (1 + 1.5 * c.kick);
+      const tq = S.torque * torqueCurve(Math.min(c.rpm, S.redline) / S.redline, S.pk) * (c.nitroOn ? NITRO.torque : 1) * (1 + 1.5 * c.kick);
       drive = tq * ratio(c.gear) * S.final * 0.88 / S.R;
     } else if (!free && c.gear >= 1 && (!gas || rpmRoad > S.redline * 1.03)) {
       // engine braking: gentle at low revs, hard near the redline (and past it, after a downshift too far, throttle or
@@ -1127,7 +1312,8 @@ class DriftRace {
     if (toward > 0.05) c.holdT = HOLD_T; else c.holdT = away > 0.3 ? 0 : Math.max(0, c.holdT - dt);
     // (the angle a drift can be held at grows with the front tyres' grip at full counter-steer - the wheel alignment's
     // camber and caster: fronts that wash out at lock let the car straighten, fronts that bite carry more angle)
-    const hold = (c.holdT > 0 ? (gas ? 0.42 + (c.nitroOn ? 0.1 : 0) : 0.22) + 0.34 * toward : gas ? 0.12 : 0.05) * U.clamp(c.gFs ** 2, 0.7, 1.3) * c.fx.angK;
+    const hold = (c.holdT > 0 ? (gas ? 0.42 + (c.nitroOn ? 0.1 : 0) : 0.22) + 0.34 * toward : gas ? 0.12 : 0.05) * U.clamp(c.gFs ** 2, 0.7, 1.3) * c.fx.angK
+      + (gas && c.ai && c.ai.ang && c.ai.angOn !== false ? c.ai.ang + (c.ai.angX || 0) : 0);   // (a computer driver: more angle, see AI_LEVEL)
     // holding the other way hard on the throttle (not a quick dab to straighten) swings the car across into a drift
     // the other way - linking an S-bend. A short counter-steer just straightens it
     c.awayT = away > 0.8 ? c.awayT + dt : 0;
@@ -1437,7 +1623,7 @@ class DriftRace {
       C.pts += dt * angK * kmh * DSCORE.rate * (C.near > 0 ? 2 : 1) * (C.tan > 0 ? 1.5 : 1);
       C.mult = Math.min(DSCORE.maxMult, 1 + Math.floor(C.d / DSCORE.multD) + C.trans);
       c.best.angle = Math.max(c.best.angle, ang);
-      c.nitro = Math.min(1, c.nitro + dt * angK * 0.05);
+      c.nitro = Math.min(1, c.nitro + dt * angK * NITRO.gain);
     } else if (c.chain) {
       c.chain.gap += dt; c.chain.ang = 0;
       if (c.chain.gap > DSCORE.gap) this.bank(c);
@@ -1462,17 +1648,22 @@ class DriftRace {
   feedback(c, dt) {
     const S = c.spec, spd = Math.hypot(c.vx, c.vz), me = c.isPlayer;
     if (me) {
-      Sound.voice(S.voice);
+      Sound.voice(Engine.sound(S, c.exh.id));
       // (louder on the throttle - and for a moment as a downshift drags the revs up)
-      Sound.engine(U.clamp((c.rpm - S.idle * 0.6) / S.redline, 0, 1.05), 0.09 + 0.08 * Math.max(c.gas, Math.min(1, c.shock * 4)));
+      Sound.engine(U.clamp((c.rpm - S.idle * 0.6) / S.redline, 0, 1.05), 0.09 + 0.08 * Math.max(c.gas, Math.min(1, c.shock * 4)), c.gas);
       const slip = spd > 3 ? Math.max(c.rearSlide * 0.9, c.frontSlide * 0.6) : c.wheelSpin * (c.gas ? 0.7 : 0);
       if (Sound.skid) Sound.skid(slip * Math.min(1, Math.max(spd, c.wheelSpin * 8) / 10), 0.85 + Math.min(0.35, spd / 90));
     }
     c.smoke = Math.max(spd > 2.5 ? c.rearSlide : 0, c.wheelSpin * (c.gas ? 1 : 0));
-    // turbo blow-off and exhaust pops when the throttle snaps shut at high revs
-    if (c.lastGas && !c.gas && c.rpm > S.redline * 0.6) {
-      if (me && S.turbo && Sound.blowoff) Sound.blowoff();
-      if (Math.random() < 0.7) { c.backfire = 0.22; if (me && Sound.pop) Sound.pop(); }
+    // turbo blow-off and an exhaust pop when the throttle snaps shut at high revs; then, off the throttle with the revs
+    // up, the exhaust crackles (the stock pipe now and then, a pop-and-bang map like fireworks); flat out on the rev
+    // limiter it bangs - each pop a flame
+    const lifted = c.lastGas && !c.gas, revs = c.rpm / S.redline;
+    if (lifted && revs > 0.6 && me && S.turbo && Sound.blowoff) Sound.blowoff();
+    const bang = Exhaust.pop(c.exh, dt, revs, lifted, !c.gas && spd > 4, !!c.gas);
+    if (bang) {
+      c.backfire = Math.max(c.backfire, lifted ? 0.22 : 0.08 + 0.12 * Math.random()); c.bang = bang;
+      if (me && Sound.pop) Sound.pop(bang, 0.8 + Math.random() * 0.45);
     }
     c.lastGas = c.gas;
     c.backfire = Math.max(0, c.backfire - dt);

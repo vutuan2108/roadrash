@@ -117,7 +117,12 @@ const Sound = {
     if (this.ac) { if (this.ac.state === 'suspended') this.ac.resume(); return; }
     try {
       const ac = this.ac = new (window.AudioContext || window.webkitAudioContext)();
-      this.master = ac.createGain(); this.master.gain.value = 0.5; this.master.connect(ac.destination);
+      this.master = ac.createGain(); this.master.gain.value = 0.5;
+      // a soft limit at the very end: untouched below 0.75, rounded off above towards 0.98 (a loud car engine with a
+      // straight pipe, the tyres and a crash on top must not crackle). The curve spans -2..2 (halved going in)
+      const limIn = ac.createGain(), lim = ac.createWaveShaper(), lc = new Float32Array(8192);
+      for (let i = 0; i < 8192; i++) { const x = (i / 4095.5 - 1) * 2, a = Math.abs(x); lc[i] = a < 0.75 ? x : Math.sign(x) * (0.75 + 0.23 * Math.tanh((a - 0.75) / 0.23)); }
+      limIn.gain.value = 0.5; lim.curve = lc; this.master.connect(limIn); limIn.connect(lim); lim.connect(ac.destination);
       // engine: three oscillators -> soft clipper (growl) -> low-pass -> volume -> firing-pulse tremolo
       const o1 = ac.createOscillator(), o2 = ac.createOscillator(), o3 = ac.createOscillator(), pre = ac.createGain();
       const ws = ac.createWaveShaper(), f = ac.createBiquadFilter(), g = ac.createGain(), am = ac.createGain();
@@ -132,7 +137,7 @@ const Sound = {
       o1.connect(pre); o2.connect(pre); o3.connect(pre); pre.connect(ws); ws.connect(f); f.connect(g); g.connect(am); am.connect(this.master);
       lfo.connect(depth); depth.connect(am.gain);
       o1.start(); o2.start(); o3.start(); lfo.start();
-      this.eng = { o1, o2, o3, f, g, lfo, depth, am };
+      this.eng = { o1, o2, o3, pre, f, g, lfo, depth, am };
       const len = ac.sampleRate;
       const buf = ac.createBuffer(1, len, ac.sampleRate);
       const d = buf.getChannelData(0);
@@ -151,20 +156,64 @@ const Sound = {
     [52, 290, 480, 3200, 0.22, 2],
     // the Fireblade's inline four
     [45, 200, 390, 2200, 0.18, 2]],
-  voiceIdx: 0,
-  voice(i) { this.voiceIdx = i || 0; },   // a bike index, or a voice array of its own (the drift cars)
-  engine(rpm, vol) {
+  voiceIdx: 0, applied: null,
+  // a bike index, a voice array of its own, or a drift car's engine (Engine.sound: { v: voice array, w: the three
+  // oscillators' waves, drive, q, loud, sub, burble, br, rasp, turbo, sc })
+  voice(i) { this.voiceIdx = i || 0; },
+  // a voice's fixed parts: the waves, how hard they drive the growl, the filter's resonance. The bikes' plain voice
+  // silences the car's extras
+  applyVoice(P) {
+    const E = this.eng, W = P ? P.w : ['sawtooth', 'square', 'sawtooth'], t = this.ac.currentTime;
+    this.applied = this.voiceIdx;
+    E.o1.type = W[0]; E.o2.type = W[1]; E.o3.type = W[2];
+    E.pre.gain.value = 0.55 * (P ? P.drive : 1); E.f.Q.value = P ? P.q : 2.2;
+    const X = P ? this.carNodes() : this.cx;
+    if (X && !P) for (const n of [X.subG, X.blD, X.raspG, X.twG, X.hsG, X.scG]) n.gain.setTargetAtTime(0, t, 0.02);
+  },
+  // what a car engine has over a bike's (made on the first car voice): a sine an octave under the firing note (weight),
+  // an uneven beat on the firing pulses (a cross-plane V8's lope, a boxer's rumble), exhaust rasp (noise pulsed with the
+  // firing), the turbo's whistle and rush of air, a supercharger's gear whine
+  carNodes() {
+    if (this.cx) return this.cx;
+    const ac = this.ac, E = this.eng, osc = (type, to) => { const o = ac.createOscillator(), g = ac.createGain(); o.type = type; g.gain.value = 0; o.connect(g); g.connect(to); o.start(); return [o, g]; };
+    const [sub, subG] = osc('sine', E.g), [tw, twG] = osc('sine', this.master), [sc, scG] = osc('triangle', this.master);
+    const bl = ac.createOscillator(), blD = ac.createGain(); blD.gain.value = 0; bl.connect(blD); blD.connect(E.am.gain); bl.start();
+    const nz = ac.createBufferSource(); nz.buffer = this.noiseBuf; nz.loop = true; nz.start();
+    const band = (q, to) => { const f = ac.createBiquadFilter(), g = ac.createGain(); f.type = 'bandpass'; f.Q.value = q; g.gain.value = 0; nz.connect(f); f.connect(g); g.connect(to); return [f, g]; };
+    const [rb, raspG] = band(0.9, E.g), [hb, hsG] = band(1.2, this.master);
+    return (this.cx = { sub, subG, bl, blD, rb, raspG, tw, twG, hb, hsG, sc, scG });
+  },
+  // rpm 0..1 of the rev range, vol, load: the throttle 0..1 (the car voices: the exhaust and the turbo answer it)
+  engine(rpm, vol, load) {
     if (!this.eng) return;
-    const t = this.ac.currentTime, V = Array.isArray(this.voiceIdx) ? this.voiceIdx : this.VOICES[this.voiceIdx] || this.VOICES[0];
-    const f = V[0] + rpm * V[1], E = this.eng;
+    const t = this.ac.currentTime, vi = this.voiceIdx, P = vi && vi.v ? vi : null;
+    if (this.applied !== vi) this.applyVoice(P);
+    const V = P ? P.v : Array.isArray(vi) ? vi : this.VOICES[vi] || this.VOICES[0];
+    const f = V[0] + rpm * V[1], E = this.eng, ld = U.clamp(+load || 0, 0, 1), r = Math.min(1, rpm);
+    // the exhaust (car voices): a valve shut while cruising is about a stock pipe, opening on the throttle at high revs;
+    // tone opens or closes the filter
+    const vo = P && P.valve ? ld * U.clamp((rpm - 0.45) / 0.25, 0, 1) : 1, tone = P ? 1 + (P.tone || 0) * vo : 1;
     E.o1.frequency.setTargetAtTime(f, t, 0.05);
     E.o2.frequency.setTargetAtTime(f * 0.5, t, 0.05);
     E.o3.frequency.setTargetAtTime(f * V[5] * 1.004, t, 0.05);
-    E.f.frequency.setTargetAtTime(V[2] + rpm * V[3], t, 0.05);
+    E.f.frequency.setTargetAtTime((V[2] + rpm * V[3]) * tone, t, 0.05);
     E.lfo.frequency.setTargetAtTime(f * 0.5, t, 0.05);
     E.depth.gain.setTargetAtTime(V[4] * (1 - rpm * 0.5), t, 0.1);
     E.am.gain.setTargetAtTime(1 - V[4] * 0.5, t, 0.1);
-    E.g.gain.setTargetAtTime(vol * 1.7, t, 0.08);   // a little louder than before
+    E.g.gain.setTargetAtTime(vol * 1.7 * (P ? P.loud * (P.valve ? 0.65 + 0.35 * vo : 1) : 1), t, 0.08);
+    if (!P) return;
+    const X = this.cx, on = vol > 0 ? 1 : 0;
+    X.sub.frequency.setTargetAtTime(f * 0.5, t, 0.05); X.subG.gain.setTargetAtTime(P.sub * on, t, 0.08);
+    X.bl.frequency.setTargetAtTime(f * P.br, t, 0.05); X.blD.gain.setTargetAtTime(P.burble * (1 - 0.6 * r) * on, t, 0.1);
+    X.rb.frequency.setTargetAtTime(U.clamp(f * 5 * tone, 300, 4500), t, 0.05);
+    X.raspG.gain.setTargetAtTime(P.rasp * 2.2 * (0.3 + 0.7 * ld) * (0.35 + 0.65 * r) * (P.valve ? 0.4 + 0.6 * vo : 1) * on, t, 0.06);
+    // the turbo spools up on the throttle above a third of the revs (slowly: the lag) and drops at once off it (the
+    // blow-off valve has its own sound)
+    const boost = ld * U.clamp((rpm - 0.35) / 0.5, 0, 1), lag = boost > 0.05 ? 0.45 : 0.06;
+    X.tw.frequency.setTargetAtTime(1400 + 4200 * boost, t, lag); X.twG.gain.setTargetAtTime(0.03 * P.turbo * boost * boost * on, t, lag);
+    X.hb.frequency.setTargetAtTime(2500 + 3500 * boost, t, lag); X.hsG.gain.setTargetAtTime(0.05 * P.turbo * boost * on, t, lag);
+    X.sc.frequency.setTargetAtTime(f * 9, t, 0.05);   // (geared to the crank: its whine follows the revs)
+    X.scG.gain.setTargetAtTime(0.08 * P.sc * (0.35 + 0.65 * ld) * (0.25 + 0.75 * r) * on, t, 0.06);
   },
   noise(dur, vol, freq, q, dest) {
     if (!this.ac) return;
@@ -209,12 +258,17 @@ const Sound = {
       this.sk = { g, os, bp };
     }
     const t = this.ac.currentTime, S = this.sk, p = pitch || 1;
-    S.g.gain.setTargetAtTime(U.clamp(level, 0, 1) * 0.5, t, 0.05);
+    S.g.gain.setTargetAtTime(U.clamp(level, 0, 1) * 0.62, t, 0.05);   // (up with the louder car engines: still heard over them)
     S.os[0].frequency.setTargetAtTime(980 * p, t, 0.1); S.os[1].frequency.setTargetAtTime(1020 * p, t, 0.1); S.bp.frequency.setTargetAtTime(1700 * p, t, 0.1);
   },
   shift() { this.noise(0.06, 0.3, 380, 1.2); },
   blowoff() { this.noise(0.45, 0.2, 3400, 0.6); },
-  pop() { this.noise(0.05, 0.6, 220, 0.9); this.noise(0.04, 0.4, 300, 0.9, null); },
+  // an exhaust pop: v its strength (1 = the old pop; a pop-and-bang pipe's bangs add a low thump), f its pitch
+  pop(v, f) {
+    v = v || 1; f = f || 1;
+    this.noise(0.05, 0.6 * v, 220 * f, 0.9); this.noise(0.04, 0.4 * v, 300 * f, 0.9, null);
+    if (v > 1.05) this.tone(120 * f, 40, 0.09, 0.4 * (v - 1), 'sine');
+  },
   horn() { this.tone(415, 415, 0.4, 0.12, 'square'); this.tone(520, 520, 0.4, 0.1, 'square'); },
   // everything that keeps sounding on its own: the engine and the tyres
   quiet() { this.engine(0, 0); if (this.sk) this.skid(0, 1); },
