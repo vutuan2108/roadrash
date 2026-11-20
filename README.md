@@ -172,6 +172,7 @@ Bộ phím theo các game drift trên PC như CarX Drift Racing và Forza Horizo
 | C | Đổi camera: bám sau xe, sau xa, nắp capo |
 | R | Đặt lại xe lên đường, dùng khi xe bị kẹt hoặc quay ngược |
 | H | Còi |
+| Z / X | Xi-nhan trái / phải. Bấm lại để tắt, tự tắt sau 8 giây. Lúc đếm ngược xuất phát và sau khi về đích, mọi xe tự bật đèn khẩn cấp |
 | ESC / P | Tạm dừng. Q để bỏ cuộc |
 
 Cách drift:
@@ -241,6 +242,23 @@ Các xe trong game đều là bản độ drift, mạnh hơn số liệu ngoài 
 Công suất, mô-men, trọng lượng và tốc độ ngoài đời lấy theo tài liệu của xe thật. Riêng tỉ số hộp số thì chưa kiểm chứng được qua nguồn đáng tin cho F40, GT2 (993), Mustang 1965, Boss 302, Mustang GT-R (chỉ số 1 là 3.66 có nguồn) và R35: các số này là số ước lượng hoặc số thường gặp của hộp số đó. Xe 180SX Wisteria D1 dùng hộp số 6 cấp kiểu Getrag vì đội đua không công bố. Công suất 850 mã lực của xe này là số của mùa 2017 (Speedhunters), chưa tìm được số riêng của mùa 2018.
 
 Tất cả xe đều dựng từ mẫu 3D trong thư mục `car/` (xem phần Ghi công), có mâm, lốp, đĩa phanh và heo phanh riêng của mẫu. Bánh xe quay đúng trục và đánh lái được. Các xe dựng bằng khối hình học trước đây (AE86, Silvia S15, RX-7 FD3S, Mustang GT) đã bỏ. Save cũ có các xe này được hoàn lại tiền mua, và Datsun 280Z thay AE86 làm xe có sẵn. Mẫu của xe được tải dần trong nền sau khi mở game. Nếu vào đua khi mẫu chưa tải xong, game hiện "ĐANG TẢI XE..." trong giây lát. Cách chuyển mẫu xem `tools/glb/README.md`.
+
+**Đèn hậu.** Mỗi xe chia đèn hậu theo xe thật:
+
+- **Đèn hậu và đèn phanh** màu đỏ: sáng mờ khi chạy, đỏ rực khi phanh.
+- **Xi-nhan** màu cam hổ phách: nháy khoảng 75 lần mỗi phút, có tiếng tạch tạch.
+- **Đèn lùi** trắng: sáng khi xe lùi.
+- **Đèn phanh thứ ba** trên cao: chỉ sáng khi phanh.
+- **Mắt phản quang**: không bao giờ sáng.
+
+Một số kiểu riêng:
+
+- Bốn xe Mustang (1965, Boss 302, GT-R, GT Drift Spec) nháy xi-nhan bằng chính đèn đỏ như xe Mỹ. Hai xe đời 2018 (GT-R, GT Drift Spec) sáng lần lượt từng thanh từ trong ra ngoài.
+- R34, R35 và F40 có vòng đèn ngoài là đèn hậu, vòng trong là xi-nhan, tâm vòng trong là đèn lùi.
+
+Mặt đèn là kính khói đen bóng: khi tắt thấy màu đỏ mờ của đèn hậu ẩn phía sau, còn phần xi-nhan và đèn lùi đen hẳn. Khi sáng, ánh đỏ, cam hoặc trắng hiện xuyên qua lớp kính, có các chấm LED. Ban đêm đèn hậu sáng đỏ rõ hơn ban ngày. Trong gara, xe trưng bày lần lượt bật từng loại đèn để xem.
+
+**Kính xe.** Mẫu 3D gốc có khoang lái và khoang máy, nhưng game bỏ chúng đi cho nhẹ. Vì vậy gioăng kính, khung kính và tấm che chân kính chắn gió cũng mất, để lại khe hở nhìn xuyên thấu ra sau xe (rõ nhất ở Mustang 1965 và GT86 Sugar Skull, và ở chân kính chắn gió của nhiều xe). Giờ mặt trong của vỏ xe được vẽ màu tối như nội thất, nên các khe này hiện thành viền đen như gioăng kính thật. Mustang GT-R có lớp kính khói phủ ngoài đèn hậu, giờ trong suốt để thấy đèn bên dưới.
 
 ### Căn chỉnh góc đặt bánh (camber, toe, caster)
 

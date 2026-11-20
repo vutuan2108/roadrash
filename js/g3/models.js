@@ -2461,6 +2461,128 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
     update();
     return { update, show(v) { grp.visible = v; for (const w of wheels) w.kn.visible = v; } };
   }
+  // ---- the drift cars' rear lamps: one material a car (the 'brake' key: tail and tailLens). Every point of a lamp is
+  // given a job by where it sits on the car - its zone in TAIL_ZONES[model]: [|x| from, to, y from, to, job], body frame,
+  // metres, first match wins, the rest tail + brake. Jobs:
+  // T tail + brake (red: dim running light, bright braking), A turn indicator (amber), W reversing lamp (clear glass,
+  // white), B a high-mounted brake lamp (dark until braking), R a reflector (red prisms, never lit), S tail + brake that
+  // also flashes as the indicator (American cars: red indicators), Q the same as three bars lit one after another from
+  // the inside out (the sequential indicators of the modern Mustangs).
+  // Unlit, a lens shows its colour with prism cells catching the light; lit, its LEDs / bulb and a hot core. x > 0 is
+  // the car's left
+  const LT = { T: 0, A: 1, W: 2, B: 3, R: 4, S: 5, Q: 6 };
+  const TAIL_ZONES = {
+    z280: [[0, 0.345, 0, 2, 'W'], [0.345, 1, 0, 0.595, 'A']],
+    n180: [[0.62, 1, 0, 2, 'T'], [0.5, 0.62, 0, 2, 'A'], [0.4, 0.5, 0, 2, 'W']],
+    m65: [[0, 1, 0, 2, 'S']],
+    gr86: [[0, 0.2, 0.84, 2, 'B'], [0, 0.3, 0, 0.4, 'R'], [0, 0.2, 0.45, 0.6, 'R'], [0.4, 0.5, 0, 2, 'W'], [0.68, 1, 0, 2, 'A']],
+    boss: [[0.75, 1, 0, 2, 'R'], [0, 1, 0, 0.45, 'R'], [0, 1, 0, 2, 'S']],
+    supra: [[0.53, 0.63, 0.8, 0.93, 'T'], [0.43, 0.53, 0.8, 0.93, 'A'], [0.32, 0.43, 0.8, 0.93, 'W']],
+    r34: [[0, 0.12, 0.85, 2, 'B'], [0, 0.12, 0, 0.6, 'R'], [0.41, 0.5, 0.73, 0.81, 'W'], [0.37, 0.545, 0.6, 0.9, 'A']],
+    rx7vs: [[0.9, 1, 0, 2, 'R'], [0, 0.7, 0.45, 0.6, 'R'], [0.655, 0.75, 0.7, 0.9, 'A'], [0.5, 0.655, 0.7, 0.9, 'W']],
+    gtr: [[0, 0.1, 0, 0.4, 'W'], [0.44, 0.8, 0.55, 0.85, 'Q']],
+    s15c: [[0.58, 1, 0, 2, 'T'], [0.45, 0.58, 0, 2, 'A'], [0, 0.45, 0, 2, 'W']],
+    gtd: [[0, 1, 0, 0.4, 'R'], [0.44, 0.8, 0.55, 0.85, 'Q']],
+    gt2: [[0, 0.42, 0, 2, 'R'], [0.42, 0.5, 0, 2, 'W'], [0.5, 0.62, 0, 2, 'A']],
+    gt86ss: [[0, 0.15, 0.95, 2, 'B'], [0, 0.53, 0, 2, 'W'], [0.7, 1, 0, 2, 'A']],
+    rx7bn: [[0, 0.2, 0.78, 2, 'B'], [0.75, 1, 0, 2, 'R'], [0, 0.7, 0.4, 0.52, 'R'], [0.48, 0.585, 0.6, 0.9, 'W'], [0, 0.48, 0.6, 0.9, 'A']],
+    s15lb: [[0, 0.2, 0, 2, 'B'], [0.58, 1, 0, 2, 'T'], [0.45, 0.58, 0, 2, 'A'], [0, 0.45, 0, 2, 'W']],
+    r35: [[0.455, 0.515, 0.805, 0.865, 'W'], [0.4, 0.57, 0.7, 0.95, 'A']],
+    f40: [[0, 1, 0, 0.4, 'R'], [0.52, 0.58, 0.55, 0.63, 'W'], [0.45, 0.63, 0.45, 0.7, 'A']],
+    wis: [[0, 0.45, 0, 2, 'W'], [0.45, 0.57, 0, 2, 'A']],
+  };
+  // models whose glass also covers the rear lamps (one smoked cover over the lamps): that glass is drawn as a see-through
+  // lens. [|x| from, to, y from, to, z below] (body frame)
+  const LENS_GLASS = { gtr: [0.38, 0.86, 0.52, 0.84, -2.0] };
+  let LENS = null;
+  function lensMat() {
+    if (LENS) return LENS;
+    LENS = new T.MeshStandardMaterial({ color: '#16181c', roughness: 0.05, metalness: 0.5, transparent: true, opacity: 0.28, depthWrite: false });
+    Object.defineProperty(LENS, 'envMap', { get: () => G3.mats.glass.envMap, set() {} });
+    return LENS;
+  }
+  const LAMP_VS = `varying vec3 vP; varying vec3 vN; varying vec3 vC; varying vec3 vV;
+    #include <fog_pars_vertex>
+    void main() {
+      vP = position; vC = color; vN = normalize(normalMatrix * normal);
+      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0); vV = -mvPosition.xyz;
+      gl_Position = projectionMatrix * mvPosition;
+      #include <fog_vertex>
+    }`;
+  const LAMP_FS = `uniform float uNight; uniform float uBrake; uniform float uRev; uniform float uIndL; uniform float uIndR; uniform float uBlink; uniform float uSeq;
+    uniform vec4 uZ[10]; uniform float uF[10]; uniform int uN;
+    varying vec3 vP; varying vec3 vN; varying vec3 vC; varying vec3 vV;
+    #include <fog_pars_fragment>
+    float hsh(vec2 p) { return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }
+    void main() {
+      float ax = abs(vP.x), job = 0.0, sq = 0.0;
+      for (int i = 0; i < 10; i++) {
+        if (i >= uN) break;
+        vec4 z = uZ[i];
+        if (ax >= z.x && ax < z.y && vP.y >= z.z && vP.y < z.w) { job = uF[i]; sq = (ax - z.x) / max(0.001, z.y - z.x); break; }
+      }
+      float ind = vP.x > 0.0 ? uIndL : uIndR, blink = ind * uBlink;
+      // A smoked lens: glossy black, the lamps' red seen faintly through it. Unlit, every zone is black with a red glow
+      // behind (the amber / reversing zones: black, nothing behind); lit, the light shows through - red, amber, white.
+      // (tint: tailLens is a darker red than tail)
+      float tint = clamp(vC.r * 1.15, 0.55, 1.0);
+      vec3 red = vec3(1.0, 0.025, 0.015), under, light;
+      vec3 tailLight = red * (0.07 + 0.4 * uNight + 2.1 * uBrake);   // (the tail lamps glow for real at night)
+      if (job < 0.5) { under = red * 0.075; light = tailLight; }
+      else if (job < 1.5) { under = vec3(0.012, 0.008, 0.006); light = vec3(1.9, 0.42, 0.02) * blink; }
+      else if (job < 2.5) { under = vec3(0.014); light = vec3(1.8, 1.8, 1.7) * uRev; }
+      else if (job < 3.5) { under = red * 0.035; light = red * 2.2 * uBrake; }
+      else if (job < 4.5) { under = red * 0.1; light = vec3(0.0); }
+      else {   // S / Q: the indicator side flashes (Q: bar by bar), the other works as tail + brake
+        bool seqLit = job < 5.5 || uSeq * 3.0 > floor(sq * 2.999);
+        under = red * 0.075;
+        light = ind > 0.5 ? red * (blink > 0.5 && seqLit ? 2.2 : 0.0) : tailLight;
+      }
+      // what is behind the smoke: LED dots about 8 mm apart (faded out once they get smaller than a couple of pixels)
+      vec2 q = vec2(ax, vP.y) * 125.0; float fine = clamp(1.6 - 0.8 * max(fwidth(q.x), fwidth(q.y)), 0.0, 1.0);
+      float led = smoothstep(0.46, 0.16, length(fract(q) - 0.5));
+      vec3 n = normalize(vN), v = normalize(vV); float ndv = abs(dot(n, v)), fres = pow(1.0 - ndv, 4.0);
+      vec3 inside = (under * tint + light) * (1.0 + (0.7 * led - 0.35) * fine) * (0.55 + 0.45 * ndv);
+      // the lens itself: black glass - a sheen at grazing angles and a soft highlight of the sky on its upper faces
+      float spec = pow(max(dot(reflect(-v, n), normalize(vec3(0.15, 0.9, 0.4))), 0.0), 30.0);
+      vec3 col = vec3(0.006) + inside + vec3(0.06) * fres + vec3(0.32) * spec;
+      gl_FragColor = vec4(col, 1.0);
+      #include <encodings_fragment>
+      #include <fog_fragment>
+    }`;
+  function lampMat(model) {
+    const Z = TAIL_ZONES[model] || [], uZ = [], uF = [];
+    for (let i = 0; i < 10; i++) { const z = Z[i]; uZ.push(z ? new T.Vector4(z[0], z[1], z[2], z[3]) : new T.Vector4()); uF.push(z ? LT[z[4]] : 0); }
+    const m = new T.ShaderMaterial({ vertexColors: true, fog: true, toneMapped: false, vertexShader: LAMP_VS, fragmentShader: LAMP_FS, extensions: { derivatives: true },
+      uniforms: T.UniformsUtils.merge([T.UniformsLib.fog, { uNight: { value: 0 }, uBrake: { value: 0 }, uRev: { value: 0 }, uIndL: { value: 0 }, uIndR: { value: 0 },
+        uBlink: { value: 0 }, uSeq: { value: 0 }, uN: { value: Math.min(10, Z.length) } }]) });
+    m.uniforms.uZ = { value: uZ }; m.uniforms.uF = { value: uF };
+    return m;
+  }
+  // the drift cars' bodies are hollow shells (the models' cabins and engine bays are left out), and their seals, window
+  // frames and scuttle panels were often part of what went: panels are drawn from both sides, the inside dark - a seam
+  // round a window or at the foot of the windscreen then shows dark like a rubber seal and the car's insides, not the
+  // road behind the car. (The cache key: the material's own, taken before onBeforeCompile is wrapped - the default key
+  // is that function's text, the same for every wrapped material)
+  function darkBack(m) {
+    const k0 = m.customProgramCacheKey(), pre = m.onBeforeCompile;
+    m.side = T.DoubleSide;
+    m.onBeforeCompile = (s, r) => {
+      if (pre) pre.call(m, s, r);
+      s.fragmentShader = s.fragmentShader.replace(/}\s*$/, '  if (!gl_FrontFacing) gl_FragColor = vec4(vec3(0.012), gl_FragColor.a);\n}');
+    };
+    m.customProgramCacheKey = () => k0 + '|darkBack';
+    return m;
+  }
+  // the shared materials (glass, chrome, plain paint...) as the drift cars' bodies use them: darkBack copies, following
+  // the originals' reflections
+  const CAR_BODY = {};
+  function carBodyMat(k) {
+    if (CAR_BODY[k]) return CAR_BODY[k];
+    const src = G3.mats[k], m = darkBack(src.clone());
+    Object.defineProperty(m, 'envMap', { get: () => src.envMap, set() {} });
+    return (CAR_BODY[k] = m);
+  }
   const glbCarCache = {};
   function glbCarGeo(model) {
     if (glbCarCache[model]) return glbCarCache[model];
@@ -2482,6 +2604,18 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
         g.setAttribute('position', new T.BufferAttribute(Float32Array.from(pos, v => v / D.q), 3)); g.setIndex(new T.BufferAttribute(idx, 1));
         if (G.uv) g.setAttribute('uv', new T.BufferAttribute(G.uvf ? new Float32Array(bin(G.uv)) : Float32Array.from(new Int16Array(bin(G.uv)), v => v / D.quv), 2));
         g = g.toNonIndexed(); g.computeVertexNormals(); soften(g, 40);
+        const LG = G.cat === 'glass' && LENS_GLASS[model];
+        if (LG) {   // (the glass over the rear lamps apart: their see-through lens)
+          const P = g.attributes.position.array, Nn = g.attributes.normal.array, part = [[], []];
+          for (let t = 0; t < P.length; t += 9) {
+            const cx = Math.abs(P[t] + P[t + 3] + P[t + 6]) / 3, cy = (P[t + 1] + P[t + 4] + P[t + 7]) / 3, cz = (P[t + 2] + P[t + 5] + P[t + 8]) / 3;
+            part[cx >= LG[0] && cx <= LG[1] && cy >= LG[2] && cy <= LG[3] && cz < LG[4] ? 1 : 0].push(t);
+          }
+          const sub = list => { const a = new Float32Array(list.length * 9), b = new Float32Array(list.length * 9);
+            list.forEach((t, i) => { a.set(P.subarray(t, t + 9), i * 9); b.set(Nn.subarray(t, t + 9), i * 9); });
+            const q = new T.BufferGeometry(); q.setAttribute('position', new T.BufferAttribute(a, 3)); q.setAttribute('normal', new T.BufferAttribute(b, 3)); return q; };
+          if (part[1].length) { (by.lens || (by.lens = [])).push([sub(part[1]), col]); (by[key] || (by[key] = [])).push([sub(part[0]), col]); g.dispose(); continue; }
+        }
         (by[key] || (by[key] = [])).push([g, col]);
       }
       const out = {};
@@ -2528,8 +2662,8 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
     if (!G) return null;
     const S = G.S, root = new T.Group(), tilt = new T.Group(), body = new T.Group();
     root.rotation.order = 'YXZ'; tilt.position.y = 0.5; body.position.y = -0.5; tilt.add(body); root.add(tilt);
-    const paint = liveryPaint(col, S.hub.f[1] + 0.02); paint.setLivery(liv);
-    const brake = new T.MeshBasicMaterial({ vertexColors: true });
+    const paint = darkBack(liveryPaint(col, S.hub.f[1] + 0.02)); paint.setLivery(liv);
+    const brake = lampMat(model), LU = brake.uniforms;
     // the model's own textures, with the car paint's gloss and reflections. A painted body: the texture, and the
     // car's paint multiplied in where its alpha says the paint is bare (128 = paint .. 255 = texture, see tex_img.js).
     // Decals: a see-through layer just over the paint
@@ -2544,6 +2678,7 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
         m.onBeforeCompile = s => { s.fragmentShader = s.fragmentShader.replace('#include <map_fragment>',
           'vec4 wrapT = texture2D(map, vUv); diffuseColor.rgb = wrapT.rgb * mix(diffuseColor.rgb, vec3(1.0), clamp(wrapT.a * 2.0 - 1.0, 0.0, 1.0));'); };
         m.customProgramCacheKey = () => 'carWrap';
+        darkBack(m);
       }
       return (texMats[cat] = m);
     };
@@ -2556,7 +2691,9 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
       return (rimMats[k] = m);
     };
     const mat = k => k === 'carPaint' ? paint : k.startsWith('rim:') ? rimMat(k) : k.startsWith('tex:') ? (G.tex[k.slice(4)] ? texMat(k.slice(4)) : paint) : k === 'brake' ? brake : G3.mats[k];
-    const level = geos => { const grp = new T.Group(); for (const k in geos) { const ms = new T.Mesh(geos[k], mat(k)); ms.castShadow = k !== 'light' && k !== 'brake' && k !== 'tex:decal'; ms.receiveShadow = true; if (k === 'tex:decal') ms.renderOrder = 2; grp.add(ms); } body.add(grp); return grp; };
+    // (the body's own: the shared materials as darkBack copies - the lamps keep theirs)
+    const bodyMat = k => k === 'lens' ? lensMat() : G3.mats[k] && k !== 'carPaint' && k !== 'light' ? carBodyMat(k) : mat(k);
+    const level = geos => { const grp = new T.Group(); for (const k in geos) { const ms = new T.Mesh(geos[k], bodyMat(k)); ms.castShadow = k !== 'light' && k !== 'brake' && k !== 'tex:decal' && k !== 'lens'; ms.receiveShadow = true; if (k === 'tex:decal' || k === 'lens') ms.renderOrder = 2; grp.add(ms); } body.add(grp); return grp; };
     const hi = level(G.hi), lo = G.lo ? level(G.lo) : null;
     if (lo) lo.visible = false;
     const wheels = [];
@@ -2597,8 +2734,14 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
       setPaint(c) { paint.color.set(c); for (const k in texMats) if (k !== 'decal') texMats[k].color.copy(paint.color); },
       setLivery(v) { paint.setLivery(v); },
       setRim,
-      setBrake(on) { brake.color.setScalar(on ? 1 : 0.3); },
-      setNight() {},
+      setBrake(on) { LU.uBrake.value = on ? 1 : 0; },
+      // the rear lamps: braking, the left / right indicator on (both: hazards), reversing; blink: the indicators' lit half
+      // of their beat, seq: how far through it (0..1, the sequential bars)
+      setLamps(brk, indL, indR, rev, blink, seq) {
+        LU.uBrake.value = brk ? 1 : 0; LU.uIndL.value = indL ? 1 : 0; LU.uIndR.value = indR ? 1 : 0;
+        LU.uRev.value = rev ? 1 : 0; LU.uBlink.value = blink ? 1 : 0; LU.uSeq.value = seq || 0;
+      },
+      setNight(n) { LU.uNight.value = n ? 1 : 0; },
       setDetail(near) { if (lo) { hi.visible = near; lo.visible = !near; } sus.show(near); },
       dispose() { paint.dispose(); brake.dispose(); for (const k in texMats) texMats[k].dispose(); for (const k in rimMats) rimMats[k].dispose(); } });
     setRim(rim);
@@ -2933,6 +3076,8 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
   const FACING = { house: 'road', building: 'road', lamp: 'road', hut: 'road', pole: 'along', fence: 'along', billboard: 'traffic',
     sign: 'traffic', kmpost: 'traffic', post: 'traffic', gate: 'traffic',
     stand: 'road', pits: 'road', marshal: 'road', flood: 'road', brk: 'traffic', gantry: 'traffic', bridge: 'traffic' };
-  return { rider, car, prebuildCars, setCarEnv, driftCar, loadCar, hasCar, preloadCars, proto, M4, v3, link, GEO, FACING, CAR_LIGHTS, posture, kickRoll };
+  // (a model whose indicators are its red tail lamps flashing - the night glow of its indicator stays red)
+  const redTurn = model => (TAIL_ZONES[model] || []).some(z => z[4] === 'S' || z[4] === 'Q');
+  return { rider, car, prebuildCars, setCarEnv, driftCar, loadCar, hasCar, preloadCars, proto, M4, v3, link, GEO, FACING, CAR_LIGHTS, posture, kickRoll, redTurn };
 })();
 1

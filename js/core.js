@@ -93,7 +93,7 @@ const Input = {
     pause: ['Escape', 'KeyP'], mute: ['KeyM'], quit: ['KeyQ'], repair: ['KeyR'],
     // drift cars (the same keys most PC drift games use): handbrake, clutch, nitro, gears, camera, reset, horn
     hand: ['Space'], clutch: ['ShiftLeft', 'ShiftRight'], nitro: ['KeyN'], gearUp: ['KeyB', 'KeyE'], gearDn: ['KeyV', 'KeyQ'], gearMode: ['KeyT'],
-    cam: ['KeyC'], reset: ['KeyR'], horn: ['KeyH'], livery: ['KeyT'], liveryCol: ['KeyY'],
+    cam: ['KeyC'], reset: ['KeyR'], horn: ['KeyH'], livery: ['KeyT'], liveryCol: ['KeyY'], turnL: ['KeyZ'], turnR: ['KeyX'],
   },
   is(a) { return this.map[a].some(k => this.down[k]); },
   pressed(a) { return this.map[a].some(k => this.hit[k]); },
@@ -270,6 +270,8 @@ const Sound = {
     if (v > 1.05) this.tone(120 * f, 40, 0.09, 0.4 * (v - 1), 'sine');
   },
   horn() { this.tone(415, 415, 0.4, 0.12, 'square'); this.tone(520, 520, 0.4, 0.1, 'square'); },
+  // the indicator relay: a tick as the lamps come on, a softer tock as they go off
+  tick(on) { this.noise(0.018, on ? 0.22 : 0.14, on ? 2600 : 1800, 3); },
   // everything that keeps sounding on its own: the engine and the tyres
   quiet() { this.engine(0, 0); if (this.sk) this.skid(0, 1); },
   toggleMute() {

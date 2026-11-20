@@ -999,7 +999,7 @@ class DriftRace {
     return { steer: (Input.is('right') ? 1 : 0) - (Input.is('left') ? 1 : 0), gas: Input.is('up'), brake: Input.is('down'),
       hand: Input.is('hand'), clutch: Input.is('clutch'), nitro: Input.is('nitro'),
       up: Input.pressed('gearUp'), dn: Input.pressed('gearDn'), mode: Input.pressed('gearMode'),
-      cam: Input.pressed('cam'), reset: Input.pressed('reset'), horn: Input.pressed('horn') };
+      cam: Input.pressed('cam'), reset: Input.pressed('reset'), horn: Input.pressed('horn'), turnL: Input.pressed('turnL'), turnR: Input.pressed('turnR') };
   }
 
   // inp: optional scripted input for the player (tests); otherwise the keyboard
@@ -1017,6 +1017,8 @@ class DriftRace {
     if (this.over) inp = { steer: 0, gas: false, brake: true };
     if (inp.cam) this.camMode = (this.camMode + 1) % 3;
     if (inp.horn && Sound.horn) Sound.horn();
+    // the indicators: Z left, X right (again: off; off by themselves after 8 s)
+    if (inp.turnL || inp.turnR) { const c = this.car, sd = inp.turnL ? 'L' : 'R'; c.ind = c.ind === sd ? '' : sd; c.indT = 8; }
     if (inp.reset && this.state === 'racing' && !this.over) this.resetCar(this.car);
     const live = this.racers.filter(c => !c.gone);
     for (const c of live) {
@@ -1667,5 +1669,13 @@ class DriftRace {
     }
     c.lastGas = c.gas;
     c.backfire = Math.max(0, c.backfire - dt);
+    // the indicators (the driver's; hazards on the grid and once over the line), about 75 flashes a minute: blinkOn the
+    // lit half of the beat, blinkP how far through it (the sequential bars); the relay ticks for the player
+    if (c.ind && (c.indT -= dt) <= 0) c.ind = '';
+    const ind = this.state === 'countdown' || c.fin ? 'H' : c.ind || '', was = c.blinkOn;
+    c.blinkT = ind ? ((c.blinkT || 0) + dt) % 0.8 : 0;
+    c.blinkOn = !!ind && c.blinkT < 0.45; c.blinkP = Math.min(1, c.blinkT / 0.45);
+    c.indL = ind === 'L' || ind === 'H'; c.indR = ind === 'R' || ind === 'H';
+    if (me && ind && was !== c.blinkOn && Sound.tick) Sound.tick(c.blinkOn);
   }
 }

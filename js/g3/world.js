@@ -1188,7 +1188,7 @@ const World = (() => {
       const rearV = c.hand ? 0 : c.u + (c.gas ? Math.max(c.wheelSpin, c.rearSlide) * 16 * (c.gear < 0 ? -1 : 1) : 0);
       o.steer(c.steer);   // (about the caster-tilted steering axis: the wheels lean as they turn)
       for (const w of o.wheels) w.spin.rotation.x += (w.front ? c.u : rearV) / S.wheel.R * dt;
-      o.setBrake(c.brk > 0);
+      if (o.setLamps) o.setLamps(c.brk > 0, c.indL, c.indR, c.gear < 0, c.blinkOn, c.blinkP); else o.setBrake(c.brk > 0);
       o.paint.envMap = this.env;
       if (!me && dist > 260) return;
       // tyres: rubber on the road from any tyre that slides, and a thin wisp of smoke off each rear tyre (small, faint,
@@ -1354,7 +1354,11 @@ const World = (() => {
         o.root.updateMatrixWorld();
         for (const s of [-1, 1]) {
           if (ahead > S.head[2] - 0.5) add(o.body, s * S.head[0], S.head[1], S.head[2] + 0.06, 0.85, 0.82, 0.7);
-          if (ahead < S.tail[2] + 0.5) add(o.body, s * S.tail[0], S.tail[1], S.tail[2] - 0.06, 0.9 * b, 0.05 * b, 0.04 * b);
+          if (ahead < S.tail[2] + 0.5) {   // (an indicator flashing on that side: amber - or red, on the cars with red ones)
+            const t = c.blinkOn && (s > 0 ? c.indL : c.indR), red = t && Models.redTurn(c.spec.model);
+            if (t && !red) add(o.body, s * S.tail[0], S.tail[1], S.tail[2] - 0.06, 1, 0.55, 0.05);
+            else add(o.body, s * S.tail[0], S.tail[1], S.tail[2] - 0.06, (t ? 1 : 0.9 * b), (t ? 0.08 : 0.05 * b), (t ? 0.05 : 0.04 * b));
+          }
         }
       });
       for (let i = n; i < 160; i++) P[i * 3 + 1] = -9999;
@@ -1496,7 +1500,7 @@ const World = (() => {
     // a turning drift car in the garage, its wheels set to its alignment al
     carPreview(model, paint, x, y, w, h, t, al, liv, rim) {
       const o = showCar(model, paint, al, liv || '', rim || '');
-      techView(o, null);
+      techView(o, null); lampDemo(o, t);
       o.steer(Math.sin(t * 0.7) * 0.35);
       o.root.rotation.y = t * 0.45 + 0.6;
       showRender(x, y, w, h, [0, 2.0, 7.1], [0, 0.55, 0], 30);
@@ -1508,7 +1512,7 @@ const World = (() => {
     alignPreview(model, paint, al, view, steer, x, y, w, h, t, rim) {
       const o = showCar(model, paint, al, undefined, rim || ''), fw = o.wheels.find(q => q.front).pivot.position, rw = o.wheels.find(q => !q.front).pivot.position;
       const hy = fw.y, fz = fw.z, rz = rw.z, mz = (fz + rz) / 2;
-      techView(o, view === '3q' ? null : view);
+      techView(o, view === '3q' ? null : view); lampDemo(o, t);
       o.steer(steer);
       o.root.rotation.y = view === '3q' ? t * 0.45 + 0.6 : 0;
       // (a lighter backdrop than the garage's: the black tyres must stand out against it)
@@ -1520,6 +1524,13 @@ const World = (() => {
       return { hy, fz, rz, track: Math.abs(fw.x) };
     },
   };
+  // the showroom car shows its rear lamps in turn, 1.6 s each: tail lamps, braking, left indicator, right, reversing,
+  // hazards
+  function lampDemo(o, t) {
+    if (!o.setLamps) return;
+    const k = Math.floor(t / 1.6) % 6, b = t % 0.8;
+    o.setLamps(k === 1, k === 2 || k === 5, k === 3 || k === 5, k === 4, b < 0.45, Math.min(1, b / 0.45));
+  }
   // the showroom's car for a model (rebuilt once its data file has loaded: a stand-in until then), the only one shown
   function showCar(model, paint, al, liv, rim) {
     if (!show) buildShow();

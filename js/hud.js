@@ -109,6 +109,8 @@ const Render = {
     };
     chip(12, c.hand, 'PHANH TAY', '#ff5a4a'); chip(53, c.clutch && race.state === 'racing', 'CÔN', '#ffd23a'); chip(94, c.nitroOn, 'N2O', '#5ab0ff');
     this.text((race.auto ? 'SỐ TỰ ĐỘNG' : 'SỐ TAY') + ' · CAM ' + (race.camMode + 1), 12, H - 15, 11, '#a8b8d0', 'left', 120);
+    // the indicators' lamps on the dash (green arrows flashing with them)
+    if (c.blinkOn) { if (c.indL) this.text('◀', W - 70, H - 104, 14, '#4ad86a', 'center'); if (c.indR) this.text('▶', W - 30, H - 104, 14, '#4ad86a', 'center'); }
     // tachometer with the gear in the middle and the speed under it (bottom right)
     const cx = W - 50, cy = H - 48, r = 38, red = S.redline, maxR = Math.ceil(red / 1000) + 1, ang = v => Math.PI * 0.75 + v / (maxR * 1000) * Math.PI * 1.5;
     const face = g.createRadialGradient(cx, cy - 10, 2, cx, cy, r);

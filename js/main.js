@@ -307,7 +307,7 @@ const Game = {
     drift: { title: 'ĐUA Ô TÔ DRIFT · CÁCH CHƠI', col: '#ff9a5a', keys: [
       ['↑ / W', 'Ga'], ['↓ / S', 'Phanh (xe đứng yên: lùi)'], ['← → / A D', 'Lái'], ['SPACE', 'Phanh tay: khóa bánh sau để vào drift'],
       ['SHIFT', 'Côn: giữ rồi vê ga, thả ra để "đá côn"'], ['B / V (E / Q)', 'Lên / xuống số'], ['T', 'Số tự động / số tay'],
-      ['N', 'Nitro (tự nạp lại khi drift)'], ['C', 'Đổi camera'], ['R', 'Đặt lại xe lên đường'], ['ESC / P', 'Tạm dừng']],
+      ['N', 'Nitro (tự nạp lại khi drift)'], ['C', 'Đổi camera'], ['R', 'Đặt lại xe lên đường'], ['Z / X', 'Xi-nhan trái / phải'], ['ESC / P', 'Tạm dừng']],
       tips: ['Vào cua: kéo phanh tay hoặc đá côn, rồi giữ ga để xe trượt ngang.', 'Điểm tính theo góc trượt, tốc độ và độ sát rào. Chạm rào là mất chuỗi điểm.',
         'Gara: mua xe, đổi màu sơn, tem. Phím C trong gara: căn góc bánh, đổi động cơ, pô, mâm.'] },
   },
@@ -414,10 +414,10 @@ const Game = {
   // the keys of the drift mode (like most PC drift games: CarX, Forza, Assetto Corsa)
   DKEYS: [['↑ / W', 'ga'], ['↓ / S', 'phanh (giữ khi đứng yên = lùi)'], ['← → / A D', 'lái'], ['SPACE', 'phanh tay (vào drift)'],
     ['SHIFT', 'côn (giữ rồi thả = đá côn)'], ['B / V', 'lên / xuống số (số tay)'], ['T', 'số tự động / số tay'], ['N', 'nitro'],
-    ['C', 'đổi góc camera'], ['R', 'đặt lại xe lên đường'], ['H', 'còi'], ['ESC / P', 'tạm dừng']],
+    ['C', 'đổi góc camera'], ['R', 'đặt lại xe lên đường'], ['H · Z / X', 'còi · xi-nhan trái / phải'], ['ESC / P', 'tạm dừng']],
   // the same keys, short, for the drift menu (three columns under the stage list)
   DKEYS_S: [['↑ / W', 'ga'], ['↓ / S', 'phanh / lùi'], ['← → A D', 'lái'], ['SPACE', 'phanh tay'], ['SHIFT', 'côn / đá côn'],
-    ['B / V', 'lên / xuống số'], ['T', 'số tự động / tay'], ['N', 'nitro'], ['C', 'góc camera'], ['R', 'đặt lại xe'], ['H', 'còi'], ['ESC / P', 'tạm dừng']],
+    ['B / V', 'lên / xuống số'], ['T', 'số tự động / tay'], ['N', 'nitro'], ['C', 'góc camera'], ['R', 'đặt lại xe'], ['H · Z X', 'còi · xi-nhan'], ['ESC / P', 'tạm dừng']],
   drawKeysS(x, y, size) {
     this.DKEYS_S.forEach(([k, d], i) => {
       const xx = x + (i % 3) * 140, yy = y + Math.floor(i / 3) * (size + 2);
