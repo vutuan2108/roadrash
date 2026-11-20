@@ -2821,27 +2821,99 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
     if (!p) { const m = new Mesher(31 + v * 7 + name.length); (PROPS[name] || PROPS.none)(m, v); p = m.proto(); protoCache.set(k, p); }
     return p;
   }
-  const leafCols = [['#3f8a2e', '#4f9a38', '#2f7228'], ['#2f7a3a', '#3e8a3e', '#26622c'], ['#5a8a2a', '#6a9a34', '#4a7a26']];
+  // ---- foliage: cards of the foliage atlas (G3.folRect) under the 'leaf' material. A card's normals are bent out of
+  // the mass it belongs to (centre mc, radius mr) and up, and its colour darkens towards the inside and the bottom of
+  // that mass: a crown is lit and shaded as one soft volume, not card by card
+  const _ca = new T.Vector3(), _cb = new T.Vector3(), _cn = new T.Vector3();
+  const CORNERS = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+  function card(m, p, ax, ay, rect, col, mc, mr, up = 0.45) {
+    const P = [], N = [], UV = [], C = [];
+    for (const i of [0, 1, 2, 0, 2, 3]) {
+      const [s, t] = CORNERS[i], x = p.x + ax.x * s + ay.x * t, y = p.y + ax.y * s + ay.y * t, z = p.z + ax.z * s + ay.z * t;
+      P.push(x, y, z); UV.push(s < 0 ? rect[0] : rect[2], t < 0 ? rect[1] : rect[3]);
+      _cn.set((x - mc.x) / mr, (y - mc.y) / mr + up, (z - mc.z) / mr);
+      const d = Math.min(1, Math.hypot(x - mc.x, y - mc.y, z - mc.z) / mr); _cn.normalize(); N.push(_cn.x, _cn.y, _cn.z);
+      const ao = (0.55 + 0.45 * U.clamp(0.5 + (y - mc.y) / (2 * mr), 0, 1)) * (0.72 + 0.28 * d);
+      C.push(col[0] * ao, col[1] * ao, col[2] * ao);
+    }
+    m.raw('leaf', P, N, UV, C);
+  }
+  // a card facing about dir (a unit vector; random spread sp), half size h, the atlas region rect, centred at p
+  function cardAt(m, rnd, p, dir, sp, h, rect, col, mc, mr, up) {
+    _ca.set(dir.x + (rnd() - 0.5) * sp, dir.y + (rnd() - 0.5) * sp, dir.z + (rnd() - 0.5) * sp).normalize();   // (its facing)
+    _cb.set(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5).cross(_ca).normalize();
+    const ax = _cb.clone().multiplyScalar(h), ay = _cb.clone().cross(_ca).normalize().multiplyScalar(h);
+    card(m, p, ax, ay, rect, col, mc, mr, up);
+  }
+  // a cluster of leaf cards round c (radius r), facing mostly outwards from the crown's centre mc
+  function leafCluster(m, rnd, c, r, n, rect, col, mc, mr) {
+    for (let i = 0; i < n; i++) {
+      const p = c.clone().add(v3(rnd() - 0.5, (rnd() - 0.5) * 0.8, rnd() - 0.5).multiplyScalar(r * 1.1));
+      const out = p.clone().sub(mc); if (out.lengthSq() < 1e-4) out.set(0, 1, 0); out.normalize();
+      const jc = 0.88 + rnd() * 0.24;
+      cardAt(m, rnd, p, out, 1.4, r * (0.66 + rnd() * 0.3) * (n < 5 ? 1.25 : 1), rect, [col[0] * jc, col[1] * jc, col[2] * jc], mc, mr);
+    }
+  }
+  // a trunk or branch: tapering, bark-textured, from a to b
+  const limb = (m, a, b, r0, r1, col, seg = 7) => m.add(taper(r0, r1, seg), link(a, b, 1), col, 'leaf', { uv: G3.folRect('bark') });
   const PROPS = {
     none() {},
-    pine(m, v) {
-      m.add(taper(0.24, 0.1, 5), M4(0, 2.2, 0, 0, 0, 0, 1, 5, 1), BARK, 'lam');
-      const c = [lin('#24563a'), lin('#2c6a3e'), lin('#1f4a30')][v % 3];
-      for (let k = 0; k < 3; k++) {
-        const r = 2.6 - k * 0.7, h = 4.0 - k * 0.5, y = 2.3 + k * 2.4 + h / 2;
-        m.add(PINE_CONE, M4(0, y, 0, 0, k * 0.7, 0, r, h, r), mul(c, 0.82 + k * 0.1), 'lam', { flat: true, jit: 0.12 });
+    // pines. v 0 / 1: Khasi pine (thong ba la, the pines of Da Lat and the southern passes): a tall, slightly wavy bare
+    // trunk, the crown high up - branches reaching up and out, each ending in tufts of long needles. v 2: a fir (sa mu,
+    // the conifers of the northern passes): a narrow cone of drooping branch sprays in whorls down the trunk
+    // (lo: the far version - a decor tree well away from the road: a third of the cards, bigger, the same outline)
+    pine(m, v, lo) {
+      const rnd = U.rng(v * 29 + 5);
+      if (v < 2) {
+        const H = v ? 11.5 : 14, bark = lin('#6a5444'), needles = lin(v ? '#46663a' : '#3c5e36'), tuft = G3.folRect('tuft');
+        const pts = [v3(0, 0, 0)];
+        for (let k = 1; k <= 4; k++) pts.push(v3((rnd() - 0.5) * 0.5, H * k / 4, (rnd() - 0.5) * 0.5));
+        if (lo) limb(m, pts[0], pts[4], 0.3, 0.08, bark, 5);
+        else for (let k = 0; k < 4; k++) limb(m, pts[k], pts[k + 1], 0.32 - k * 0.06, 0.32 - (k + 1) * 0.06, bark);
+        const mc = v3(pts[3].x, H * 0.78, pts[3].z), mr = 3.2, nb = lo ? 6 : v ? 8 : 9, nt = lo ? 2 : 4;
+        for (let i = 0; i < nb; i++) {
+          const t = i / nb, y = H * (0.48 + 0.44 * t), a = i * 2.4 + rnd() * 0.5, L = (3.2 - 1.9 * t) * (0.8 + rnd() * 0.4);
+          const s = v3(pts[3].x * (y / (H * 0.75)), y, pts[3].z * (y / (H * 0.75))), up = 0.35 + rnd() * 0.45;
+          const e = s.clone().add(v3(Math.cos(a) * L, L * up, Math.sin(a) * L));
+          if (!lo) limb(m, s, e, 0.1, 0.04, bark, 4);
+          for (let k = 0; k < nt; k++) {
+            const p = e.clone().lerp(s, k * (lo ? 0.4 : 0.22)).add(v3((rnd() - 0.5) * 0.7, 0.1 + rnd() * 0.35, (rnd() - 0.5) * 0.7));
+            const out = p.clone().sub(mc).normalize();
+            cardAt(m, rnd, p, out, 1.6, (1.05 + rnd() * 0.4) * (lo ? 1.45 : 1) * (1 - k * 0.06), tuft, mul(needles, 0.9 + rnd() * 0.2), mc, mr);
+          }
+        }
+        for (let k = 0; k < (lo ? 2 : 4); k++) cardAt(m, rnd, pts[4].clone().add(v3((rnd() - 0.5) * 1.2, rnd() * 0.4 - 0.3, (rnd() - 0.5) * 1.2)), v3(0, 1, 0), 2.2, lo ? 1.4 : 1.0, tuft, needles, mc, mr);
+        return;
       }
-    },
-    tree(m, v) {
-      const rnd = U.rng(v * 13 + 1), lc = leafCols[v % 3].map(lin);
-      m.add(taper(0.3, 0.18, 7), M4(0, 1.8, 0, 0, 0, 0, 1, 3.6, 1), BARK, 'lam');
-      m.add(taper(0.14, 0.07, 5), link(v3(0, 3.0, 0), v3(1.4, 4.6, 0.3), 1), BARK, 'lam');
-      m.add(taper(0.14, 0.07, 5), link(v3(0, 3.2, 0), v3(-1.2, 4.8, -0.5), 1), BARK, 'lam');
-      for (let i = 0; i < 5; i++) {
-        const a = rnd() * Math.PI * 2, d = rnd() * 1.4, r = 1.7 + rnd() * 1.0;
-        m.add(GEO.ico, M4(Math.cos(a) * d, 5.2 + rnd() * 1.6 - d * 0.3, Math.sin(a) * d, rnd(), rnd(), 0, r, r * 0.85, r), lc[i % 3], 'lam', { flat: true, jit: 0.14 });
+      const H = 10.5, bark = lin('#5e4636'), needles = lin('#2f4c2e'), spray = G3.folRect('spray'), dy = lo ? 1.25 : 0.75, wk = lo ? 1.35 : 1;
+      limb(m, v3(0, 0, 0), v3(0, H, 0), 0.26, 0.04, bark, lo ? 5 : 7);
+      for (let y = 1.3, w = 0; y < H - 0.4; y += dy, w++) {
+        const t = y / H, L = ((1 - t) * 2.7 + 0.45) * (lo ? 1.08 : 1), n = t > 0.8 ? 3 : lo ? 4 : 5;
+        for (let k = 0; k < n; k++) {
+          const a = k / n * 6.283 + w * 0.7 + rnd() * 0.4, dir = v3(Math.cos(a), 0, Math.sin(a)), droop = 0.18 + rnd() * 0.25 + t * 0.1;
+          const ax = dir.clone().multiplyScalar(L / 2).add(v3(0, -droop * L / 2, 0)), side = v3(-dir.z, 0, dir.x);
+          const p = v3(0, y, 0).add(ax), mc = v3(0, y + 0.3, 0), col = mul(needles, (0.75 + 0.35 * t) * (0.9 + rnd() * 0.2));
+          card(m, p, ax, side.clone().multiplyScalar(L * 0.34 * wk), spray, col, mc, L, 0.6);
+          if (!lo && w % 3 === 0) card(m, p, ax, side.clone().cross(ax).normalize().multiplyScalar(L * 0.2), spray, mul(col, 0.9), mc, L, 0.6);
+        }
       }
+      for (let k = 0; k < (lo ? 1 : 3); k++) cardAt(m, rnd, v3(0, H - 0.2, 0), v3(0, 1, 0), 2, 0.5, spray, needles, v3(0, H - 0.6, 0), 0.8);
     },
+    pineLo(m, v) { PROPS.pine(m, v, true); },
+    // broadleaf trees: a short trunk forking into limbs, a crown of several masses of leaves (v: shape and green)
+    tree(m, v, lo) {
+      const rnd = U.rng(v * 13 + 1), bark = lin('#6a5a48'), green = lin(['#4a7a30', '#3c6a2c', '#5e8a34'][v % 3]);
+      const H = [6.2, 5.4, 7.0][v % 3], cr = [3.2, 2.7, 3.6][v % 3], fork = v3((rnd() - 0.5) * 0.6, H * 0.42, (rnd() - 0.5) * 0.6);
+      limb(m, v3(0, 0, 0), fork, 0.34, 0.24, bark, lo ? 5 : 7);
+      const mc = v3(fork.x, H, fork.z), leaf = G3.folRect(v === 1 ? 'leaf2' : 'leaf'), nc = 6 + (v % 2), per = lo ? 3 : 6;
+      for (let i = 0; i < nc; i++) {
+        const a = i / nc * 6.283 + rnd() * 0.6, d = cr * (0.35 + rnd() * 0.4), c = mc.clone().add(v3(Math.cos(a) * d, (rnd() - 0.4) * cr * 0.6, Math.sin(a) * d));
+        if (i < (lo ? 2 : 4)) limb(m, fork, c.clone().lerp(mc, 0.25), 0.15, 0.06, bark, 4);
+        leafCluster(m, rnd, c, cr * (0.42 + rnd() * 0.14) * (lo ? 1.2 : 1), per, leaf, green, mc, cr * 1.15);
+      }
+      leafCluster(m, rnd, mc.clone().add(v3(0, cr * 0.35, 0)), cr * 0.5, lo ? 3 : 6, leaf, green, mc, cr * 1.15);
+    },
+    treeLo(m, v) { PROPS.tree(m, v, true); },
     palm(m, v) {
       const rnd = U.rng(v * 7 + 3), lean = (v % 2 ? 1 : -1) * (0.8 + v * 0.35), top = v3(lean, 8.4 - Math.abs(lean) * 0.2, 0);
       let prev = v3(0, -0.2, 0);
@@ -2858,23 +2930,42 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
       }
     },
     bush(m, v) {
-      const rnd = U.rng(v * 5 + 2), lc = v === 0 ? lin('#8aa83a') : lin('#3f8a34');
-      for (let i = 0; i < 4; i++) {
-        const r = 0.55 + rnd() * 0.35;
-        m.add(GEO.ico, M4((rnd() - 0.5) * 1.1, r * 0.6, (rnd() - 0.5) * 1.0, rnd(), rnd(), 0, r, r * 0.75, r), mul(lc, 0.85 + rnd() * 0.3), 'lam', { flat: true, jit: 0.15 });
-      }
+      const rnd = U.rng(v * 5 + 2), green = v === 0 ? lin('#7a9a3a') : lin('#3f7a32'), mc = v3(0, 0.55, 0), leaf = G3.folRect('leaf2');
+      for (let i = 0; i < 3; i++) leafCluster(m, rnd, v3((rnd() - 0.5) * 0.9, 0.45 + rnd() * 0.3, (rnd() - 0.5) * 0.9), 0.55 + rnd() * 0.2, 6, leaf, green, mc, 1.0);
       if (v > 0) for (let i = 0; i < 9; i++) {
         const a = rnd() * 6.28, d = rnd() * 0.7;
-        m.add(GEO.ico0, M4(Math.cos(a) * d, 0.85 + rnd() * 0.35, Math.sin(a) * d, rnd(), rnd(), 0, 0.11), v === 1 ? lin('#ffd21a') : lin('#f070c0'), 'lam', { flat: true });
+        m.add(GEO.ico0, M4(Math.cos(a) * d, 0.85 + rnd() * 0.35, Math.sin(a) * d, rnd(), rnd(), 0, 0.09), v === 1 ? lin('#ffd21a') : lin('#f070c0'), 'lam', { flat: true });
       }
     },
+    // a boulder: lumpy, rounded, darker in its cracks, moss and lichen on its upper faces
     rock(m, v) {
-      const g = GEO.ico.clone(), p = g.attributes.position, rnd = U.rng(v * 3 + 9);
+      const g = new T.IcosahedronGeometry(1, 3), p = g.attributes.position, rnd = U.rng(v * 3 + 9), o = v * 7.3;
       for (let i = 0; i < p.count; i++) {
-        const x = p.getX(i), y = p.getY(i), z = p.getZ(i), k = 0.75 + G3.hash(Math.round(x * 50) + v * 31, Math.round(y * 50) * 7 + Math.round(z * 50)) * 0.45;
-        p.setXYZ(i, x * k, y * k, z * k);
+        const x = p.getX(i), y = p.getY(i), z = p.getZ(i), k = 0.72 + 0.4 * G3.fbm(x * 1.3 + o, z * 1.3 + y * 0.9, 3) + 0.06 * G3.vnoise(x * 6 + y * 3, z * 6 + o);
+        p.setXYZ(i, x * k, Math.max(-0.35, y * k), z * k);
       }
-      m.add(g, M4(0, 0.45, 0, rnd(), rnd(), 0, 1.15, 0.8, 1.0), v % 2 ? lin('#8a8478') : lin('#7a6c58'), 'lam', { flat: true, jit: 0.1 });
+      g.computeVertexNormals();
+      const stone = v % 2 ? lin('#8a857a') : lin('#7a6e60'), moss = lin('#5e6e3a');
+      m.add(g, M4(0, 0.4, 0, rnd(), rnd(), 0, 1.25, 0.85, 1.05), (x, y, z) => {
+        const n = G3.vnoise(x * 2.1 + o, z * 2.1 + y * 1.7), c = G3.mix(stone, moss, U.clamp((y - 0.55) * 1.6, 0, 1) * (0.4 + 0.6 * n));
+        return G3.mul(c, 0.75 + 0.35 * n);
+      }, 'lam');
+    },
+    // grass: a tuft of blades on crossed cards; fern: fronds arching out of the ground
+    grass(m, v) {
+      const rnd = U.rng(v * 17 + 3), col = lin(['#7e9a46', '#6a8a3c', '#9a9a52'][v % 3]), rect = G3.folRect('grass');
+      for (let i = 0; i < 4; i++) {
+        const a = i / 4 * Math.PI + rnd() * 0.5, h = 0.32 + rnd() * 0.22, w = 0.55 + rnd() * 0.3, c = v3((rnd() - 0.5) * 0.6, h, (rnd() - 0.5) * 0.6);
+        card(m, c, v3(Math.cos(a) * w, 0, Math.sin(a) * w), v3(0, h, 0), rect, mul(col, 0.9 + rnd() * 0.2), v3(c.x, 0, c.z), h * 2, 2.5);
+      }
+    },
+    fern(m, v) {
+      const rnd = U.rng(v * 23 + 7), col = lin('#4a7a34'), rect = G3.folRect('fern');
+      for (let i = 0; i < 5; i++) {
+        const a = i / 5 * 6.283 + rnd() * 0.5, L = 0.6 + rnd() * 0.3, dir = v3(Math.cos(a) * 0.55, 0.84, Math.sin(a) * 0.55).normalize();
+        const ay = dir.clone().multiplyScalar(L / 2), ax = v3(-Math.sin(a), 0, Math.cos(a)).multiplyScalar(L / 2);
+        card(m, ay.clone(), ax, ay, rect, mul(col, 0.9 + rnd() * 0.2), v3(0, 0, 0), L, 1.2);
+      }
     },
     house(m, v) {
       const wall = lin(['#f0e2b0', '#d8e8f0', '#f2c8a0', '#e8e8e0', '#c8e0b8'][v % 5]), roof = lin(['#b8452a', '#a83a22', '#5a6a7a', '#c05a30', '#8a3a2a'][v % 5]);
@@ -3044,11 +3135,8 @@ const vec2 BO[${nb}] = vec2[${nb}](${D.boxes.map(b => `vec2(${f(b[4])}, ${f(b[5]
       m.add(GEO.cyl, M4(0, 3, 0.6, 0, 0, 0, 0.05, 4, 0.05), lin('#6a4a2a'), 'lam');
     },
     shrub(m, v) {
-      const rnd = U.rng(v * 9 + 4);
-      for (let i = 0; i < 3; i++) {
-        const r = 0.8 + rnd() * 0.7;
-        m.add(GEO.ico0, M4((rnd() - 0.5) * 1.6, r * 0.6, (rnd() - 0.5) * 1.6, rnd(), rnd(), 0, r, r * 0.7, r), lin(['#5a7a32', '#6a8a3a', '#4a6a2a'][i]), 'lam', { flat: true, jit: 0.15 });
-      }
+      const rnd = U.rng(v * 9 + 4), green = lin(['#5a7a32', '#4a6e2c', '#6a8a3a'][v % 3]), mc = v3(0, 0.8, 0), leaf = G3.folRect(v % 2 ? 'leaf' : 'leaf2');
+      for (let i = 0; i < 4; i++) leafCluster(m, rnd, v3((rnd() - 0.5) * 1.5, 0.6 + rnd() * 0.5, (rnd() - 0.5) * 1.5), 0.7 + rnd() * 0.35, 7, leaf, green, mc, 1.5);
     },
   };
   function frondGeo(len, droop) {   // a folded, drooping palm leaf (double-sided ribbon)

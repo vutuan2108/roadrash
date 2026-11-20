@@ -212,6 +212,23 @@ Mỗi đèo có thêm 2 khúc số 8: hai vòng cua dài 225° ngược chiều 
 - **Đèo Thung Khe** (Hòa Bình, 8,4 km, núi đá trắng): 46 cua tròn 120–225° nối nhau liên tục, bán kính 34–48 m. Đảo lái gần như không nghỉ.
 - **Sân drift đêm Bình Dương** (3 vòng, mỗi vòng khoảng 2,4 km, tổng khoảng 7,2 km): đường rộng 22 m, 27 khúc cua mỗi vòng, hầu hết đoạn thẳng được bẻ bằng cua chữ S, có đèn pha và khán đài. Một lượt khoảng 5 phút.
 
+**Cảnh ven đường và đồi núi** (dùng chung cho cả đua mô tô):
+
+- **Cây:** dựng từ các tấm lá có texture thay cho khối hình học.
+  - Thông ba lá như ở Đà Lạt, Lâm Đồng: thân cao thẳng, trơ cành ở dưới, tán gồm các chùm lá kim ở ngọn.
+  - Sa mu dạng tháp như ở Sa Pa, cành rủ thành từng tầng.
+  - Cây lá rộng có thân, cành và tán nhiều cụm. Bụi cây và cây bụi cũng làm bằng lá thật.
+  - Tán được chiếu sáng như một khối: phía trên sáng, phía dưới và lõi tối. Lá lay nhẹ theo gió. Cây ở xa (từ 40 m) dùng bản ít tấm lá hơn.
+- **Mặt đất:** ven đường có cỏ dại và dương xỉ. Đá tảng tròn có rêu ở mặt trên.
+- **Đồi núi gần:**
+  - Sườn dốc phủ vân đá theo lớp, không còn bị kéo thành sọc.
+  - Sườn đồi xa ở các đèo rừng phủ kín tán cây nhìn từ trên xuống. Ở đèo đá thì rừng chỉ mọc thành từng đám trên chỗ thoải.
+  - Màu đất đổi dần theo từng vùng rộng vài trăm mét để hai ngọn đồi không giống hệt nhau.
+- **Núi xa:**
+  - Đỉnh sắc như núi thật, có sườn đón nắng và sườn khuất bóng theo hướng mặt trời từng bản đồ.
+  - Có khe rãnh dọc sườn. Chân núi là rừng tối, đỉnh là đá sáng màu, chân núi chìm dần vào sương.
+  - Thêm một dãy núi gần hơn để cảnh có chiều sâu.
+
 ### Xe
 
 Mua xe trong **GARA Ô TÔ**. Danh sách cuộn được bằng ↑↓, dùng ← → để đổi màu sơn xe đã mua, phím **T** để đổi kiểu tem (sọc đôi, sọc đơn viền, sọc lệch, sọc sườn, sọc đôi + sườn), phím **Y** để đổi màu tem, phím **C** để căn chỉnh góc đặt bánh (xem phần dưới). Người chơi online khác cũng thấy tem của bạn. Mỗi xe có một dòng "Ngoài đời" ghi máy, công suất xe zin và tốc độ tối đa thật, kèm các chỉ số trong game: công suất, mô-men, trọng lượng, vòng tua tối đa, tốc độ tối đa.

@@ -95,6 +95,13 @@ const G3 = (() => {
       return out;
     }
     geos() { const pr = this.proto(), out = {}; for (const k in pr) out[k] = geo(pr[k]); return out; }
+    // raw triangles (flat arrays: positions, normals, uvs, colours), already placed
+    raw(key, P, N, UV, C) {
+      const b = this.parts[key] || (this.parts[key] = { p: [], n: [], c: [], u: [] });
+      for (let i = 0; i < P.length; i++) { b.p.push(P[i]); b.n.push(N[i]); b.c.push(C[i]); }
+      for (let i = 0; i < UV.length; i++) b.u.push(UV[i]);
+      return this;
+    }
   }
   function geo(b) {
     const g = new T.BufferGeometry();
@@ -421,6 +428,203 @@ const G3 = (() => {
     g.putImageData(d, 0, 0);
     return tex(c, { repeat: true });
   }
+  // ---------------- foliage atlas: what the trees, bushes and grass are made of ----------------
+  // Grey-scale (the leaves' colour comes from the vertex colours) on transparent, drawn on a canvas, then copied into a
+  // DataTexture with the colour of the transparent pixels filled in from their region's leaves - so the mipmaps do not
+  // darken the edges. Regions [x, y, w, h] (canvas pixels, from the top left)
+  const FW = 1024, FOL = { leaf: [0, 0, 512, 512], tuft: [512, 0, 512, 512], spray: [0, 512, 512, 256], grass: [0, 768, 512, 256],
+    bark: [512, 512, 256, 512], leaf2: [768, 512, 256, 256], fern: [768, 768, 256, 256] };
+  const folRect = k => { const [x, y, w, h] = FOL[k]; return [(x + 1) / FW, 1 - (y + h - 1) / FW, (x + w - 1) / FW, 1 - (y + 1) / FW]; };
+  const grey = (g, v, a = 1) => { v = Math.max(0, Math.min(255, v | 0)); g.fillStyle = g.strokeStyle = `rgba(${v},${v},${Math.max(0, v - 6)},${a})`; };
+  // a crown's mass of leaves: overlapping lobes filled with leaves, back (darker) to front (lighter), lit from above
+  function leafMass(g, X, Y, S, rnd, len, n) {
+    const cx = X + S / 2, cy = Y + S / 2, R = S * 0.45, lobes = [];
+    for (let i = 0; i < 8; i++) { const a = rnd() * 6.283, d = rnd() * R * 0.5; lobes.push([cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.9, R * (0.42 + rnd() * 0.22)]); }
+    const inside = (x, y) => lobes.some(l => Math.hypot(x - l[0], y - l[1]) < l[2]);
+    for (let i = 0; i < n; i++) {
+      let x, y, k = 0; do { x = cx + (rnd() * 2 - 1) * R; y = cy + (rnd() * 2 - 1) * R; } while (!inside(x, y) && ++k < 40);
+      if (k >= 40) continue;
+      const t = i / n, top = 1 - (y - (cy - R)) / (2 * R), L = len * (0.7 + rnd() * 0.6);
+      grey(g, 55 + 175 * (0.25 + 0.75 * t) * (0.75 + 0.25 * top) * (0.85 + 0.3 * rnd()));
+      g.save(); g.translate(x, y); g.rotate(rnd() * 6.283);
+      g.beginPath(); g.ellipse(0, 0, L / 2, L * 0.22, 0, 0, 6.283); g.fill();
+      grey(g, 40 + 60 * t, 0.5); g.lineWidth = 1; g.beginPath(); g.moveTo(-L / 2, 0); g.lineTo(L / 2, 0); g.stroke();
+      g.restore();
+    }
+  }
+  function buildFoliage() {
+    const cv = canvas(FW, FW), g = cv.getContext('2d'), rnd = U.rng(41);
+    g.lineCap = 'round';
+    // broadleaf crowns (two sizes of leaf)
+    { const [x, y, w] = FOL.leaf; leafMass(g, x, y, w, rnd, 22, 2600); }
+    { const [x, y, w] = FOL.leaf2; leafMass(g, x, y, w, rnd, 13, 1300); }
+    // pine needle tufts: bursts of long needles from the tips of twigs
+    { const [X, Y, S] = FOL.tuft, cx = X + S / 2, cy = Y + S / 2;
+      for (let i = 0; i < 16; i++) {
+        const a = rnd() * 6.283, d = Math.sqrt(rnd()) * S * 0.27, tx = cx + Math.cos(a) * d, ty = cy + Math.sin(a) * d * 0.85, r = S * (0.12 + rnd() * 0.07), t = i / 16;
+        grey(g, 45); g.lineWidth = 3; g.beginPath(); g.moveTo(cx + (tx - cx) * 0.4, cy + (ty - cy) * 0.4); g.lineTo(tx, ty); g.stroke();
+        for (let k = 0; k < 90; k++) {
+          const b = rnd() * 6.283, L = r * (0.55 + rnd() * 0.45), bend = (rnd() - 0.5) * 0.4, ex = tx + Math.cos(b) * L, ey = ty + Math.sin(b) * L * 0.9 - L * 0.15;
+          grey(g, (60 + 150 * (0.3 + 0.7 * t)) * (0.8 + 0.35 * rnd()) * (1.05 - 0.25 * (ey - Y) / S)); g.lineWidth = 1.4 + rnd();
+          g.beginPath(); g.moveTo(tx, ty); g.quadraticCurveTo(tx + Math.cos(b + bend) * L * 0.5, ty + Math.sin(b + bend) * L * 0.5, ex, ey); g.stroke();
+        }
+      } }
+    // a fir's branch spray: a twig from the trunk (left) to the tip (right), drooping, side shoots, short needles on all
+    { const [X, Y, W, H] = FOL.spray, twig = (x0, y0, x1, y1, droop, nd, w) => {
+        grey(g, 50); g.lineWidth = w; g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo((x0 + x1) / 2, (y0 + y1) / 2 + droop * 0.4, x1, y1 + droop); g.stroke();
+        for (let k = 0; k < nd; k++) {
+          const t = k / nd, x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t + droop * t * t, L = (14 - 7 * t) * (0.8 + rnd() * 0.4);
+          for (const s of [-1, 1]) {
+            const a = Math.atan2(y1 - y0, x1 - x0) + s * (0.9 + rnd() * 0.4) + 0.25;
+            grey(g, (65 + 140 * rnd()) * (s < 0 ? 1.1 : 0.85)); g.lineWidth = 1.5;
+            g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * L, y + Math.sin(a) * L); g.stroke();
+          }
+        }
+      };
+      twig(X + 4, Y + H * 0.45, X + W - 10, Y + H * 0.5, 34, 120, 4);
+      for (let i = 0; i < 9; i++) {
+        const t = 0.12 + i * 0.09, x = X + 4 + (W - 14) * t, y = Y + H * 0.45 + 34 * t * t, s = i % 2 ? 1 : -1, L = (W * 0.42) * (1 - t * 0.7);
+        twig(x, y, x + L * 0.85, y + s * L * 0.38, 16, 40, 2.5);
+      } }
+    // grass: blades from the bottom, darker at the root, leaning and curling
+    { const [X, Y, W, H] = FOL.grass;
+      for (let i = 0; i < 150; i++) {
+        const bx = X + W / 2 + (rnd() + rnd() + rnd() - 1.5) * W * 0.55, by = Y + H - 1, h = H * (0.35 + rnd() * 0.6), lean = (rnd() - 0.5) * W * 0.32, w = 3 + rnd() * 4;
+        const gr = g.createLinearGradient(0, by, 0, by - h); const v = 140 + rnd() * 80;
+        gr.addColorStop(0, `rgb(${v * 0.35 | 0},${v * 0.35 | 0},${v * 0.33 | 0})`); gr.addColorStop(1, `rgb(${v | 0},${v | 0},${v * 0.92 | 0})`);
+        g.fillStyle = gr; g.beginPath(); g.moveTo(bx - w, by); g.quadraticCurveTo(bx - w * 0.5 + lean * 0.3, by - h * 0.6, bx + lean, by - h);
+        g.quadraticCurveTo(bx + w * 0.5 + lean * 0.3, by - h * 0.6, bx + w, by); g.fill();
+      } }
+    // fern: fronds arching out of the middle of the bottom edge, leaflets on both sides
+    { const [X, Y, S] = FOL.fern;
+      for (let f = 0; f < 6; f++) {
+        const a0 = -Math.PI / 2 + (f / 5 - 0.5) * 1.9, len = S * (0.55 + rnd() * 0.35), bx = X + S / 2, by = Y + S - 2;
+        let px = bx, py = by;
+        for (let k = 1; k <= 22; k++) {
+          const t = k / 22, a = a0 + (a0 + Math.PI / 2) * t * 0.9, x = bx + Math.cos(a) * len * t, y = by + Math.sin(a) * len * t + len * 0.35 * t * t;
+          grey(g, 55); g.lineWidth = 2.2 * (1 - t) + 0.6; g.beginPath(); g.moveTo(px, py); g.lineTo(x, y); g.stroke();
+          const L = len * 0.16 * Math.sin(Math.PI * Math.min(1, t * 1.1));
+          for (const s of [-1, 1]) { grey(g, 90 + 120 * t * (0.8 + 0.4 * rnd())); g.lineWidth = 3.2 * (1 - t * 0.5);
+            g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a + s * 1.25) * L, y + Math.sin(a + s * 1.25) * L); g.stroke(); }
+          px = x; py = y;
+        }
+      } }
+    // bark: grey-brown plates split by dark fissures running up the trunk
+    { const [X, Y, W, H] = FOL.bark, d = g.createImageData(W, H);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const u = x / W, v = y / H, fis = Math.abs(pnoise(u * 9 + pnoise(u * 3, v * 2, 3) * 0.8, v * 3, 9) - 0.5);
+        const plate = pnoise(u * 18, v * 10, 18) * 0.5 + pnoise(u * 40, v * 30, 40) * 0.3;
+        const val = (110 + plate * 120) * (0.35 + 0.65 * Math.min(1, fis * 9)), i = (y * W + x) * 4;
+        d.data[i] = d.data[i + 1] = val; d.data[i + 2] = val * 0.96; d.data[i + 3] = 255;
+      }
+      g.putImageData(d, X, Y); }
+    // into a DataTexture (rows flipped: v = 1 at the canvas's top, like a canvas texture), the transparent pixels coloured
+    const src = g.getImageData(0, 0, FW, FW).data, out = new Uint8Array(FW * FW * 4);
+    for (const k in FOL) {
+      const [X, Y, W, H] = FOL[k]; let s = 0, n = 0;
+      for (let y = Y; y < Y + H; y++) for (let x = X; x < X + W; x++) { const i = (y * FW + x) * 4; if (src[i + 3] > 200) { s += src[i]; n++; } }
+      const m = n ? s / n : 128;
+      for (let y = Y; y < Y + H; y++) for (let x = X; x < X + W; x++) {
+        const i = (y * FW + x) * 4, o = ((FW - 1 - y) * FW + x) * 4, a = src[i + 3];
+        if (a < 128) { out[o] = out[o + 1] = m; out[o + 2] = m * 0.97; } else { out[o] = src[i]; out[o + 1] = src[i + 1]; out[o + 2] = src[i + 2]; }
+        out[o + 3] = a;
+      }
+    }
+    const t = new T.DataTexture(out, FW, FW, T.RGBAFormat);
+    t.encoding = T.sRGBEncoding; t.generateMipmaps = true; t.minFilter = T.LinearMipmapLinearFilter; t.magFilter = T.LinearFilter;
+    t.anisotropy = G.aniso; t.needsUpdate = true;
+    return t;
+  }
+  // terrain: rock (strata and cracks, for the steep faces) and a forest canopy seen from above (crowns, lit on top)
+  function rockTex() {
+    const S = 256, c = canvas(S, S), g = c.getContext('2d'), d = g.createImageData(S, S);
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      const u = x / S, v = y / S, warp = pnoise(u * 4, v * 4, 4) * 2.5 + pnoise(u * 8, v * 2, 8) * 1.5;
+      const strata = 0.5 + 0.5 * Math.sin((v * 7 + warp * 0.35) * 6.283), crack = Math.abs(pnoise(u * 8 + warp, v * 3, 8) - 0.5);
+      const val = (0.6 + 0.16 * strata + 0.3 * (pnoise(u * 32, v * 32, 32) - 0.5) + 0.25 * (pnoise(u * 8, v * 8, 8) - 0.5) + 0.12 * (pnoise(u * 64, v * 64, 64) - 0.5)) * (0.8 + 0.2 * Math.min(1, crack * 10));
+      const i = (y * S + x) * 4; d.data[i] = d.data[i + 1] = d.data[i + 2] = Math.max(0, Math.min(255, val * 245)); d.data[i + 3] = 255;
+    }
+    g.putImageData(d, 0, 0);
+    return tex(c, { repeat: true });
+  }
+  function canopyTex() {
+    const S = 256, c = canvas(S, S), g = c.getContext('2d'), rnd = U.rng(29);
+    g.fillStyle = 'rgb(38,38,36)'; g.fillRect(0, 0, S, S);
+    for (let i = 0; i < 230; i++) {
+      const x = rnd() * S, y = rnd() * S, r = 8 + rnd() * 13, v = 150 + rnd() * 90;
+      for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) {
+        const X = x + ox, Y = y + oy; if (X < -r || X > S + r || Y < -r || Y > S + r) continue;
+        const gr = g.createRadialGradient(X - r * 0.35, Y - r * 0.35, r * 0.1, X, Y, r);
+        gr.addColorStop(0, `rgb(${v | 0},${v | 0},${v * 0.95 | 0})`); gr.addColorStop(0.7, `rgb(${v * 0.55 | 0},${v * 0.55 | 0},${v * 0.52 | 0})`); gr.addColorStop(1, 'rgba(40,40,38,0)');
+        g.fillStyle = gr; g.beginPath(); g.arc(X, Y, r, 0, 6.283); g.fill();
+      }
+    }
+    return tex(c, { repeat: true });
+  }
+  // the terrain's look: the vertex colours (the theme's ground) times detail - grain seen from above on
+  // the flat, rock projected from the side on the steep faces (no stretching down a cliff), forest canopy where the
+  // ground is wooded (attribute aCan, 'canopy' materials). (Each sampled only where it shows: the GPU's time)
+  function terrainShader(m, canopy) {
+    const U0 = { uRock: { value: null }, uCan: { value: null } };
+    m.onBeforeCompile = s => {
+      U0.uRock.value = G.tx.rock; U0.uCan.value = G.tx.canopy;
+      Object.assign(s.uniforms, U0);
+      s.vertexShader = 'varying vec3 vWP; varying vec3 vWN;\n' + (canopy ? 'attribute float aCan; varying float vCan;\n' : '') +
+        s.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz; vWN = normalize(mat3(modelMatrix) * objectNormal);' + (canopy ? ' vCan = aCan;' : ''));
+      s.fragmentShader = 'uniform sampler2D uRock; uniform sampler2D uCan; varying vec3 vWP; varying vec3 vWN;\n' + (canopy ? 'varying float vCan;\n' : '') +
+        s.fragmentShader.replace('#include <map_fragment>', `
+          vec3 wn = normalize(vWN);
+          float det = texture2D(map, vWP.xz / 7.0).r;
+          float stp = smoothstep(0.42, 0.72, 1.0 - wn.y);
+          if (stp > 0.002) {   // (rock only where it is steep: projected from the sides, no stretching down a face)
+            float rk = texture2D(uRock, vec2(abs(wn.x) > abs(wn.z) ? vWP.z : vWP.x, vWP.y * 1.7) / 13.0).r;
+            det = mix(det, rk * 0.92, stp);
+          }
+          ${canopy ? `if (vCan > 0.002) det = mix(det, texture2D(uCan, (vWP.xz + vWP.y * 0.6) / 9.0).r * 1.15, vCan);` : ''}
+          diffuseColor.rgb *= det;`);
+    };
+    m.customProgramCacheKey = () => 'terrain' + (canopy ? 'C' : '');
+    return m;
+  }
+  // the foliage material: the atlas, alpha-tested (more opaque in the smaller mipmaps, or far trees would thin out),
+  // stirring in the wind. Lit per vertex by the sky and the sun only (leafLight, set by the world from its lights): the
+  // cards' normals are bent out of their crown, smooth over it, so per-pixel light would look the same - and the leaves
+  // are the most drawn pixels on a wooded stage (the full lighting with its shadow lookups halved the frame rate)
+  const leafTime = { value: 0 };
+  const leafLight = { uSunDir: { value: new T.Vector3(0, 1, 0) }, uSunCol: { value: new T.Color(1, 1, 1) }, uSky: { value: new T.Color(0.6, 0.6, 0.6) }, uGround: { value: new T.Color(0.3, 0.3, 0.3) } };
+  const LEAF_VS = `uniform float uLeafT; uniform vec3 uSunDir; uniform vec3 uSunCol; uniform vec3 uSky; uniform vec3 uGround;
+    varying vec2 vUv; varying vec3 vCol;
+    #include <fog_pars_vertex>
+    void main() {
+      vUv = uv;
+      vec4 wp = modelMatrix * vec4(position, 1.0);
+      float sway = sin(uLeafT * 1.7 + wp.x * 0.31 + wp.z * 0.23) + 0.5 * sin(uLeafT * 3.1 + wp.y * 0.9 + wp.x * 0.5);
+      wp.x += sway * 0.035; wp.z += sway * 0.025;
+      vec3 n = normalize(mat3(modelMatrix) * normal);
+      // sky from above, bounce from below, the sun wrapped a little round the crown (leaves let light through)
+      vec3 light = mix(uGround, uSky, n.y * 0.5 + 0.5) + uSunCol * max(0.0, dot(n, uSunDir) * 0.8 + 0.2);
+      vCol = color * light;
+      vec4 mvPosition = viewMatrix * wp;
+      gl_Position = projectionMatrix * mvPosition;
+      #include <fog_vertex>
+    }`;
+  const LEAF_FS = `uniform sampler2D map; varying vec2 vUv; varying vec3 vCol;
+    #include <fog_pars_fragment>
+    void main() {
+      vec4 t = texture2D(map, vUv);
+      vec2 tuv = vUv * ${FW}.0; float lod = max(0.0, 0.5 * log2(max(dot(dFdx(tuv), dFdx(tuv)), dot(dFdy(tuv), dFdy(tuv)))));
+      if (t.a * (1.0 + lod * 0.3) < 0.5) discard;
+      gl_FragColor = vec4(t.rgb * vCol, 1.0);
+      #include <tonemapping_fragment>
+      #include <encodings_fragment>
+      #include <fog_fragment>
+    }`;
+  function leafMat(map) {
+    const u = T.UniformsUtils.merge([T.UniformsLib.fog]);
+    Object.assign(u, leafLight, { uLeafT: leafTime, map: { value: map } });
+    return new T.ShaderMaterial({ uniforms: u, vertexShader: LEAF_VS, fragmentShader: LEAF_FS, vertexColors: true, fog: true, side: T.DoubleSide,
+      extensions: { derivatives: true } });
+  }
   function roadTex(theme, look, hw = 5) {   // hw: half width of the road (m); the texture spans it, lines keep their width
     const c = canvas(512, 1024), g = c.getContext('2d'), rnd = U.rng(11), PX = 512 / (2 * hw), k = PX / 51.2;
     g.fillStyle = look.asphalt; g.fillRect(0, 0, 512, 1024);
@@ -494,19 +698,22 @@ const G3 = (() => {
   // ---------------- shared materials ----------------
   const G = {
     T, lin, mix, mul, smooth, hash, vnoise, fbm, Mesher, Bag, geo, canvas, tex, uvRect, CELL, FAC_FLOORS, SANS, fitText,
-    roadTex, circuitTex, adStrip, radialTex, aniso: 4, mats: null, tx: null,
+    roadTex, circuitTex, adStrip, radialTex, folRect, leafTime, leafLight, aniso: 4, mats: null, tx: null,
     init(renderer) {
       this.aniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
       const atlas = buildAtlas();
       this.tx = { atlas, detail: detailTex(), glow: radialTex('rgba(255,255,255,1)', 'rgba(255,255,255,0.35)'),
         pool: radialTex('rgba(255,220,150,0.9)', 'rgba(255,200,120,0.4)'), cloud: cloudTex(), water: waterNormals(),
-        tower: towerTex(false), towerE: towerTex(true) };
+        tower: towerTex(false), towerE: towerTex(true), foliage: buildFoliage(), rock: rockTex(), canopy: canopyTex() };
       this.tx.water.repeat.set(1, 1);
       const S = T.MeshStandardMaterial, L = T.MeshLambertMaterial;
       this.mats = {
         lam: new L({ vertexColors: true, map: atlas.map }),                                     // props, clothes, tyres
         lamNight: new L({ vertexColors: true, map: atlas.map, emissive: 0xffffff, emissiveMap: atlas.emis }),
-        terrain: new L({ vertexColors: true, map: this.tx.detail }),
+        terrain: terrainShader(new L({ vertexColors: true, map: this.tx.detail }), false),
+        terrainCan: terrainShader(new L({ vertexColors: true, map: this.tx.detail }), true),   // (the streamed tiles: with canopy)
+        leaf: leafMat(this.tx.foliage),
+        leafDepth: new T.MeshDepthMaterial({ depthPacking: T.RGBADepthPacking, map: this.tx.foliage, alphaTest: 0.5, side: T.DoubleSide }),
         paint: new S({ vertexColors: true, roughness: 0.32, metalness: 0.25 }),
         carPaint: new S({ vertexColors: true, roughness: 0.26, metalness: 0.3 }),            // glossy car paint
         chrome: new S({ vertexColors: true, roughness: 0.2, metalness: 1.0 }),

@@ -125,6 +125,8 @@ const World = (() => {
         if (o < 0) c = G3.mix(c, n > 0.55 ? P.grass : P.grass2, smooth(0.42, 0.62, n));
         return c;
       },
+      can(h, sl, o, x, z) { return o > 0 || h < 3 ? 0 : smooth(60, 140, -o) * (1 - smooth(0.5, 0.7, sl)) * smooth(0.4, 0.55, fbm(x / 80, z / 80)); },
+      canCol: [C('#4c7a36'), C('#3a6630')],
     },
     forest: {
       h(o, ry, x, z, W) {
@@ -140,6 +142,9 @@ const World = (() => {
         c = G3.mix(c, P.rock, smooth(0.6, 0.85, sl));
         return G3.mul(c, 0.92 + n2 * 0.16);
       },
+      // wooded nearly everywhere off the verge, but for clearings and the steepest faces
+      can(h, sl, o, x, z) { return smooth(14, 34, Math.abs(o)) * (1 - smooth(0.62, 0.86, sl)) * smooth(0.26, 0.4, fbm(x / 70, z / 70)); },
+      canCol: [C('#3a6630'), C('#2a5028')],
     },
     pass: {
       h(o, ry, x, z) {
@@ -161,6 +166,9 @@ const World = (() => {
         const rock = G3.mul(G3.mix(P.rock, P.rock2, vnoise(x / 7, h / 3)), strata);
         return G3.mix(c, rock, smooth(o < 0 ? 0.22 : 0.4, o < 0 ? 0.45 : 0.7, sl));
       },
+      // patches of scrub forest on the gentler ground further from the road (the steep faces stay rock and grass)
+      can(h, sl, o, x, z) { return h < 2 ? 0 : smooth(24, 70, Math.abs(o)) * (1 - smooth(0.4, 0.6, sl)) * smooth(0.44, 0.58, fbm(x / 90 + 3, z / 90)); },
+      canCol: [C('#4a6c36'), C('#38582e')],
     },
     city: {
       h(o, ry) { return Math.abs(o) < 9.8 ? ry - 0.6 : ry + 0.12; },
@@ -187,7 +195,8 @@ const World = (() => {
   const widen = (T0, w0) => {
     const at = (o, W) => { const e = Math.max(0, W.wallM - w0); return Math.sign(o) * Math.max(0, Math.abs(o) - e); };
     const nw = W => W._nw || (W._nw = Object.create(W, { wallM: { value: Math.min(W.wallM, w0) } }));
-    return { h: (o, ry, x, z, W) => T0.h(at(o, W), ry, x, z, nw(W)), c: (h, sl, o, x, z, i, W) => T0.c(h, sl, at(o, W), x, z, i, nw(W)) };
+    return { h: (o, ry, x, z, W) => T0.h(at(o, W), ry, x, z, nw(W)), c: (h, sl, o, x, z, i, W) => T0.c(h, sl, at(o, W), x, z, i, nw(W)),
+      can: T0.can && ((h, sl, o, x, z, W) => T0.can(h, sl, at(o, W), x, z, nw(W))), canCol: T0.canCol };
   };
   // rice terraces: the gentler slopes beside the road banded gold and green by height, like the steps of the fields
   const RICE = [C('#c8a63c'), C('#a8a83e'), C('#7e9636')];
@@ -196,7 +205,8 @@ const World = (() => {
     const band = 0.5 + 0.5 * Math.sin(h * 2.4 + fbm(x / 40, z / 40) * 3), ripe = fbm(x / 120, z / 120);
     const rice = G3.mix(G3.mix(RICE[2], RICE[1], band), RICE[0], smooth(0.35, 0.65, ripe) * band);
     return G3.mix(c, rice, flat * off * 0.85);
-  } });
+  }, can(h, sl, o, x, z, W) { return T0.can(h, sl, o, x, z, W) * (1 - (1 - smooth(0.32, 0.62, sl)) * smooth(9, 16, Math.abs(o)) * 0.9); }, canCol: T0.canCol });
+  TERRAIN.gpHills.can = (h, sl, o) => smooth(60, 110, Math.abs(o)) * (1 - smooth(0.6, 0.8, sl)); TERRAIN.gpHills.canCol = TERRAIN.forest.canCol;
   TERRAIN.dMaPiLeng = widen(TERRAIN.pass, 7.25); TERRAIN.dOQuyHo = widen(TERRAIN.forest, 7.25); TERRAIN.dArena = widen(TERRAIN.dArena, 11.5);
   TERRAIN.dHaiVan = widen(TERRAIN.pass, 7.25); TERRAIN.dPhaDin = widen(TERRAIN.pass, 7.25);
   TERRAIN.dKhauPha = widen(terraces(TERRAIN.forest), 7.25); TERRAIN.dKhanhLe = widen(TERRAIN.forest, 7.25);
@@ -524,18 +534,43 @@ const World = (() => {
       this.scene.add(g);
       // distant ridge rings (follow the camera so they sit at the horizon)
       this.ringG = new T.Group();
-      for (const rg of L.rings) this.ringG.add(this.ring(rg));
+      L.rings.forEach((rg, i) => this.ringG.add(this.ring(rg, i ? 0.08 : 0.2)));
+      if (L.rings.length > 1) {   // a nearer, lower, darker range in front: the country gets depth
+        const q = L.rings[L.rings.length - 1], c = G3.mix(lin(q.col), lin('#34503a'), 0.3);
+        this.ringG.add(this.ring({ r: q.r - 380, h: q.h * 0.5, f: q.f * 1.6, cut: Math.min(0.6, q.cut + 0.08), seed: q.seed + 50, c }, 0.02));
+      }
       if (this.night) this.ringG.add(this.skyline());
       this.scene.add(this.ringG);
     }
-    ring(o) {
-      const K = 256, pos = [], col = [], idx = [], fogC = lin(this.L.fog[0]), cc = lin(o.col), y0 = Math.min(this.base, 0) - 60;
+    // a ring of distant mountains round the camera. The profile is ridged (sharp crests; karst towers where it is
+    // busy). Every column is lit by the sun as the face there slopes - up from the valley, and sideways along the range
+    // - so a peak has a sunny side and a shaded one; gullies streak the slopes, the lower slopes are darker (forest) and
+    // the tops paler (rock), and the air between fades the lower slopes into the haze of the horizon (haze: the tops' share)
+    ring(o, haze) {
+      const K = 720, F = [0, 0.18, 0.38, 0.58, 0.78, 0.92, 1], L = this.L, fogC = lin(L.fog[0]), hz = G3.mix(fogC, lin(L.sky[2]), 0.4);
+      const cc = o.c || lin(o.col), rock = G3.mix(cc, lin('#c8c2b4'), 0.18), wood = G3.mul(G3.mix(cc, lin('#2e4a30'), 0.25), 0.8);
+      const sun = this.sunDir, warm = lin(L.sunCol), y0 = Math.min(this.base, 0) - 60, base = Math.max(0, this.mean * 0.3), ds = 2 * Math.PI * o.r / K;
+      const H = new Float32Array(K + 1);
       for (let k = 0; k <= K; k++) {
-        const a = k / K * Math.PI * 2, n = fbm(Math.cos(a) * o.f + o.seed * 13, Math.sin(a) * o.f + o.seed * 7, 5);
-        const hh = o.h * Math.max(0, (n - o.cut) / (1 - o.cut)) * 1.6, x = Math.sin(a) * o.r, z = Math.cos(a) * o.r, sh = 0.8 + 0.4 * vnoise(a * 40, o.seed);
-        pos.push(x, y0, z, x, Math.max(0, this.mean * 0.3) + hh * 0.35, z, x, Math.max(0, this.mean * 0.3) + hh, z);
-        col.push(...fogC, ...G3.mix(cc, fogC, 0.45), ...G3.mul(G3.mix(cc, fogC, 0.12), sh));
-        if (k < K) { const b = k * 3; idx.push(b, b + 3, b + 1, b + 1, b + 3, b + 4, b + 1, b + 4, b + 2, b + 2, b + 4, b + 5); }
+        const a = k / K * Math.PI * 2, cx = Math.cos(a) * o.f + o.seed * 13, cy = Math.sin(a) * o.f + o.seed * 7;
+        const n = fbm(cx, cy, 5), r = 1 - Math.abs(2 * fbm(cx * 1.9 + 5, cy * 1.9 - 3, 4) - 1);
+        H[k] = o.h * Math.max(0, (n + 0.22 * (r * r - 0.45) - o.cut) / (1 - o.cut)) * 1.6;
+      }
+      const pos = [], col = [], idx = [], R = F.length + 1, nv = new T.Vector3();
+      for (let k = 0; k <= K; k++) {
+        const a = k / K * Math.PI * 2, sa = Math.sin(a), ca = Math.cos(a), x = sa * o.r, z = ca * o.r, hh = H[k];
+        const st = (H[Math.min(K, k + 1)] - H[Math.max(0, k - 1)]) / (2 * ds);   // (the slope along the range)
+        const gully = 0.82 + 0.36 * vnoise(k * 0.55 + o.seed * 3, 0.5), sh = 0.92 + 0.16 * vnoise(k * 0.13, o.seed);
+        pos.push(x, y0, z); col.push(...hz);
+        for (const f of F) {
+          nv.set(-sa + ca * -st * 3, 0.45 + 0.7 * f, -ca + -sa * -st * 3).normalize();
+          const lit = Math.max(0, nv.dot(sun)), light = 0.5 + 0.85 * lit;
+          let c = G3.mix(wood, rock, smooth(0.45, 0.95, f)), g = f < 0.98 ? gully * (0.85 + 0.3 * vnoise(k * 0.21, f * 4 + o.seed)) : 1;
+          c = [c[0] * light * g * sh * (0.75 + 0.35 * warm[0] * lit), c[1] * light * g * sh * (0.75 + 0.35 * warm[1] * lit), c[2] * light * g * sh * (0.8 + 0.3 * warm[2] * lit)];
+          c = G3.mix(c, hz, Math.min(1, haze + Math.pow(1 - f, 1.6) * 0.55));
+          pos.push(x, base + hh * f, z); col.push(...c);
+        }
+        if (k < K) for (let j = 0; j < R - 1; j++) { const b = k * R + j; idx.push(b, b + R, b + 1, b + 1, b + R, b + R + 1); }
       }
       const g = this.own(new T.BufferGeometry());
       g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new T.Float32BufferAttribute(col, 3)); g.setIndex(idx);
@@ -570,6 +605,10 @@ const World = (() => {
       sc.add(sun); sc.add(sun.target);
       this.head = new T.SpotLight('#fff0d0', this.night ? 2.6 : 0, 75, 0.42, 0.5, 1.2); sc.add(this.head); sc.add(this.head.target);
       this.siren = new T.PointLight('#2050ff', 0, 32, 1.5); sc.add(this.siren);
+      // (the leaves light themselves per vertex: the sun and the sky of this stage, as these lights give them)
+      const LL = G3.leafLight;
+      LL.uSunDir.value.copy(this.sunDir); LL.uSunCol.value.set(L.sunCol).multiplyScalar(L.sunI * 0.9);
+      LL.uSky.value.set(L.hemi[0]).multiplyScalar(L.hemi[2]); LL.uGround.value.set(L.hemi[1]).multiplyScalar(L.hemi[2]);
     }
     buildEnv() {
       const pm = new T.PMREMGenerator(R), es = new T.Scene();
@@ -799,14 +838,21 @@ const World = (() => {
       }
       // grid vertices followed by a skirt (copy of the border pushed 4 m down) that hides LOD cracks
       const n = NV * NV, tot = n + 4 * NV, pos = new Float32Array(tot * 3), nor = new Float32Array(tot * 3), col = new Float32Array(tot * 3), uv = new Float32Array(tot * 2);
+      const can = this.terr.can, cc = this.terr.canCol, ca = can ? new Float32Array(tot) : null;
       for (let gz = 0; gz < NV; gz++) for (let gx = 0; gx < NV; gx++) {
         const k = gz * NV + gx, e = (gz + 1) * E + gx + 1, x = x0 + gx * RS, z = z0 + gz * RS, h = hs[e];
         let nx = (hs[e - 1] - hs[e + 1]) / (2 * RS), nz = (hs[e - E] - hs[e + E]) / (2 * RS), ny = 1;
         const l = Math.hypot(nx, ny, nz); nx /= l; ny /= l; nz /= l;
         pos[k * 3] = x; pos[k * 3 + 1] = h; pos[k * 3 + 2] = z;
         nor[k * 3] = nx; nor[k * 3 + 1] = ny; nor[k * 3 + 2] = nz;
-        const c = this.terr.c(h, 1 - ny, os[e], x, z, is[e], this);
-        col[k * 3] = c[0]; col[k * 3 + 1] = c[1]; col[k * 3 + 2] = c[2];
+        let c = this.terr.c(h, 1 - ny, os[e], x, z, is[e], this);
+        if (can) {   // (wooded ground: the canopy's greens, its crowns drawn by the material)
+          const w = U.clamp(can(h, 1 - ny, os[e], x, z, this), 0, 1);
+          if (w > 0) c = G3.mix(c, G3.mix(cc[0], cc[1], vnoise(x / 23, z / 23)), w);
+          ca[k] = w;
+        }
+        const mac = 0.86 + 0.28 * fbm(x / 400 + 7, z / 400, 2);   // (a slow variation over hundreds of metres: no two hills alike)
+        col[k * 3] = c[0] * mac; col[k * 3 + 1] = c[1] * mac; col[k * 3 + 2] = c[2] * mac;
         uv[k * 2] = x / 7; uv[k * 2 + 1] = z / 7;
       }
       const edges = LODS[lod].edges;
@@ -814,12 +860,14 @@ const World = (() => {
         const s = edges[e][k], d = n + e * NV + k;
         pos.copyWithin(d * 3, s * 3, s * 3 + 3); pos[d * 3 + 1] -= 4;
         nor.copyWithin(d * 3, s * 3, s * 3 + 3); col.copyWithin(d * 3, s * 3, s * 3 + 3); uv.copyWithin(d * 2, s * 2, s * 2 + 2);
+        if (ca) ca[d] = ca[s];
       }
       const g = new T.BufferGeometry();
       g.setAttribute('position', new T.BufferAttribute(pos, 3)); g.setAttribute('normal', new T.BufferAttribute(nor, 3));
       g.setAttribute('color', new T.BufferAttribute(col, 3)); g.setAttribute('uv', new T.BufferAttribute(uv, 2));
+      if (ca) g.setAttribute('aCan', new T.BufferAttribute(ca, 1));
       g.setIndex(LODS[lod].index); g.computeBoundingSphere();
-      const m = new T.Mesh(g, G3.mats.terrain); m.receiveShadow = true;
+      const m = new T.Mesh(g, ca ? G3.mats.terrainCan : G3.mats.terrain); m.receiveShadow = true;
       this.scene.add(m);
       return { mesh: m, lod };
     }
@@ -836,8 +884,9 @@ const World = (() => {
       for (const [b, cast] of [[bag, true], [far, false]]) {
         const geos = b.geos();
         for (const k in geos) {
-          const m = new T.Mesh(geos[k], night ? G3.mats.lamNight : G3.mats.lam);
-          m.castShadow = cast; m.receiveShadow = true; grp.add(m);
+          const leaf = k === 'leaf', m = new T.Mesh(geos[k], leaf ? G3.mats.leaf : night ? G3.mats.lamNight : G3.mats.lam);
+          m.castShadow = cast; m.receiveShadow = cast || !leaf; grp.add(m);   // (the far trees' leaves are beyond the shadows anyway)
+          if (leaf) m.customDepthMaterial = G3.mats.leafDepth;   // (shadows with the leaves' gaps)
         }
       }
       const tg = ex.towers.geos();
@@ -921,13 +970,19 @@ const World = (() => {
         if (o.maxH !== undefined && y > o.maxH) return;
         const k = 0.85 + rnd() * 0.3, yaw = o.face ? p.h + (side > 0 ? Math.PI / 2 : -Math.PI / 2) : rnd() * Math.PI * 2;
         if (o.water) { const qy = this.heightAt(_q, p.x, p.z); if (qy > -1.2) return; }
-        bag.put(Models.proto(name, v), M4(p.x, y - (o.sink || 0.2), p.z, 0, yaw, 0, o.face ? 1 : (o.scale || 1) * (0.8 + rnd() * 0.45)), o.face ? null : [k, k * (0.95 + rnd() * 0.1), k]);
+        // (40 m or more from the road: the trees' far versions - fewer, bigger leaf cards)
+        const nm = d > 40 && (name === 'pine' || name === 'tree') ? name + 'Lo' : name;
+        bag.put(Models.proto(nm, v), M4(p.x, y - (o.sink || 0.2), p.z, 0, yaw, 0, o.face ? 1 : (o.scale || 1) * (0.8 + rnd() * 0.45)), o.face ? null : [k, k * (0.95 + rnd() * 0.1), k]);
       };
+      // (ground cover first: grass tufts and ferns in the verge and under the trees - small, many, close to the road)
+      const cover = (n, dmax, fern, o = {}) => { for (let i = 0; i < n; i++) put(fern && i % 3 === 0 ? 'fern' : 'grass', i % 3, 9, dmax, 0, Object.assign({ pow: 2.2, clear: 9, sink: 0.05, scale: 1.2 }, o)); };
       if (th === 'forest') {
+        cover(90, 45, true);
         for (let i = 0; i < 120; i++) put('pine', i % 3, 13, 250, 0, { pow: 1.7 });
-        for (let i = 0; i < 22; i++) put('tree', i % 3, 13, 200);
-        for (let i = 0; i < 10; i++) put('bush', 1 + (i % 2), 10, 40, 0, { clear: 9 });
+        for (let i = 0; i < 26; i++) put('tree', i % 3, 13, 200);
+        for (let i = 0; i < 14; i++) put(i % 2 ? 'bush' : 'shrub', 1 + (i % 2), 10, 40, 0, { clear: 9 });
       } else if (th === 'coast') {
+        cover(30, 40, false, { minH: 2.5 });
         for (let i = 0; i < 20; i++) put('palm', i % 4, 13, 140, -1, { pow: 1.8 });
         for (let i = 0; i < 8; i++) put('palm', i % 4, 13, 70, 1, { minH: 1.8 });
         for (let i = 0; i < 10; i++) put('shrub', i % 3, 12, 160, -1);
@@ -935,6 +990,8 @@ const World = (() => {
         for (let i = 0; i < 4; i++) put('basket', i % 3, 50, 110, 1, { minH: 0.25, maxH: 1.6, sink: 0.25, scale: 1 });
         for (let i = 0; i < 2; i++) put('boat', i % 3, 95, 330, 1, { water: true, sink: 0.25, scale: 1.3 });
       } else if (th === 'pass') {
+        cover(80, 40, false, { minH: 1.5 });
+        for (let i = 0; i < 18; i++) put('shrub', i % 3, 10, 90, 0, { clear: 9, minH: 2 });
         for (let i = 0; i < 26; i++) put(i % 3 ? 'tree' : 'shrub', i % 3, 12, 150, 1, { minH: 2 });
         for (let i = 0; i < 16; i++) put(i % 2 ? 'pine' : 'tree', i % 3, 28, 180, -1);
         for (let i = 0; i < 4; i++) put('rock', i % 2, 14, 80, 1, { minH: 1 });
@@ -943,6 +1000,7 @@ const World = (() => {
         for (let i = 0; i < 6; i++) put('shrub', i % 3, 44, 140, 0, { clear: 42, minH: 1.9 });
         for (let i = 0; i < 2; i++) put('boat', i % 3, 200, 420, 0, { water: true, sink: 0.25, scale: 1.3, clear: 150 });
       } else if (th === 'gpHills') {
+        cover(40, 90, true, { clear: 44 });
         for (let i = 0; i < 70; i++) put(i % 4 ? 'pine' : 'tree', i % 3, 46, 260, 0, { pow: 1.4, clear: 44 });
         for (let i = 0; i < 4; i++) put('rock', i % 2, 46, 120, 0, { clear: 44 });
       } else if (th === 'gpNight') {
@@ -1365,7 +1423,7 @@ const World = (() => {
       g.attributes.position.needsUpdate = true; g.attributes.color.needsUpdate = true;
     }
     update(race, dt) {
-      this.time += dt;
+      this.time += dt; G3.leafTime.value = this.time;
       if (race.drift) { this.updateDrift(race, dt); return; }
       this.updateCam(race, dt);
       this.stream(false);
